@@ -61,6 +61,14 @@ export function ChatLayout() {
       // needs to re-fetch to include the just-persisted assistant message
       // for the next visit.
       void utils.conversations.get.invalidate({ id: chatId });
+
+      // Fallback re-invalidation: AI-generated titles run in parallel with
+      // streaming on the server. They usually finish first, but if the
+      // assistant is very fast, the title may still be writing when the
+      // first invalidate above fires. Re-invalidating 2s later picks it up.
+      setTimeout(() => {
+        void utils.conversations.list.invalidate();
+      }, 2000);
     },
   });
 

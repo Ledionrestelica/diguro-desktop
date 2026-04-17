@@ -50,12 +50,25 @@ export const FilePart = z.object({
 });
 export type FilePart = z.infer<typeof FilePart>;
 
+/**
+ * External source URL surfaced by provider tools (e.g. OpenAI web_search).
+ * Persisted alongside assistant text so sources are visible on reload.
+ */
+export const SourceUrlPart = z.object({
+  type: z.literal('source-url'),
+  sourceId: z.string(),
+  url: z.string().min(1),
+  title: z.string().optional(),
+});
+export type SourceUrlPart = z.infer<typeof SourceUrlPart>;
+
 export const MessagePart = z.discriminatedUnion('type', [
   TextPart,
   ReasoningPart,
   ToolCallPart,
   CitationRef,
   FilePart,
+  SourceUrlPart,
 ]);
 export type MessagePart = z.infer<typeof MessagePart>;
 

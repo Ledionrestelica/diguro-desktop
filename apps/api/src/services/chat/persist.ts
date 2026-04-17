@@ -13,16 +13,23 @@ export interface UpsertConversationInput {
   firstUserText: string | undefined;
 }
 
+export interface UpsertConversationResult {
+  /** True when the conversation row was just created; false when it already existed. */
+  isNew: boolean;
+}
+
 /**
  * Create the conversation row if it doesn't exist yet. Idempotent — subsequent
- * messages in the same conversation reuse it via onConflictDoNothing.
+ * messages in the same conversation reuse it via onConflictDoNothing. Returns
+ * whether the row was freshly inserted, so callers can trigger one-time side
+ * effects (e.g. AI title generation) only on first creation.
  */
 export async function upsertConversation(
   deps: { db: Db },
   input: UpsertConversationInput,
-): Promise<void> {
+): Promise<UpsertConversationResult> {
   const title = deriveTitle(input.firstUserText);
-  await deps.db
+  const inserted = await deps.db
     .insert(schema.conversations)
     .values({
       id: input.conversationId,
@@ -31,7 +38,9 @@ export async function upsertConversation(
       title,
       modelId: input.modelId,
     })
-    .onConflictDoNothing({ target: schema.conversations.id });
+    .onConflictDoNothing({ target: schema.conversations.id })
+    .returning({ id: schema.conversations.id });
+  return { isNew: inserted.length > 0 };
 }
 
 export interface PersistUserMessageInput {
@@ -125,6 +134,7 @@ function ensureId(id: string | undefined): string {
 function toPersistableParts(parts: unknown): PersistablePart[] {
   if (!Array.isArray(parts)) return [];
   const out: PersistablePart[] = [];
+  const seenSourceUrls = new Set<string>();
   for (const raw of parts) {
     if (!raw || typeof raw !== 'object') continue;
     const type = (raw as { type?: unknown }).type;
@@ -132,13 +142,33 @@ function toPersistableParts(parts: unknown): PersistablePart[] {
       type !== 'text' &&
       type !== 'file' &&
       type !== 'tool-call' &&
-      type !== 'citation'
+      type !== 'citation' &&
+      type !== 'source-url'
     ) {
       continue;
     }
     if (type === 'text') {
       const text = (raw as { text?: unknown }).text;
       if (typeof text !== 'string' || text.length === 0) continue;
+    }
+    if (type === 'source-url') {
+      // AI-SDK may emit provider-metadata fields on source parts. Strip
+      // unknown keys and drop duplicate URLs (search tools repeat sources).
+      const sourceId = (raw as { sourceId?: unknown }).sourceId;
+      const url = (raw as { url?: unknown }).url;
+      const title = (raw as { title?: unknown }).title;
+      if (typeof url !== 'string' || url.length === 0) continue;
+      if (seenSourceUrls.has(url)) continue;
+      seenSourceUrls.add(url);
+      const clean = {
+        type: 'source-url' as const,
+        sourceId: typeof sourceId === 'string' ? sourceId : url,
+        url,
+        ...(typeof title === 'string' && title.length > 0 ? { title } : {}),
+      };
+      const parsed = MessagePart.safeParse(clean);
+      if (parsed.success) out.push(parsed.data);
+      continue;
     }
     const parsed = MessagePart.safeParse(raw);
     if (parsed.success) out.push(parsed.data);

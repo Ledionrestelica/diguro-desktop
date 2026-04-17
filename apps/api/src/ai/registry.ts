@@ -1,7 +1,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
-import type { LanguageModel } from 'ai';
+import type { LanguageModel, ToolSet } from 'ai';
 import type { Config } from '../config.ts';
 import { ModelNotAllowed } from '@diguro/shared/errors';
 
@@ -19,18 +19,34 @@ type Provider = (typeof SUPPORTED_PROVIDERS)[number];
 
 export interface ModelRegistry {
   resolve(modelId: string): LanguageModel;
+  /**
+   * Return the set of native tools (provider-side, billed by the provider)
+   * enabled for this model. Empty when the model's provider doesn't support
+   * the tools we've opted in to.
+   */
+  nativeTools(modelId: string, opts?: NativeToolOptions): ToolSet | undefined;
+}
+
+export interface NativeToolOptions {
+  /** Toggle built-in web search. Tightly bounded to keep cost low. */
+  webSearch?: boolean;
 }
 
 export function createModelRegistry(config: Config): ModelRegistry {
   const providers: Partial<Record<Provider, (model: string) => LanguageModel>> = {};
+  let openaiInstance: ReturnType<typeof createOpenAI> | undefined;
 
   if (config.ANTHROPIC_API_KEY) {
     const anthropic = createAnthropic({ apiKey: config.ANTHROPIC_API_KEY });
     providers.anthropic = (m) => anthropic(m);
   }
   if (config.OPENAI_API_KEY) {
-    const openai = createOpenAI({ apiKey: config.OPENAI_API_KEY });
-    providers.openai = (m) => openai(m);
+    openaiInstance = createOpenAI({ apiKey: config.OPENAI_API_KEY });
+    const openai = openaiInstance;
+    // Force Responses API — webSearchPreview only works through /v1/responses,
+    // not /v1/chat/completions. Default .languageModel() already routes there
+    // for gpt-5-*, but calling .responses() makes the contract explicit.
+    providers.openai = (m) => openai.responses(m);
   }
   if (config.GOOGLE_AI_API_KEY) {
     const google = createGoogleGenerativeAI({ apiKey: config.GOOGLE_AI_API_KEY });
@@ -54,6 +70,22 @@ export function createModelRegistry(config: Config): ModelRegistry {
         );
       }
       return factory(model);
+    },
+
+    nativeTools(modelId, opts): ToolSet | undefined {
+      if (!opts?.webSearch) return undefined;
+      const [providerName] = modelId.split('/');
+      if (providerName === 'openai' && openaiInstance) {
+        // Low context size => fewer snippet tokens pulled into the prompt.
+        // gpt-5-mini uses the Responses API, so webSearchPreview applies.
+        return {
+          web_search: openaiInstance.tools.webSearchPreview({
+            searchContextSize: 'low',
+          }),
+        };
+      }
+      // Anthropic / Google web-search hookups can be added here later.
+      return undefined;
     },
   };
 }

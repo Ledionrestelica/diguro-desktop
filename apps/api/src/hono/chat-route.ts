@@ -13,6 +13,7 @@ import {
   upsertConversation,
 } from '../services/chat/persist.ts';
 import { resolveAttachmentUrlsInParts } from '../services/chat/attachments.ts';
+import { generateAndApplyConversationTitle } from '../services/chat/generate-title.ts';
 import { mapDomainError } from '../trpc/error-mapper.ts';
 import { Unauthorized } from '@diguro/shared/errors';
 import type { Logger } from '../lib/logger.ts';
@@ -26,6 +27,28 @@ const ChatRequestSchema = z.object({
   messageId: z.string().optional(),
   modelId: z.string().optional(),
 });
+
+/**
+ * System prompt kept strict about tool usage to bound cost. Provider-native
+ * web_search is billed per call with per-token snippet overhead — rule of
+ * thumb is ~1-2k input tokens added per search at searchContextSize=low.
+ */
+const CHAT_SYSTEM_PROMPT = [
+  'You are Diguro, a helpful assistant. Be concise.',
+  '',
+  'Web search (`web_search`) is available but expensive. Use it ONLY when:',
+  '- The user explicitly asks you to look something up, OR',
+  '- The answer depends on events, prices, releases, or facts that likely changed after your training, OR',
+  '- You genuinely do not know and guessing would mislead the user.',
+  '',
+  'Do NOT search for:',
+  '- General knowledge you already have (definitions, explanations, well-known facts).',
+  '- Coding questions, math, reasoning tasks, creative writing.',
+  '- Anything the user\'s own uploaded files or prior messages already cover.',
+  '',
+  'When you do search: run at most one query, keep it focused, then answer.',
+  'Cite sources naturally (the system attaches the URLs automatically).',
+].join('\n');
 
 interface Deps {
   auth: Auth;
@@ -66,16 +89,26 @@ export function handleChat(deps: Deps) {
     const messages = parsed.data.messages as UIMessage[];
 
     try {
-      await upsertConversation(
+      const firstUserText = extractFirstUserText(messages);
+      const upsertResult = await upsertConversation(
         { db: deps.db },
         {
           conversationId,
           userId: session.user.id,
           organizationId: null,
           modelId,
-          firstUserText: extractFirstUserText(messages),
+          firstUserText,
         },
       );
+
+      // On first creation only, fire-and-forget AI-generated title.
+      // Runs in parallel with streaming — doesn't block first-token latency.
+      if (upsertResult.isNew && firstUserText) {
+        void generateAndApplyConversationTitle(
+          { registry: deps.registry, db: deps.db, logger: deps.logger },
+          { conversationId, firstUserText },
+        );
+      }
 
       const newestUser = lastMessage(messages);
       if (newestUser && newestUser.role === 'user') {
@@ -93,13 +126,22 @@ export function handleChat(deps: Deps) {
         messages,
       );
 
+      const tools = deps.registry.nativeTools(modelId, { webSearch: true });
+
+      deps.logger.info('chat request tools', {
+        conversationId,
+        modelId,
+        toolsAttached: tools ? Object.keys(tools) : [],
+      });
+
       const result = await streamReply(
         { registry: deps.registry },
         {
           modelId,
           messages: resolvedMessages,
-          systemPrompt:
-            'You are Diguro, a helpful assistant. Be concise and cite sources when available.',
+          systemPrompt: CHAT_SYSTEM_PROMPT,
+          ...(tools ? { tools } : {}),
+          maxSteps: 2,
         },
       );
 
