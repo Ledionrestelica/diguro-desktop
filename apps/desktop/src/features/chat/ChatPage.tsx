@@ -1,19 +1,39 @@
 import { ArrowDown } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
-import type { UIMessage } from 'ai';
 import { cn } from '@/lib/utils';
-import { Composer } from './Composer';
+import { Composer, type ReadyAttachment } from './Composer';
 import { Message } from './Message';
 import type { ChatOutletContext } from './ChatLayout';
 
 export function ChatPage() {
-  const { session, hydrating } = useOutletContext<ChatOutletContext>();
+  const { chatId, session, hydrating } = useOutletContext<ChatOutletContext>();
   const { messages, sendMessage, status, stop, error } = session;
 
   const isSubmitting = status === 'submitted';
   const isStreaming = status === 'streaming';
   const isBusy = isSubmitting || isStreaming;
+
+  function handleSend(text: string, attachments: ReadyAttachment[]) {
+    // Build the parts array explicitly so we can include `chat://` file URLs.
+    // AI-SDK v6 useChat's sendMessage accepts a { role, parts } payload.
+    if (attachments.length === 0) {
+      void sendMessage({ text });
+      return;
+    }
+    void sendMessage({
+      role: 'user',
+      parts: [
+        ...(text.length > 0 ? [{ type: 'text' as const, text }] : []),
+        ...attachments.map((a) => ({
+          type: 'file' as const,
+          url: a.url,
+          mediaType: a.mediaType,
+          filename: a.filename,
+        })),
+      ],
+    });
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -31,19 +51,18 @@ export function ChatPage() {
             {messages.map((m, i) => {
               if (m.role === 'system') return null;
               const isLast = i === messages.length - 1;
-              const text = messageText(m);
               return (
                 <Message
                   key={m.id}
                   role={m.role === 'assistant' ? 'assistant' : 'user'}
-                  content={text}
+                  parts={m.parts}
                   thinking={m.role === 'assistant' && isLast && isStreaming}
                   showActions={m.role === 'assistant' && !(isLast && isStreaming)}
                 />
               );
             })}
 
-            {isSubmitting && <Message role="assistant" content="" thinking showActions={false} />}
+            {isSubmitting && <Message role="assistant" parts={[]} thinking showActions={false} />}
 
             {error && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -58,9 +77,8 @@ export function ChatPage() {
 
       <div className="shrink-0 bg-[#fafafa] px-6 pb-8 pt-2">
         <Composer
-          onSend={(text) => {
-            void sendMessage({ text });
-          }}
+          conversationId={chatId}
+          onSend={handleSend}
           onStop={() => void stop()}
           streaming={isBusy}
         />
@@ -74,7 +92,6 @@ export function ChatPage() {
 
 function ScrollToBottomButton() {
   const { isAtBottom, scrollToBottom } = useStickToBottomContext();
-
   return (
     <button
       type="button"
@@ -91,10 +108,6 @@ function ScrollToBottomButton() {
       <ArrowDown className="size-4" />
     </button>
   );
-}
-
-function messageText(message: UIMessage): string {
-  return message.parts.map((part) => (part.type === 'text' ? part.text : '')).join('');
 }
 
 function EmptyState() {

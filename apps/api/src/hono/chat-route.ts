@@ -12,10 +12,12 @@ import {
   persistUserMessage,
   upsertConversation,
 } from '../services/chat/persist.ts';
+import { resolveAttachmentUrlsInParts } from '../services/chat/attachments.ts';
 import { mapDomainError } from '../trpc/error-mapper.ts';
 import { Unauthorized } from '@diguro/shared/errors';
 import type { Logger } from '../lib/logger.ts';
 import type { Db } from '@diguro/db';
+import type { ObjectStore } from '../ports/objectStore.ts';
 
 const ChatRequestSchema = z.object({
   id: z.string().min(1),
@@ -30,6 +32,7 @@ interface Deps {
   registry: ModelRegistry;
   db: Db;
   logger: Logger;
+  objectStore: ObjectStore;
 }
 
 /**
@@ -82,28 +85,48 @@ export function handleChat(deps: Deps) {
         );
       }
 
+      // Resolve chat:// URLs on file parts to presigned GET URLs for the model.
+      // We only send the resolved version to the model — the DB keeps the
+      // canonical chat:// URLs via persistUserMessage above.
+      const resolvedMessages = await resolveMessagesForModel(
+        { objectStore: deps.objectStore, userId: session.user.id },
+        messages,
+      );
+
       const result = await streamReply(
         { registry: deps.registry },
         {
           modelId,
-          messages,
+          messages: resolvedMessages,
           systemPrompt:
             'You are Diguro, a helpful assistant. Be concise and cite sources when available.',
         },
       );
 
       return result.toUIMessageStreamResponse({
-        originalMessages: messages,
-        onFinish: async ({ responseMessage }) => {
+        originalMessages: resolvedMessages,
+        onFinish: async ({ responseMessage, isAborted }) => {
+          if (isAborted) {
+            deps.logger.info('chat stream aborted, skipping persist', { conversationId });
+            return;
+          }
           try {
-            await persistAssistantMessages(
+            const saved = await persistAssistantMessages(
               { db: deps.db },
               { conversationId, modelId, messages: [responseMessage] },
             );
+            deps.logger.info('persisted assistant message', {
+              conversationId,
+              modelId,
+              responseMessageId: responseMessage.id,
+              rowsSaved: saved,
+              partTypes: responseMessage.parts.map((p) => p.type),
+            });
           } catch (err) {
             deps.logger.error('failed to persist assistant messages', {
               conversationId,
               error: err instanceof Error ? err.message : String(err),
+              partTypes: responseMessage.parts.map((p) => p.type),
             });
           }
         },
@@ -119,4 +142,23 @@ export function handleChat(deps: Deps) {
       return c.json({ error: mapped.message }, 500);
     }
   };
+}
+
+async function resolveMessagesForModel(
+  deps: { objectStore: ObjectStore; userId: string },
+  messages: UIMessage[],
+): Promise<UIMessage[]> {
+  const out: UIMessage[] = [];
+  for (const m of messages) {
+    if (!Array.isArray(m.parts) || m.parts.length === 0) {
+      out.push(m);
+      continue;
+    }
+    const resolvedParts = await resolveAttachmentUrlsInParts(
+      { objectStore: deps.objectStore },
+      { userId: deps.userId, parts: m.parts },
+    );
+    out.push({ ...m, parts: resolvedParts } as UIMessage);
+  }
+  return out;
 }

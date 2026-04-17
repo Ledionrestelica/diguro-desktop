@@ -56,7 +56,11 @@ export function ChatLayout() {
     initialMessages,
     onFinish: () => {
       void utils.conversations.list.invalidate();
-      if (!isNewChat) void utils.conversations.get.invalidate({ id: chatId });
+      // Always invalidate the detail query. On a fresh chat we've already
+      // flipped to /chat/:id by the time onFinish fires, so the cache entry
+      // needs to re-fetch to include the just-persisted assistant message
+      // for the next visit.
+      void utils.conversations.get.invalidate({ id: chatId });
     },
   });
 
@@ -75,8 +79,15 @@ export function ChatLayout() {
     }
   }, [isNewChat, session.messages.length, chatId, navigate, utils]);
 
-  // When useChat is mounted with id but no initial messages, and then the
-  // conversation data arrives, hydrate it in.
+  // Hydrate useChat from the DB — but never clobber a session that already
+  // has live content.
+  //
+  // This matters during the /chat → /chat/:id transition mid-stream: we
+  // navigate as soon as the user message lands, which flips isNewChat and
+  // triggers conversations.get. That query may resolve before the server's
+  // onFinish has persisted the assistant reply, returning a stale
+  // [user-only] snapshot. Overwriting the live session with it would drop
+  // the streaming response.
   const hydratedRef = useRef<string | null>(null);
   useEffect(() => {
     if (isNewChat) {
@@ -85,6 +96,15 @@ export function ChatLayout() {
     }
     if (!initialMessages) return;
     if (hydratedRef.current === chatId) return;
+
+    // If useChat already has messages for this chatId (live stream or
+    // preserved state), trust them over whatever DB returned. Mark as
+    // hydrated so we don't keep trying every render.
+    if (session.messages.length > 0) {
+      hydratedRef.current = chatId;
+      return;
+    }
+
     hydratedRef.current = chatId;
     session.setMessages(initialMessages);
   }, [initialMessages, chatId, isNewChat, session]);

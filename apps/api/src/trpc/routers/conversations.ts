@@ -38,7 +38,7 @@ export const conversationsRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         await deleteConversation(
-          { db: ctx.db },
+          { db: ctx.db, objectStore: ctx.objectStore },
           { userId: ctx.user.id, conversationId: input.id },
         );
         return { success: true as const };

@@ -44,9 +44,7 @@ export function ChatSidebar({ activeChatId }: Props) {
       <section className="flex min-h-0 flex-1 flex-col gap-2">
         <p className="shrink-0 px-3.5 text-xs leading-5 text-zinc-600">Chats</p>
 
-        {conversations.isLoading && (
-          <p className="px-3.5 text-xs text-zinc-500">Loading…</p>
-        )}
+        {conversations.isLoading && <p className="px-3.5 text-xs text-zinc-500">Loading…</p>}
 
         {conversations.data && conversations.data.length === 0 && (
           <p className="px-3.5 text-xs text-zinc-500">No chats yet.</p>
@@ -77,7 +75,7 @@ function SidebarButton({ icon, children, onClick, variant = 'ghost' }: SidebarBu
       type="button"
       onClick={onClick}
       className={cn(
-        'flex items-center gap-0 rounded-[10px] pr-3 text-left text-sm text-zinc-800 transition-colors',
+        'flex items-center cursor-pointer gap-0 rounded-[10px] pr-3 text-left text-sm text-zinc-800 transition-colors',
         variant === 'filled' ? 'bg-white shadow-xs hover:bg-white/80' : 'hover:bg-black/[0.04]',
       )}
     >

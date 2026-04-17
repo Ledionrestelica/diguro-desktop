@@ -10,12 +10,14 @@ import { buildCtx } from './context.ts';
 import { appRouter } from './trpc/root.ts';
 import { createModelRegistry } from './ai/registry.ts';
 import { handleChat } from './hono/chat-route.ts';
+import { createS3ObjectStore } from './adapters/s3/index.ts';
 
 const config = loadConfig();
 const logger = createLogger(config.LOG_LEVEL);
 const db = createDb(config.DATABASE_URL);
 const auth = createAuth(db, config);
 const modelRegistry = createModelRegistry(config);
+const objectStore = createS3ObjectStore(config);
 
 const app = new Hono();
 
@@ -36,14 +38,18 @@ app.get('/health', (c) => c.json({ ok: true, time: new Date().toISOString() }));
 
 app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
-app.post('/api/chat', handleChat({ auth, registry: modelRegistry, db, logger }));
+app.post(
+  '/api/chat',
+  handleChat({ auth, registry: modelRegistry, db, logger, objectStore }),
+);
 
 app.all('/trpc/*', (c) =>
   fetchRequestHandler({
     endpoint: '/trpc',
     req: c.req.raw,
     router: appRouter,
-    createContext: () => buildCtx({ db, auth, config, logger }, c.req.raw),
+    createContext: () =>
+      buildCtx({ db, auth, config, logger, objectStore }, c.req.raw),
   }),
 );
 

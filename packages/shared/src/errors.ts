@@ -111,3 +111,13 @@ export class ModelNotAllowed extends DomainError {
     super(ErrorCode.MODEL_NOT_ALLOWED, `Model ${modelId} is not allowed for this scope`);
   }
 }
+export class FileTooLarge extends DomainError {
+  constructor(message = 'File exceeds maximum allowed size') {
+    super(ErrorCode.FILE_TOO_LARGE, message);
+  }
+}
+export class UnsupportedMimeType extends DomainError {
+  constructor(mimeType: string) {
+    super(ErrorCode.UNSUPPORTED_MIME_TYPE, `Unsupported file type: ${mimeType}`);
+  }
+}

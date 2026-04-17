@@ -2,6 +2,7 @@ import type { Db } from '@diguro/db';
 import type { Auth } from './auth/config.ts';
 import type { Config } from './config.ts';
 import type { Logger } from './lib/logger.ts';
+import type { ObjectStore } from './ports/objectStore.ts';
 
 /**
  * Dependencies that are constant across requests. Constructed once at boot
@@ -12,6 +13,7 @@ export interface AppDeps {
   readonly auth: Auth;
   readonly config: Config;
   readonly logger: Logger;
+  readonly objectStore: ObjectStore;
 }
 
 /**

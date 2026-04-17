@@ -37,11 +37,25 @@ export const CitationRef = z.object({
 });
 export type CitationRef = z.infer<typeof CitationRef>;
 
+/**
+ * File attachment part. `url` can be a data: URL (MVP path — bytes inlined in
+ * the message) or, once the Resources system lands, an S3 key that the server
+ * resolves to a presigned URL before sending to the model.
+ */
+export const FilePart = z.object({
+  type: z.literal('file'),
+  mediaType: z.string().min(1),
+  url: z.string().min(1),
+  filename: z.string().optional(),
+});
+export type FilePart = z.infer<typeof FilePart>;
+
 export const MessagePart = z.discriminatedUnion('type', [
   TextPart,
   ReasoningPart,
   ToolCallPart,
   CitationRef,
+  FilePart,
 ]);
 export type MessagePart = z.infer<typeof MessagePart>;
 
