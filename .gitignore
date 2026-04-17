@@ -1,0 +1,43 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# build outputs
+dist/
+build/
+out/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# test
+coverage/
+.nyc_output/
+
+# electron
+release/
+apps/desktop/dist-electron/
+
+# drizzle
+packages/db/drizzle/meta/_journal.json.bak

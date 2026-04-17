@@ -1,0 +1,25 @@
+# Keep the Docker build context slim — faster uploads, smaller layers.
+**/node_modules
+**/.turbo
+**/dist
+**/build
+**/out
+**/.next
+**/coverage
+**/*.tsbuildinfo
+**/release
+**/.env
+**/.env.local
+**/.env.*.local
+.git
+.github
+.vscode
+.idea
+*.log
+.DS_Store
+
+# Desktop artifacts are not needed for the API image.
+apps/desktop
+
+# Drizzle migration lock backups
+packages/db/drizzle/meta/_journal.json.bak

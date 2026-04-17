@@ -1,0 +1,36 @@
+{
+  "name": "@diguro/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./router": "./src/trpc/root.ts"
+  },
+  "scripts": {
+    "dev": "bun --hot src/index.ts",
+    "build": "bun build src/index.ts --target=bun --outdir=dist",
+    "start": "bun src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "bun test",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.35",
+    "@ai-sdk/google": "^3.0.53",
+    "@ai-sdk/openai": "^3.0.36",
+    "@diguro/db": "workspace:*",
+    "@diguro/shared": "workspace:*",
+    "@trpc/server": "^11.0.0-rc.660",
+    "ai": "^6.0.77",
+    "better-auth": "^1.1.8",
+    "hono": "^4.6.15",
+    "superjson": "^2.2.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.14",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,59 @@
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { logger as honoLogger } from 'hono/logger';
+import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
+import { createDb } from '@diguro/db';
+import { loadConfig } from './config.ts';
+import { createLogger } from './lib/logger.ts';
+import { createAuth } from './auth/config.ts';
+import { buildCtx } from './context.ts';
+import { appRouter } from './trpc/root.ts';
+import { createModelRegistry } from './ai/registry.ts';
+import { handleChat } from './hono/chat-route.ts';
+
+const config = loadConfig();
+const logger = createLogger(config.LOG_LEVEL);
+const db = createDb(config.DATABASE_URL);
+const auth = createAuth(db, config);
+const modelRegistry = createModelRegistry(config);
+
+const app = new Hono();
+
+app.use('*', honoLogger((msg) => logger.info(msg)));
+
+app.use(
+  '*',
+  cors({
+    origin: (origin) => (config.ALLOWED_ORIGINS.includes(origin) ? origin : null),
+    credentials: true,
+    allowHeaders: ['Content-Type', 'Authorization'],
+    allowMethods: ['GET', 'POST', 'OPTIONS'],
+    exposeHeaders: ['Set-Auth-Token'],
+  }),
+);
+
+app.get('/health', (c) => c.json({ ok: true, time: new Date().toISOString() }));
+
+app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+
+app.post('/api/chat', handleChat({ auth, registry: modelRegistry, db, logger }));
+
+app.all('/trpc/*', (c) =>
+  fetchRequestHandler({
+    endpoint: '/trpc',
+    req: c.req.raw,
+    router: appRouter,
+    createContext: () => buildCtx({ db, auth, config, logger }, c.req.raw),
+  }),
+);
+
+logger.info('API boot', {
+  port: config.PORT,
+  env: config.NODE_ENV,
+  origins: config.ALLOWED_ORIGINS,
+});
+
+export default {
+  port: config.PORT,
+  fetch: app.fetch,
+};

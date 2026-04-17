@@ -1,0 +1,22 @@
+{
+  "name": "@diguro/trpc",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf .turbo *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@diguro/api": "workspace:*",
+    "@trpc/client": "^11.0.0-rc.660",
+    "@trpc/server": "^11.0.0-rc.660"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
