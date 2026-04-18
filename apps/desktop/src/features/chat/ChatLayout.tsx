@@ -53,7 +53,7 @@ export function ChatLayout() {
 
   const session = useChatSession({
     id: chatId,
-    initialMessages,
+    ...(initialMessages ? { initialMessages } : {}),
     onFinish: () => {
       void utils.conversations.list.invalidate();
       // Always invalidate the detail query. On a fresh chat we've already

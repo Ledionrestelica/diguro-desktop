@@ -14,6 +14,7 @@ import {
 } from '../services/chat/persist.ts';
 import { resolveAttachmentUrlsInParts } from '../services/chat/attachments.ts';
 import { generateAndApplyConversationTitle } from '../services/chat/generate-title.ts';
+import { createUITools } from '../ai/ui-tools/index.ts';
 import { mapDomainError } from '../trpc/error-mapper.ts';
 import { Unauthorized } from '@diguro/shared/errors';
 import type { Logger } from '../lib/logger.ts';
@@ -36,6 +37,7 @@ const ChatRequestSchema = z.object({
 const CHAT_SYSTEM_PROMPT = [
   'You are Diguro, a helpful assistant. Be concise.',
   '',
+  '# Web search',
   'Web search (`web_search`) is available but expensive. Use it ONLY when:',
   '- The user explicitly asks you to look something up, OR',
   '- The answer depends on events, prices, releases, or facts that likely changed after your training, OR',
@@ -48,6 +50,20 @@ const CHAT_SYSTEM_PROMPT = [
   '',
   'When you do search: run at most one query, keep it focused, then answer.',
   'Cite sources naturally (the system attaches the URLs automatically).',
+  '',
+  '# Generative UI tools',
+  'You can render rich UI inline by calling one of these tools exactly once per response:',
+  '- `render_chart` — numerical data you want visualized (trends, distributions, comparisons across 3+ categories).',
+  '- `render_table` — structured lists (invoices, line items, extracted entities, 2+ rows of the same shape).',
+  '- `render_document_card` — surface a single document with title/excerpt/tags.',
+  '- `render_comparison` — side-by-side diff of two documents, contracts, versions, or options.',
+  '- `render_extraction_form` — extracted fields from a document (key/value pairs the user may want to copy).',
+  '',
+  'Rules:',
+  '- Use a UI tool when the data is clearly structured. Skip it for narrative or conceptual answers.',
+  '- Never call more than one UI tool per response.',
+  '- After calling a UI tool, add ONE short sentence (max ~20 words) framing or summarizing the result. Do NOT repeat the data as markdown — the tool call IS the rendering.',
+  '- Do NOT combine web_search and a UI tool in the same response unless the user explicitly asked for both.',
 ].join('\n');
 
 interface Deps {
@@ -126,12 +142,14 @@ export function handleChat(deps: Deps) {
         messages,
       );
 
-      const tools = deps.registry.nativeTools(modelId, { webSearch: true });
+      const nativeTools = deps.registry.nativeTools(modelId, { webSearch: true });
+      const uiTools = createUITools();
+      const tools = { ...(nativeTools ?? {}), ...uiTools };
 
       deps.logger.info('chat request tools', {
         conversationId,
         modelId,
-        toolsAttached: tools ? Object.keys(tools) : [],
+        toolsAttached: Object.keys(tools),
       });
 
       const result = await streamReply(
@@ -140,8 +158,10 @@ export function handleChat(deps: Deps) {
           modelId,
           messages: resolvedMessages,
           systemPrompt: CHAT_SYSTEM_PROMPT,
-          ...(tools ? { tools } : {}),
-          maxSteps: 2,
+          tools,
+          // UI tools are pass-through; web_search may take a round-trip.
+          // Keep 3 steps total: one tool call + one follow-up + framing text.
+          maxSteps: 3,
         },
       );
 
@@ -200,7 +220,32 @@ async function resolveMessagesForModel(
       { objectStore: deps.objectStore },
       { userId: deps.userId, parts: m.parts },
     );
-    out.push({ ...m, parts: resolvedParts } as UIMessage);
+    const sanitized =
+      m.role === 'assistant' ? stripEphemeralAssistantParts(resolvedParts) : resolvedParts;
+    out.push({ ...m, parts: sanitized } as UIMessage);
   }
   return out;
+}
+
+/**
+ * Drop parts from an assistant message that the provider can't safely replay.
+ *
+ *  - `reasoning` parts carry server-side item ids (e.g. OpenAI `rs_...`). When
+ *    we echo them back, the Responses API tries to look them up and 404s if
+ *    the items have aged out.
+ *  - `tool-<name>` parts carry tool invocation state (call ids, provider
+ *    metadata, search results). The model doesn't need to "remember" past
+ *    tool calls — the user sees the rendered output and asks follow-ups in
+ *    plain text. Stripping keeps the input small and avoids provider state
+ *    mismatch.
+ *
+ * Kept: text, source-url (used by the model for attribution if it references
+ * prior sources), file parts (images/PDFs the user attached).
+ */
+function stripEphemeralAssistantParts<T extends { type: string }>(parts: T[]): T[] {
+  return parts.filter((p) => {
+    if (p.type === 'reasoning') return false;
+    if (p.type.startsWith('tool-')) return false;
+    return true;
+  });
 }

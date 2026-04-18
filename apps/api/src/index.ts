@@ -62,4 +62,9 @@ logger.info('API boot', {
 export default {
   port: config.PORT,
   fetch: app.fetch,
+  // Bun defaults to 10s idle timeout — too short for LLM streams where the
+  // model may pause 20-60s mid-reasoning before emitting the next chunk.
+  // Max is 255s. If a stream is genuinely stuck for 4 minutes, we want the
+  // connection cleaned up rather than hung forever.
+  idleTimeout: 240,
 };

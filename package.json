@@ -20,7 +20,7 @@
     "clean": "turbo run clean && rm -rf node_modules .turbo"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "^9.39.4",
     "@types/node": "^22.10.0",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^5.2.0",

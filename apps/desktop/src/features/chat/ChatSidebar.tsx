@@ -21,7 +21,7 @@ export function ChatSidebar({ activeChatId }: Props) {
   const conversations = trpc.conversations.list.useQuery();
 
   return (
-    <aside className="flex h-full w-53 shrink-0 flex-col gap-6 overflow-hidden bg-[#f4f4f5] px-2 py-6">
+    <aside className="flex h-full w-60 shrink-0 flex-col gap-6 overflow-hidden bg-[#f4f4f5] px-2 py-6">
       <div className="shrink-0 space-y-6">
         <OrgSwitcher />
 

@@ -138,12 +138,14 @@ function toPersistableParts(parts: unknown): PersistablePart[] {
   for (const raw of parts) {
     if (!raw || typeof raw !== 'object') continue;
     const type = (raw as { type?: unknown }).type;
+    if (typeof type !== 'string') continue;
+    const isToolPart = type.startsWith('tool-') && type.length > 5;
     if (
       type !== 'text' &&
       type !== 'file' &&
-      type !== 'tool-call' &&
       type !== 'citation' &&
-      type !== 'source-url'
+      type !== 'source-url' &&
+      !isToolPart
     ) {
       continue;
     }
@@ -165,6 +167,29 @@ function toPersistableParts(parts: unknown): PersistablePart[] {
         sourceId: typeof sourceId === 'string' ? sourceId : url,
         url,
         ...(typeof title === 'string' && title.length > 0 ? { title } : {}),
+      };
+      const parsed = MessagePart.safeParse(clean);
+      if (parsed.success) out.push(parsed.data);
+      continue;
+    }
+    if (isToolPart) {
+      // AI-SDK emits extra fields (providerMetadata, rawInput, etc.) on tool
+      // parts. Strip to just the shape we persist; skip mid-stream states
+      // so we only store the final result of a completed tool call.
+      const state = (raw as { state?: unknown }).state;
+      if (state !== 'output-available' && state !== 'output-error') continue;
+      const toolCallId = (raw as { toolCallId?: unknown }).toolCallId;
+      if (typeof toolCallId !== 'string' || toolCallId.length === 0) continue;
+      const input = (raw as { input?: unknown }).input;
+      const output = (raw as { output?: unknown }).output;
+      const errorText = (raw as { errorText?: unknown }).errorText;
+      const clean = {
+        type,
+        toolCallId,
+        state,
+        ...(input !== undefined ? { input } : {}),
+        ...(output !== undefined ? { output } : {}),
+        ...(typeof errorText === 'string' ? { errorText } : {}),
       };
       const parsed = MessagePart.safeParse(clean);
       if (parsed.success) out.push(parsed.data);

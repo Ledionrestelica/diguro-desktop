@@ -4,6 +4,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MessageActions } from './MessageActions';
 import { useAttachmentUrl } from './useAttachmentUrl';
+import { ToolPart } from './tools/registry';
+import { isGenerativeUIToolName } from './tools/names';
 
 type MessageRole = 'user' | 'assistant';
 
@@ -17,20 +19,20 @@ export interface MessageProps {
 }
 
 export function Message({ role, parts, thinking, showActions = true }: MessageProps) {
-  const text = extractText(parts);
-  const files = extractFiles(parts);
+  const blocks = buildBlocks(parts);
   const sources = extractSources(parts);
   const searchState = extractSearchState(parts);
-  const hasContent = text.length > 0 || files.length > 0 || sources.length > 0;
+  const userFiles = role === 'user' ? extractFiles(parts) : [];
+  const userText = role === 'user' ? extractText(parts) : '';
 
   if (role === 'user') {
     return (
       <div className="flex justify-end">
         <div className="flex max-w-[520px] flex-col items-end gap-2">
-          {files.length > 0 && <AttachmentGrid files={files} align="end" />}
-          {text && (
+          {userFiles.length > 0 && <AttachmentGrid files={userFiles} align="end" />}
+          {userText && (
             <div className="whitespace-pre-wrap rounded-[20px] bg-zinc-100 px-[18px] py-2.5 text-base leading-6 text-black">
-              {text}
+              {userText}
             </div>
           )}
         </div>
@@ -38,60 +40,137 @@ export function Message({ role, parts, thinking, showActions = true }: MessagePr
     );
   }
 
+  const hasRenderableContent = blocks.length > 0 || sources.length > 0;
+
   return (
     <div className="flex flex-col gap-4">
       {thinking && (
-        <p className="thinking-gradient-text w-fit text-base font-medium leading-6 animate-bounce">
+        <p className="thinking-gradient-text w-fit animate-bounce text-base font-medium leading-6">
           Thinking..
         </p>
       )}
       {searchState && <SearchIndicator state={searchState} />}
-      {files.length > 0 && <AttachmentGrid files={files} align="start" />}
-      {text && (
-        <div className="text-base leading-6 text-zinc-800">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              p: ({ children }) => <p className="mb-4 last:mb-0">{children}</p>,
-              strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-              ul: ({ children }) => <ul className="mb-4 list-disc pl-5 last:mb-0">{children}</ul>,
-              ol: ({ children }) => (
-                <ol className="mb-4 list-decimal pl-5 last:mb-0">{children}</ol>
-              ),
-              li: ({ children }) => <li className="mb-1 last:mb-0">{children}</li>,
-              code: ({ children, className }) => (
-                <code
-                  className={`rounded bg-zinc-100 px-1 py-0.5 font-sans text-[0.9em] ${className ?? ''}`}
-                >
-                  {children}
-                </code>
-              ),
-              a: ({ children, href }) => (
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-zinc-900 underline underline-offset-2 hover:text-zinc-700"
-                >
-                  {children}
-                </a>
-              ),
-            }}
-          >
-            {text}
-          </ReactMarkdown>
-        </div>
-      )}
+      {blocks.map((block, i) => (
+        <BlockRender key={i} block={block} />
+      ))}
       {sources.length > 0 && <SourceList sources={sources} />}
-      {showActions && hasContent && <MessageActions />}
+      {showActions && hasRenderableContent && <MessageActions />}
     </div>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Block model — walks parts in stream order, coalescing adjacent text*/
+/* ------------------------------------------------------------------ */
+
+type Block =
+  | { kind: 'text'; text: string }
+  | { kind: 'tool'; part: UIMessagePart<unknown, Record<string, never>> }
+  | { kind: 'files'; parts: FileLikePart[] };
+
+function buildBlocks(parts: UIMessage['parts']): Block[] {
+  const out: Block[] = [];
+  let textBuf = '';
+  let fileBuf: FileLikePart[] = [];
+
+  const flushText = () => {
+    if (textBuf.length > 0) {
+      out.push({ kind: 'text', text: textBuf });
+      textBuf = '';
+    }
+  };
+  const flushFiles = () => {
+    if (fileBuf.length > 0) {
+      out.push({ kind: 'files', parts: fileBuf });
+      fileBuf = [];
+    }
+  };
+
+  for (const part of parts) {
+    const type = (part as { type?: unknown }).type;
+    if (typeof type !== 'string') continue;
+
+    if (type === 'text') {
+      flushFiles();
+      const text = (part as { text?: unknown }).text;
+      if (typeof text === 'string') textBuf += text;
+      continue;
+    }
+
+    if (isFilePart(part)) {
+      flushText();
+      fileBuf.push(part);
+      continue;
+    }
+
+    if (type.startsWith('tool-')) {
+      const name = type.slice('tool-'.length);
+      // Provider-native tools (web_search) have a dedicated inline indicator
+      // + source footer — don't render them as a generic block.
+      if (!isGenerativeUIToolName(name)) continue;
+      flushText();
+      flushFiles();
+      out.push({ kind: 'tool', part });
+      continue;
+    }
+  }
+  flushText();
+  flushFiles();
+  return out;
+}
+
+function BlockRender({ block }: { block: Block }) {
+  if (block.kind === 'text') return <AssistantText text={block.text} />;
+  if (block.kind === 'files') return <AttachmentGrid files={block.parts} align="start" />;
+  return <ToolPart part={block.part} />;
+}
+
+function AssistantText({ text }: { text: string }) {
+  return (
+    <div className="text-base leading-6 text-zinc-800">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          p: ({ children }) => <p className="mb-4 last:mb-0">{children}</p>,
+          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+          ul: ({ children }) => <ul className="mb-4 list-disc pl-5 last:mb-0">{children}</ul>,
+          ol: ({ children }) => (
+            <ol className="mb-4 list-decimal pl-5 last:mb-0">{children}</ol>
+          ),
+          li: ({ children }) => <li className="mb-1 last:mb-0">{children}</li>,
+          code: ({ children, className }) => (
+            <code
+              className={`rounded bg-zinc-100 px-1 py-0.5 font-sans text-[0.9em] ${className ?? ''}`}
+            >
+              {children}
+            </code>
+          ),
+          a: ({ children, href }) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-zinc-900 underline underline-offset-2 hover:text-zinc-700"
+            >
+              {children}
+            </a>
+          ),
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
+/* ---------------------- Search indicator + sources ---------------------- */
+
 function SearchIndicator({ state }: { state: 'searching' | 'done' }) {
   return (
     <div className="flex w-fit items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600">
-      <Globe className={`size-3.5 text-zinc-500 ${state === 'searching' ? 'animate-pulse' : ''}`} />
+      <Globe
+        className={`size-3.5 text-zinc-500 ${state === 'searching' ? 'animate-pulse' : ''}`}
+      />
       {state === 'searching' ? 'Searching the web…' : 'Searched the web'}
     </div>
   );
@@ -138,9 +217,13 @@ function safeHostname(url: string): string {
   }
 }
 
+/* ---------------------- Attachments (user + assistant) ---------------------- */
+
 function AttachmentGrid({ files, align }: { files: FileLikePart[]; align: 'start' | 'end' }) {
   return (
-    <div className={`flex flex-wrap gap-2 ${align === 'end' ? 'justify-end' : 'justify-start'}`}>
+    <div
+      className={`flex flex-wrap gap-2 ${align === 'end' ? 'justify-end' : 'justify-start'}`}
+    >
       {files.map((f, idx) => (
         <Attachment key={`${f.url}-${idx}`} file={f} />
       ))}
@@ -206,7 +289,10 @@ function mediaBadge(mediaType: string, filename: string | undefined): string {
   return 'FILE';
 }
 
+/* ---------------------- Extractors ---------------------- */
+
 interface FileLikePart {
+  type: 'file';
   mediaType: string;
   url: string;
   filename?: string;
@@ -225,10 +311,7 @@ function extractFiles(parts: UIMessage['parts']): FileLikePart[] {
   return parts.flatMap((part) => (isFilePart(part) ? [part] : []));
 }
 
-/**
- * De-dupes by URL — provider tools occasionally emit the same source twice
- * across consecutive steps. First occurrence wins for the title.
- */
+/** De-duped list of source-url parts — many tools emit the same source repeatedly. */
 function extractSources(parts: UIMessage['parts']): SourceLikePart[] {
   const seen = new Set<string>();
   const out: SourceLikePart[] = [];
@@ -242,9 +325,9 @@ function extractSources(parts: UIMessage['parts']): SourceLikePart[] {
 }
 
 /**
- * Returns 'searching' while a tool invocation is in flight, 'done' if a
- * web-search tool finished, undefined if no web search happened. Keyed on
- * AI-SDK v6 tool part type `tool-<name>` with a `state` field.
+ * Status of the provider-native web-search tool, if any. Only surfaces for
+ * native web search (distinct tool names like `web_search`); generative-UI
+ * tools are handled by the block walker.
  */
 function extractSearchState(parts: UIMessage['parts']): 'searching' | 'done' | undefined {
   let sawSearch = false;
@@ -253,8 +336,9 @@ function extractSearchState(parts: UIMessage['parts']): 'searching' | 'done' | u
     const type = (part as { type?: unknown }).type;
     if (typeof type !== 'string') continue;
     if (!type.startsWith('tool-')) continue;
-    // Only surface the indicator for web search tools
-    if (!type.includes('web_search') && !type.includes('webSearch')) continue;
+    const name = type.slice('tool-'.length);
+    if (isGenerativeUIToolName(name)) continue;
+    if (!name.includes('web_search') && !name.includes('webSearch')) continue;
     sawSearch = true;
     const state = (part as { state?: unknown }).state;
     if (state === 'input-streaming' || state === 'input-available') {
@@ -265,7 +349,9 @@ function extractSearchState(parts: UIMessage['parts']): 'searching' | 'done' | u
   return sawInProgress ? 'searching' : 'done';
 }
 
-function isFilePart(part: UIMessagePart<unknown, Record<string, never>>): part is FilePartShape {
+function isFilePart(
+  part: UIMessagePart<unknown, Record<string, never>>,
+): part is FileLikePart {
   return (
     typeof part === 'object' &&
     part !== null &&
@@ -286,5 +372,4 @@ function isSourceUrlPart(
   );
 }
 
-type FilePartShape = { type: 'file'; mediaType: string; url: string; filename?: string };
 type SourceUrlPartShape = { type: 'source-url'; url: string; title?: string; sourceId?: string };

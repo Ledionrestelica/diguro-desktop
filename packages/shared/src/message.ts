@@ -18,16 +18,27 @@ export const ReasoningPart = z.object({
 });
 export type ReasoningPart = z.infer<typeof ReasoningPart>;
 
-export const ToolCallPart = z.object({
-  type: z.literal('tool-call'),
+/**
+ * AI-SDK v6 emits tool parts with `type: 'tool-<toolName>'` (e.g. `tool-render_chart`).
+ * The tool name is derived from the type string rather than carried separately.
+ * Because the type is dynamic, this schema is NOT part of the discriminated
+ * union — it's validated via `z.union([...])` below.
+ */
+export const ToolPart = z.object({
+  type: z
+    .string()
+    .refine((s) => s.startsWith('tool-') && s.length > 5, 'must be tool-<name>'),
   toolCallId: z.string(),
-  toolName: z.string(),
-  input: z.unknown(),
   state: z.enum(['input-streaming', 'input-available', 'output-available', 'output-error']),
+  input: z.unknown().optional(),
   output: z.unknown().optional(),
   errorText: z.string().optional(),
 });
-export type ToolCallPart = z.infer<typeof ToolCallPart>;
+export type ToolPart = z.infer<typeof ToolPart>;
+
+export function toolPartName(part: ToolPart): string {
+  return part.type.slice('tool-'.length);
+}
 
 export const CitationRef = z.object({
   type: z.literal('citation'),
@@ -62,14 +73,21 @@ export const SourceUrlPart = z.object({
 });
 export type SourceUrlPart = z.infer<typeof SourceUrlPart>;
 
-export const MessagePart = z.discriminatedUnion('type', [
+/**
+ * A message part is one of the static literal-typed variants OR a dynamic
+ * `tool-<name>` part. Static variants stay in a discriminated union for fast
+ * narrowing; the tool variant is combined via `z.union` since its `type`
+ * string is not a literal.
+ */
+const StaticMessagePart = z.discriminatedUnion('type', [
   TextPart,
   ReasoningPart,
-  ToolCallPart,
   CitationRef,
   FilePart,
   SourceUrlPart,
 ]);
+
+export const MessagePart = z.union([StaticMessagePart, ToolPart]);
 export type MessagePart = z.infer<typeof MessagePart>;
 
 export const MessageParts = z.array(MessagePart);
