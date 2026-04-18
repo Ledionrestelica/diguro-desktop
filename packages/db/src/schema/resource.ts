@@ -10,12 +10,16 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { ingestStatus, ocrStatus } from './enums.ts';
-import { organizations } from './org.ts';
+import { organizations } from './organization.ts';
+import { workspaces } from './workspace.ts';
 import { users } from './auth.ts';
 
 /**
  * Resource = the logical file (stable id, user's label, pointer to current version).
- * Scope: exactly one of organizationId / userId is set (CHECK constraint).
+ * Scope: exactly one of organizationId / workspaceId / userId is set (CHECK constraint).
+ *   - organizationId set: visible across every workspace in the organization.
+ *   - workspaceId set: visible only inside that workspace.
+ *   - userId set: user's personal library.
  * currentVersionId is nullable only briefly between row creation and first confirmUpload.
  */
 export const resources = pgTable(
@@ -23,6 +27,9 @@ export const resources = pgTable(
   {
     id: text('id').primaryKey(),
     organizationId: text('organization_id').references(() => organizations.id, {
+      onDelete: 'cascade',
+    }),
+    workspaceId: text('workspace_id').references(() => workspaces.id, {
       onDelete: 'cascade',
     }),
     userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
@@ -35,9 +42,14 @@ export const resources = pgTable(
   (t) => [
     check(
       'resources_scope_exclusive',
-      sql`(${t.organizationId} IS NOT NULL) <> (${t.userId} IS NOT NULL)`,
+      sql`(
+        (CASE WHEN ${t.organizationId} IS NOT NULL THEN 1 ELSE 0 END) +
+        (CASE WHEN ${t.workspaceId} IS NOT NULL THEN 1 ELSE 0 END) +
+        (CASE WHEN ${t.userId} IS NOT NULL THEN 1 ELSE 0 END)
+      ) = 1`,
     ),
-    index('resources_org_created_idx').on(t.organizationId, t.createdAt),
+    index('resources_organization_created_idx').on(t.organizationId, t.createdAt),
+    index('resources_workspace_created_idx').on(t.workspaceId, t.createdAt),
     index('resources_user_created_idx').on(t.userId, t.createdAt),
     index('resources_folder_idx').on(t.folderId),
   ],
@@ -87,6 +99,9 @@ export const fileFolders = pgTable(
     organizationId: text('organization_id').references(() => organizations.id, {
       onDelete: 'cascade',
     }),
+    workspaceId: text('workspace_id').references(() => workspaces.id, {
+      onDelete: 'cascade',
+    }),
     userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
     parentId: text('parent_id'),
     name: text('name').notNull(),
@@ -95,9 +110,14 @@ export const fileFolders = pgTable(
   (t) => [
     check(
       'file_folders_scope_exclusive',
-      sql`(${t.organizationId} IS NOT NULL) <> (${t.userId} IS NOT NULL)`,
+      sql`(
+        (CASE WHEN ${t.organizationId} IS NOT NULL THEN 1 ELSE 0 END) +
+        (CASE WHEN ${t.workspaceId} IS NOT NULL THEN 1 ELSE 0 END) +
+        (CASE WHEN ${t.userId} IS NOT NULL THEN 1 ELSE 0 END)
+      ) = 1`,
     ),
-    index('file_folders_org_idx').on(t.organizationId),
+    index('file_folders_organization_idx').on(t.organizationId),
+    index('file_folders_workspace_idx').on(t.workspaceId),
     index('file_folders_user_idx').on(t.userId),
   ],
 );

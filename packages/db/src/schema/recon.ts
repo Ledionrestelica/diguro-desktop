@@ -1,6 +1,6 @@
 import { index, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { reconciliationFinding } from './enums.ts';
-import { organizations } from './org.ts';
+import { workspaces } from './workspace.ts';
 import { users } from './auth.ts';
 
 /**
@@ -11,7 +11,7 @@ export const reconciliationReports = pgTable(
   'reconciliation_reports',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').references(() => organizations.id, {
+    workspaceId: text('workspace_id').references(() => workspaces.id, {
       onDelete: 'cascade',
     }),
     userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
@@ -24,7 +24,7 @@ export const reconciliationReports = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => [
-    index('recon_org_created_idx').on(t.organizationId, t.createdAt),
+    index('recon_workspace_created_idx').on(t.workspaceId, t.createdAt),
     index('recon_user_created_idx').on(t.userId, t.createdAt),
     index('recon_unresolved_idx').on(t.createdAt, t.resolvedAt),
   ],

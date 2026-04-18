@@ -1,11 +1,15 @@
 import { z } from 'zod';
-import { OrgId, UserId } from './ids.ts';
+import { WorkspaceId, UserId } from './ids.ts';
 
-export const OrgScope = z.object({
-  kind: z.literal('org'),
-  organizationId: OrgId,
+/**
+ * Scope = who does this resource belong to? Workspace-scoped (visible to
+ * all members of a workspace) or user-scoped (personal to one user).
+ */
+export const WorkspaceScope = z.object({
+  kind: z.literal('workspace'),
+  workspaceId: WorkspaceId,
 });
-export type OrgScope = z.infer<typeof OrgScope>;
+export type WorkspaceScope = z.infer<typeof WorkspaceScope>;
 
 export const UserScope = z.object({
   kind: z.literal('user'),
@@ -13,8 +17,9 @@ export const UserScope = z.object({
 });
 export type UserScope = z.infer<typeof UserScope>;
 
-export const Scope = z.discriminatedUnion('kind', [OrgScope, UserScope]);
+export const Scope = z.discriminatedUnion('kind', [WorkspaceScope, UserScope]);
 export type Scope = z.infer<typeof Scope>;
 
-export const isOrgScope = (s: Scope): s is OrgScope => s.kind === 'org';
+export const isWorkspaceScope = (s: Scope): s is WorkspaceScope =>
+  s.kind === 'workspace';
 export const isUserScope = (s: Scope): s is UserScope => s.kind === 'user';

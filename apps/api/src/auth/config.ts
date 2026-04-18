@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { admin, bearer, organization } from 'better-auth/plugins';
+import { adminAc, userAc } from 'better-auth/plugins/admin/access';
 import type { Db } from '@diguro/db';
 import * as schema from '@diguro/db/schema';
 import type { Config } from '../config.ts';
@@ -10,9 +11,15 @@ import type { Config } from '../config.ts';
  *   - Cookie sessions (for future web client).
  *   - Bearer tokens via the `bearer` plugin (for the Electron desktop).
  *
+ * Naming note: Better-Auth's `organization` plugin uses the word
+ * "organization" for its multi-tenant entity. In our product vocabulary
+ * that concept is a **Workspace** (HR, Accounting, etc., nested inside an
+ * Organization). We remap the plugin's schema to our `workspaces` table —
+ * BA's internal naming never leaks to users.
+ *
  * Plugins enabled:
- *   - organization: multi-tenant orgs, members, invitations.
- *   - admin: RBAC for system roles (admin, superadmin).
+ *   - organization: provides member/invitation schema for workspaces.
+ *   - admin: RBAC for system roles (superadmin, organization_admin, user).
  *   - bearer: issues a bearer token alongside session cookies for the desktop.
  */
 export function createAuth(db: Db, config: Config) {
@@ -27,7 +34,8 @@ export function createAuth(db: Db, config: Config) {
         session: schema.sessions,
         account: schema.accounts,
         verification: schema.verifications,
-        organization: schema.organizations,
+        // BA's "organization" = our "workspace"
+        organization: schema.workspaces,
         member: schema.members,
         invitation: schema.invitations,
       },
@@ -41,14 +49,42 @@ export function createAuth(db: Db, config: Config) {
       requireEmailVerification: false,
     },
 
+    // Custom columns on `users` that Better-Auth must include on the
+    // session.user object. Without declaring these, `ctx.user.organizationId`
+    // is always undefined even when the DB row has it set.
+    user: {
+      additionalFields: {
+        organizationId: {
+          type: 'string',
+          required: false,
+          input: false,
+        },
+        preferredChatModelId: {
+          type: 'string',
+          required: false,
+          input: false,
+        },
+      },
+    },
+
     trustedOrigins: config.ALLOWED_ORIGINS,
 
     plugins: [
       organization({
-        allowUserToCreateOrganization: true,
+        // Workspaces are created from our own admin UI via tRPC; we don't
+        // want regular members triggering Better-Auth's built-in flow.
+        allowUserToCreateOrganization: false,
       }),
       admin({
         defaultRole: 'user',
+        roles: {
+          superadmin: adminAc,
+          organization_admin: userAc,
+          user: userAc,
+        },
+        // Only superadmins get Better-Auth's built-in admin privileges
+        // (listUsers, ban, impersonate).
+        adminRoles: ['superadmin'],
       }),
       bearer(),
     ],

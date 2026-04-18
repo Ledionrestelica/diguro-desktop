@@ -4,7 +4,7 @@ import { MessageParts, type MessageParts as MessagePartsT } from '@diguro/shared
 export interface ConversationDetail {
   id: string;
   title: string;
-  organizationId: string | null;
+  workspaceId: string | null;
   modelId: string | null;
   createdAt: Date;
   messages: PersistedMessage[];
@@ -52,7 +52,7 @@ export async function getConversation(
   return {
     id: conv.id,
     title: conv.title,
-    organizationId: conv.organizationId,
+    workspaceId: conv.workspaceId,
     modelId: conv.modelId,
     createdAt: conv.createdAt,
     messages,

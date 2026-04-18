@@ -11,8 +11,12 @@ const SYSTEM = [
   '- Title Case.',
   '- No quotes, no trailing punctuation.',
   '- Summarize the user intent, not echo their wording verbatim.',
-  '- If the message is a greeting or ambiguous, respond exactly "New Chat".',
+  '- Always produce a meaningful, specific title — never "New Chat", "Chat",',
+  '  or any generic placeholder. For greetings, describe the greeting (e.g.',
+  '  "Friendly Hello Intro"). For one-word inputs, infer the likely topic.',
 ].join('\n');
+
+const GENERIC_TITLES = new Set(['new chat', 'chat', 'new conversation', 'conversation']);
 
 const TITLE_MAX_CHARS = 60;
 
@@ -54,10 +58,19 @@ export async function generateAndApplyConversationTitle(
       model,
       system: SYSTEM,
       prompt: `First user message:\n${trimmed.slice(0, 800)}`,
+      // gpt-5-nano + Responses API defaults to higher reasoning effort, which
+      // can eat the whole completion and leave `text` empty. Titles don't need
+      // reasoning — force minimal so the model emits text immediately.
+      providerOptions: {
+        openai: { reasoningEffort: 'minimal' },
+      },
     });
 
     const title = sanitizeTitle(text);
     if (!title) return;
+    // Guard against the model returning a generic placeholder — keep the
+    // provisional title (first user text) instead of overwriting with it.
+    if (GENERIC_TITLES.has(title.toLowerCase())) return;
 
     await deps.db
       .update(schema.conversations)

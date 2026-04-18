@@ -8,7 +8,7 @@ const TITLE_FALLBACK = 'New chat';
 export interface UpsertConversationInput {
   conversationId: string;
   userId: string;
-  organizationId: string | null;
+  workspaceId: string | null;
   modelId: string;
   firstUserText: string | undefined;
 }
@@ -34,7 +34,7 @@ export async function upsertConversation(
     .values({
       id: input.conversationId,
       userId: input.userId,
-      organizationId: input.organizationId,
+      workspaceId: input.workspaceId,
       title,
       modelId: input.modelId,
     })

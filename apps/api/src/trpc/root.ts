@@ -2,11 +2,19 @@ import { router } from './trpc.ts';
 import { healthRouter } from './routers/health.ts';
 import { conversationsRouter } from './routers/conversations.ts';
 import { chatAttachmentsRouter } from './routers/chatAttachments.ts';
+import { adminPlatformRouter } from './routers/adminPlatform.ts';
+import { adminOrganizationRouter } from './routers/adminOrganization.ts';
+import { adminWorkspaceRouter } from './routers/adminWorkspace.ts';
+import { workspacesRouter } from './routers/workspaces.ts';
 
 export const appRouter = router({
   health: healthRouter,
   conversations: conversationsRouter,
   chatAttachments: chatAttachmentsRouter,
+  workspaces: workspacesRouter,
+  adminPlatform: adminPlatformRouter,
+  adminOrganization: adminOrganizationRouter,
+  adminWorkspace: adminWorkspaceRouter,
 });
 
 export type AppRouter = typeof appRouter;

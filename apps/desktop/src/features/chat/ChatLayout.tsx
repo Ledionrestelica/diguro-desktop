@@ -4,6 +4,7 @@ import type { UIMessage } from 'ai';
 import { trpc } from '@/lib/trpc';
 import { ChatSidebar } from './ChatSidebar';
 import { TopBar } from './TopBar';
+import { WorkspaceRail } from './WorkspaceRail';
 import { useChatSession, type ChatSession } from './useChatSession';
 import type { PersistedMessage } from './types';
 
@@ -126,6 +127,7 @@ export function ChatLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#fafafa] text-foreground">
+      <WorkspaceRail />
       <ChatSidebar activeChatId={paramChatId ?? null} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopBar />

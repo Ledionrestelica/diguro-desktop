@@ -1,27 +1,41 @@
-import { boolean, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { systemRole } from './enums.ts';
+import { organizations } from './organization.ts';
 
 /**
  * Better-Auth managed tables. Column shapes follow the
- * `better-auth/drizzle-adapter` conventions. Custom columns on `users` are
- * added below (preferred chat model, personal resource cap).
+ * `better-auth/drizzle-adapter` conventions. Custom columns added below:
+ *   - organizationId: the organization (tenant) this user belongs to.
+ *     Nullable because superadmins may be organizationless (and fresh
+ *     signups before invite).
+ *   - role: narrowed to our systemRole enum.
+ *   - preferredChatModelId / maxPersonalResources: user-scoped preferences.
  */
 
-export const users = pgTable('users', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  email: text('email').notNull().unique(),
-  emailVerified: boolean('email_verified').notNull().default(false),
-  image: text('image'),
-  role: text('role').notNull().default('user'),
-  banned: boolean('banned').notNull().default(false),
-  banReason: text('ban_reason'),
-  banExpires: timestamp('ban_expires'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+export const users = pgTable(
+  'users',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    email: text('email').notNull().unique(),
+    emailVerified: boolean('email_verified').notNull().default(false),
+    image: text('image'),
+    role: systemRole('role').notNull().default('user'),
+    banned: boolean('banned').notNull().default(false),
+    banReason: text('ban_reason'),
+    banExpires: timestamp('ban_expires'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
 
-  preferredChatModelId: text('preferred_chat_model_id'),
-  maxPersonalResources: integer('max_personal_resources').notNull().default(100),
-});
+    organizationId: text('organization_id').references(() => organizations.id, {
+      onDelete: 'set null',
+    }),
+
+    preferredChatModelId: text('preferred_chat_model_id'),
+    maxPersonalResources: integer('max_personal_resources').notNull().default(100),
+  },
+  (t) => [index('users_organization_idx').on(t.organizationId)],
+);
 
 export const sessions = pgTable('sessions', {
   id: text('id').primaryKey(),
@@ -32,7 +46,11 @@ export const sessions = pgTable('sessions', {
   expiresAt: timestamp('expires_at').notNull(),
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
-  activeOrganizationId: text('active_organization_id'),
+  /** The workspace the user is currently acting inside. Flipped by
+   *  `workspaces.setActive`. The DB column is named `active_organization_id`
+   *  for Better-Auth organization-plugin compat (it expects that literal
+   *  name); we expose it to our code under the new vocabulary. */
+  activeWorkspaceId: text('active_organization_id'),
   impersonatedBy: text('impersonated_by'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

@@ -1,11 +1,11 @@
 import { index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { messageRoleEnum } from './enums.ts';
-import { organizations } from './org.ts';
+import { workspaces } from './workspace.ts';
 import { users } from './auth.ts';
 import { chunks } from './chunk.ts';
 
 /**
- * Conversations are always owned by a user. organizationId null => personal chat
+ * Conversations are always owned by a user. workspaceId null => personal chat
  * over the user's personal files. No cross-scope retrieval in v1.
  */
 export const conversations = pgTable(
@@ -15,7 +15,7 @@ export const conversations = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    organizationId: text('organization_id').references(() => organizations.id, {
+    workspaceId: text('workspace_id').references(() => workspaces.id, {
       onDelete: 'cascade',
     }),
     folderId: text('folder_id'),
@@ -25,7 +25,7 @@ export const conversations = pgTable(
   },
   (t) => [
     index('conversations_user_created_idx').on(t.userId, t.createdAt),
-    index('conversations_org_created_idx').on(t.organizationId, t.createdAt),
+    index('conversations_workspace_created_idx').on(t.workspaceId, t.createdAt),
   ],
 );
 
@@ -36,7 +36,7 @@ export const chatFolders = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    organizationId: text('organization_id').references(() => organizations.id, {
+    workspaceId: text('workspace_id').references(() => workspaces.id, {
       onDelete: 'cascade',
     }),
     name: text('name').notNull(),
@@ -44,7 +44,7 @@ export const chatFolders = pgTable(
   },
   (t) => [
     index('chat_folders_user_idx').on(t.userId),
-    index('chat_folders_org_idx').on(t.organizationId),
+    index('chat_folders_workspace_idx').on(t.workspaceId),
   ],
 );
 

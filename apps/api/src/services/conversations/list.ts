@@ -3,7 +3,7 @@ import { desc, eq, schema, type Db } from '@diguro/db';
 export interface ConversationSummary {
   id: string;
   title: string;
-  organizationId: string | null;
+  workspaceId: string | null;
   modelId: string | null;
   createdAt: Date;
 }
@@ -16,7 +16,7 @@ export async function listConversations(
     .select({
       id: schema.conversations.id,
       title: schema.conversations.title,
-      organizationId: schema.conversations.organizationId,
+      workspaceId: schema.conversations.workspaceId,
       modelId: schema.conversations.modelId,
       createdAt: schema.conversations.createdAt,
     })

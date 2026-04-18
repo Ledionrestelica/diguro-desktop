@@ -43,7 +43,33 @@ The existing Next.js app lives at `/Users/ledionrestelica/ai-chat` (sibling work
 | API deploy | **Fly.io** | Persistent Bun process, `min_machines_running = 1`, co-located region with Neon. |
 | Desktop distribution | `electron-builder` | Signed installers for macOS (Apple Developer cert) + Windows (EV cert). Auto-updates via `electron-updater`. |
 
-## Resource scoping (org vs user)
+## Multi-tenancy model (Organization → Workspace → User)
+
+Three tiers, not two:
+
+```
+Platform (superadmins — the 3 of us)
+  └── Organization (a customer we sold to — the tenant)
+        ├── Users (each user belongs to ONE organization)
+        └── Workspace (HR, Accounting, Sales, ...) — multiple workspaces per org
+              └── Members (OWNER / ADMIN / MEMBER per workspace — a user can join
+                  many workspaces WITHIN their organization)
+```
+
+> Naming note: Better-Auth's `organization` plugin calls its tenant-like
+> entity "organization" internally. We remap it to our `workspaces` table —
+> BA's internal vocabulary never leaks to users or our code.
+
+**System roles** (`users.role`, pgEnum `system_role`):
+- `superadmin` — platform operators. Not scoped to an organization (though typically a member of our "Diguro HQ" organization for convenience). See and mutate anything. Only promoted via DB or superadmin UI.
+- `organization_admin` — admin of a specific organization. Manages users + workspaces within their organization. Cannot grant superadmin, cannot act on other organizations.
+- `user` — regular user in an organization.
+
+**Workspace roles** (`members.role`, pgEnum `member_role`): `OWNER | ADMIN | MEMBER`. Per-workspace, independent of the system role axis.
+
+A user can belong to **many workspaces within their single organization**. They cannot belong to multiple organizations (v1 design — cross-organization membership would require a join table + rework; not planned).
+
+### Resource scoping
 
 Every document-like entity in the system is **polymorphically scoped**: it belongs to either an Organization or a User, never both, never neither. This applies to:
 
@@ -55,9 +81,33 @@ Every document-like entity in the system is **polymorphically scoped**: it belon
 
 Enforced with nullable `organizationId` + `userId` columns plus a DB-level `CHECK` constraint (`(organization_id IS NOT NULL) <> (user_id IS NOT NULL)` or similar depending on the table). Drizzle's `check()` helper expresses these directly in the schema file — no separate migration-only SQL step needed.
 
+Every scoped entity's company is derivable: org-scoped → org.companyId; user-scoped → user.companyId. We don't duplicate `companyId` on every child row.
+
 **Retrieval never crosses scopes.** A user-scoped conversation only searches that user's personal files. An org-scoped conversation only searches that org's files. "Share a personal file to my org" is a v2 feature (would require a file-share table and an authorization rethink).
 
-**Rationale:** one polymorphic `Resource` model avoids duplicating the whole ingestion pipeline, chunk/embedding storage, and RAG code across two separate "PersonalResource" / "OrgResource" tables. The cost is a pair of nullable FKs and a CHECK constraint — acceptable.
+### Authorization middleware chain
+
+```
+publicProcedure
+  → authedProcedure              valid session; attaches ctx.user + ctx.session
+    → systemAdminProcedure       ctx.user.role === 'superadmin'
+    → activeCompanyProcedure     loads ctx.company from ctx.user.companyId; rejects suspended companies
+      → companyAdminProcedure    role in ('superadmin', 'company_admin')
+      → orgProcedure             (planned) verifies org membership + org.companyId === ctx.company.id
+        → orgAdminProcedure      (planned) members.role in (OWNER, ADMIN)
+```
+
+Superadmins acting on a SPECIFIC company (not their own) use `systemAdminProcedure` + accept an explicit `companyId` in the input — they don't flow through `activeCompanyProcedure`.
+
+### Per-company caps (stored on `companies` row)
+
+- `maxUsers` — seat cap
+- `maxOrganizations` — org count cap
+- `maxResourcesPerOrganization` — file cap per org
+- `maxMonthlySpendMicrodollars` — LLM spend ceiling
+- `suspended` — null = active; non-null string = freeze with reason
+
+Company admins cannot raise their own caps. Superadmin sets them on creation.
 
 ## File storage: S3 as source of truth
 
@@ -519,19 +569,35 @@ Trust nothing from outside the API. Validate at these lines:
 Every tRPC procedure composes from a middleware chain. No ad-hoc auth checks inside procedures.
 
 ```
-publicProcedure         // unauthenticated (sign-in, sign-up only)
-authedProcedure         // valid session, any role
-orgProcedure            // authed + member of orgId in input, attaches { org, member } to ctx
-orgAdminProcedure       // orgProcedure + member.role in (OWNER, ADMIN)
-orgOwnerProcedure       // orgProcedure + member.role == OWNER
-systemAdminProcedure    // authed + User.role in (admin, superadmin)
-scopedProcedure         // authed + input carries a Scope discriminator
-                        // (org → verifies membership; user → verifies scope.userId === ctx.user.id)
-                        // attaches { scope } to ctx — services accept Scope, never raw ids
-resourceProcedure       // scopedProcedure + loads Resource + asserts Resource scope matches ctx.scope
+publicProcedure          // unauthenticated (sign-in, sign-up only)
+authedProcedure          // valid session; attaches ctx.user + ctx.session
+
+systemAdminProcedure     // authed + ctx.user.role === 'superadmin'
+                         //   used for /admin/platform — create companies,
+                         //   promote users across companies, impersonate.
+
+activeCompanyProcedure   // authed + loads ctx.company from ctx.user.companyId
+                         //   fails on unassigned users + suspended companies.
+
+companyAdminProcedure    // activeCompany + role in ('superadmin','company_admin')
+                         //   used for /admin/company — list + invite members,
+                         //   create orgs, configure within caps.
+
+orgProcedure             // (planned) companyProcedure + verifies membership
+                         //   in input orgId + that org.companyId matches ctx.company.
+                         //   attaches { org, member } to ctx.
+orgAdminProcedure        // orgProcedure + member.role in (OWNER, ADMIN)
+orgOwnerProcedure        // orgProcedure + member.role == OWNER
+
+scopedProcedure          // (planned) authed + input carries a Scope discriminator
+                         //   (org → verifies membership; user → verifies scope.userId === ctx.user.id)
+                         //   attaches { scope } to ctx — services accept Scope, never raw ids
+resourceProcedure        // (planned) scopedProcedure + loads Resource + asserts scope match
 ```
 
-All data access is scoped through `ctx.scope` — either `{ kind: "org", org, member }` or `{ kind: "user", user }`. No service function accepts a raw orgId or userId parameter; the `Scope` value object comes from middleware and carries the authorization proof with it. Scope isolation is an invariant, not a convention.
+All data access is scoped through `ctx.scope` (planned) — either `{ kind: "org", org, member }` or `{ kind: "user", user }`. No service function accepts a raw orgId or userId parameter; the `Scope` value object comes from middleware and carries the authorization proof with it. Scope isolation is an invariant, not a convention.
+
+**Superadmin-on-another-company pattern:** a superadmin acting on a company that isn't their own passes `systemAdminProcedure` and accepts `companyId` as an explicit input — they don't flow through `activeCompanyProcedure`, which is scoped to `ctx.user.companyId`. This keeps the two paths orthogonal: "admin of my own company" vs "platform superadmin acting on another company" never share code paths.
 
 ### Errors
 

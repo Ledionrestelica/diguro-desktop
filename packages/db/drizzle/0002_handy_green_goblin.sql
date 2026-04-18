@@ -1,0 +1,1 @@
+ALTER TABLE "organizations" ALTER COLUMN "max_monthly_spend_microdollars" SET DEFAULT 150000000;

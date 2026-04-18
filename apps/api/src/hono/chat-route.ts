@@ -111,7 +111,7 @@ export function handleChat(deps: Deps) {
         {
           conversationId,
           userId: session.user.id,
-          organizationId: null,
+          workspaceId: null,
           modelId,
           firstUserText,
         },

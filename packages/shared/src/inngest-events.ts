@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OrgId, ResourceVersionId, UserId } from './ids.ts';
+import { ResourceVersionId, UserId, WorkspaceId } from './ids.ts';
 
 /**
  * Typed Inngest event payloads. Every handler validates on entry.
@@ -20,7 +20,7 @@ export const InngestEvents = {
 
   'recon.run': z.object({
     data: z.discriminatedUnion('kind', [
-      z.object({ kind: z.literal('org'), organizationId: OrgId }),
+      z.object({ kind: z.literal('workspace'), workspaceId: WorkspaceId }),
       z.object({ kind: z.literal('user'), userId: UserId }),
     ]),
   }),

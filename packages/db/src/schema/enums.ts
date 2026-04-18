@@ -1,5 +1,20 @@
 import { pgEnum } from 'drizzle-orm/pg-core';
 
+/**
+ * System role assigned on the user row. Three tiers:
+ *   - superadmin         — platform operators (the 3 of us). Not scoped to an organization.
+ *   - organization_admin — admin of a specific organization (tenant); manages users + workspaces inside it.
+ *   - user               — regular member of an organization (or unaffiliated awaiting invite).
+ *
+ * Distinct enum from member_role (workspace-level OWNER/ADMIN/MEMBER) to avoid
+ * name collision and let each axis evolve independently.
+ */
+export const systemRole = pgEnum('system_role', [
+  'superadmin',
+  'organization_admin',
+  'user',
+]);
+
 export const memberRole = pgEnum('member_role', ['OWNER', 'ADMIN', 'MEMBER']);
 
 export const ingestStatus = pgEnum('ingest_status', [

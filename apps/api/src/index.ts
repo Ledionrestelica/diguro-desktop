@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger as honoLogger } from 'hono/logger';
+import { serve as inngestServe } from 'inngest/hono';
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
 import { createDb } from '@diguro/db';
 import { loadConfig } from './config.ts';
@@ -11,6 +12,8 @@ import { appRouter } from './trpc/root.ts';
 import { createModelRegistry } from './ai/registry.ts';
 import { handleChat } from './hono/chat-route.ts';
 import { createS3ObjectStore } from './adapters/s3/index.ts';
+import { createInngest } from './inngest/index.ts';
+import { createInngestQueueAdapter } from './adapters/inngest/queue.ts';
 
 const config = loadConfig();
 const logger = createLogger(config.LOG_LEVEL);
@@ -18,6 +21,12 @@ const db = createDb(config.DATABASE_URL);
 const auth = createAuth(db, config);
 const modelRegistry = createModelRegistry(config);
 const objectStore = createS3ObjectStore(config);
+const { client: inngestClient, functions: inngestFunctions } = createInngest({
+  db,
+  logger,
+  config,
+});
+const queue = createInngestQueueAdapter(inngestClient);
 
 const app = new Hono();
 
@@ -43,13 +52,24 @@ app.post(
   handleChat({ auth, registry: modelRegistry, db, logger, objectStore }),
 );
 
+// Inngest mount — serves both function introspection (GET) and event
+// delivery (POST). The dev server at http://127.0.0.1:8288 polls this URL.
+app.on(
+  ['GET', 'POST', 'PUT'],
+  '/api/inngest',
+  inngestServe({
+    client: inngestClient,
+    functions: inngestFunctions,
+  }),
+);
+
 app.all('/trpc/*', (c) =>
   fetchRequestHandler({
     endpoint: '/trpc',
     req: c.req.raw,
     router: appRouter,
     createContext: () =>
-      buildCtx({ db, auth, config, logger, objectStore }, c.req.raw),
+      buildCtx({ db, auth, config, logger, objectStore, queue }, c.req.raw),
   }),
 );
 

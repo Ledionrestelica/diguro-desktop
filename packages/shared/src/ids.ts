@@ -5,7 +5,8 @@ type Brand<T, B extends string> = T & { readonly [brand]: B };
 
 const idString = z.string().min(1).max(128);
 
-export type OrgId = Brand<string, 'OrgId'>;
+export type OrganizationId = Brand<string, 'OrganizationId'>;
+export type WorkspaceId = Brand<string, 'WorkspaceId'>;
 export type UserId = Brand<string, 'UserId'>;
 export type MemberId = Brand<string, 'MemberId'>;
 export type ResourceId = Brand<string, 'ResourceId'>;
@@ -17,7 +18,8 @@ export type ChatFolderId = Brand<string, 'ChatFolderId'>;
 export type MessageId = Brand<string, 'MessageId'>;
 export type CitationId = Brand<string, 'CitationId'>;
 
-export const OrgId = idString.transform((v) => v as OrgId);
+export const OrganizationId = idString.transform((v) => v as OrganizationId);
+export const WorkspaceId = idString.transform((v) => v as WorkspaceId);
 export const UserId = idString.transform((v) => v as UserId);
 export const MemberId = idString.transform((v) => v as MemberId);
 export const ResourceId = idString.transform((v) => v as ResourceId);
