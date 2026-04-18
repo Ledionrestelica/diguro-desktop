@@ -75,7 +75,7 @@ export function handleChat(deps: Deps) {
       return c.json({ error: err.message }, 401);
     }
 
-    const body = await c.req.json().catch(() => null);
+    const body: unknown = await c.req.json().catch(() => null);
     const parsed = ChatRequestSchema.safeParse(body);
     if (!parsed.success) {
       return c.json(

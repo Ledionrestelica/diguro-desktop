@@ -1,8 +1,11 @@
-import type { inferRouterOutputs } from '@trpc/server';
-import type { AppRouter } from '@diguro/trpc';
-
-type RouterOutputs = inferRouterOutputs<AppRouter>;
-
-export type ConversationSummary = RouterOutputs['conversations']['list'][number];
-export type ConversationDetail = RouterOutputs['conversations']['get'];
-export type PersistedMessage = ConversationDetail['messages'][number];
+/**
+ * Re-exports concrete service types from @diguro/trpc. These are the same
+ * shapes the tRPC routers return, but resolving them directly avoids the
+ * expensive `inferRouterOutputs<AppRouter>` conditional walk that
+ * typescript-eslint trips on in practice.
+ */
+export type {
+  ConversationSummary,
+  ConversationDetail,
+  PersistedMessage,
+} from '@diguro/trpc';

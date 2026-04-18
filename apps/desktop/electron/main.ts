@@ -61,7 +61,7 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(() => {
+void app.whenReady().then(() => {
   ipcMain.handle('auth:get-token', () => readToken());
   ipcMain.handle('auth:set-token', (_e, token: string | null) => {
     writeToken(token);

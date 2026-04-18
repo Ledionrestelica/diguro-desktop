@@ -82,7 +82,7 @@ export function ChatLayout() {
     }
     if (session.messages.length > 0 && !navigatedRef.current) {
       navigatedRef.current = true;
-      navigate(`/chat/${chatId}`, { replace: true });
+      void navigate(`/chat/${chatId}`, { replace: true });
       void utils.conversations.list.invalidate();
     }
   }, [isNewChat, session.messages.length, chatId, navigate, utils]);

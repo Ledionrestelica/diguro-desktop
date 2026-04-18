@@ -1,6 +1,6 @@
 import { MessageCircleDashed } from 'lucide-react';
 import { apiAuth } from '@/lib/api-auth';
-import { useAuth } from '@/app/AuthGate';
+import { useAuth } from '@/app/auth-context';
 import {
   DropdownMenu,
   DropdownMenuContent,

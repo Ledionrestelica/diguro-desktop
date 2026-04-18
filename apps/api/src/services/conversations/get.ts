@@ -43,7 +43,7 @@ export async function getConversation(
 
   const messages: PersistedMessage[] = messageRows.map((row) => ({
     id: row.id,
-    role: row.role as PersistedMessage['role'],
+    role: row.role,
     parts: MessageParts.parse(row.parts),
     modelId: row.modelId,
     createdAt: row.createdAt,

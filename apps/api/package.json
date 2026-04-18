@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./router": "./src/trpc/root.ts"
+    "./router": "./src/trpc/root.ts",
+    "./types": "./src/trpc/public-types.ts"
   },
   "scripts": {
     "dev": "bun --hot src/index.ts",

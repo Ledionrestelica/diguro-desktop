@@ -1,6 +1,6 @@
 import { authStore } from './auth-store.ts';
 
-const API_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 type AuthError = { error: string };
 type SignInResponse = { user: { id: string; email: string } };

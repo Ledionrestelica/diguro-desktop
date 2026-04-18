@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { authStore } from '@/lib/auth-store';
 import { SignIn } from '@/features/auth/SignIn';
+import { AuthContext } from './auth-context';
 
 /**
  * Gates the entire router behind a bearer token check. Renders SignIn when
@@ -10,7 +11,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [authed, setAuthed] = useState<boolean | null>(null);
 
   useEffect(() => {
-    authStore.get().then((t) => setAuthed(Boolean(t)));
+    void authStore.get().then((t) => setAuthed(Boolean(t)));
   }, []);
 
   if (authed === null) {
@@ -30,18 +31,4 @@ export function AuthGate({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-import { createContext, useContext } from 'react';
-
-interface AuthContextValue {
-  signOut: () => void;
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null);
-
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside <AuthGate>');
-  return ctx;
 }

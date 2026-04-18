@@ -21,7 +21,7 @@ export function ChatSidebar({ activeChatId }: Props) {
   const conversations = trpc.conversations.list.useQuery();
 
   return (
-    <aside className="flex h-full w-[212px] shrink-0 flex-col gap-6 overflow-hidden bg-[#f4f4f5] px-2 py-6">
+    <aside className="flex h-full w-53 shrink-0 flex-col gap-6 overflow-hidden bg-[#f4f4f5] px-2 py-6">
       <div className="shrink-0 space-y-6">
         <OrgSwitcher />
 
@@ -76,7 +76,7 @@ function SidebarButton({ icon, children, onClick, variant = 'ghost' }: SidebarBu
       onClick={onClick}
       className={cn(
         'flex items-center cursor-pointer gap-0 rounded-[10px] pr-3 text-left text-sm text-zinc-800 transition-colors',
-        variant === 'filled' ? 'bg-white shadow-xs hover:bg-white/80' : 'hover:bg-black/[0.04]',
+        variant === 'filled' ? 'bg-white shadow-xs hover:bg-white/80' : 'hover:bg-black/4',
       )}
     >
       <span className="grid size-8 place-items-center">{icon}</span>
@@ -100,7 +100,7 @@ function ChatRow({ chat, active }: { chat: ConversationSummary; active: boolean 
   const deleteChat = trpc.conversations.delete.useMutation({
     onSuccess: () => {
       void utils.conversations.list.invalidate();
-      if (active) navigate('/chat');
+      if (active) void navigate('/chat');
     },
   });
 

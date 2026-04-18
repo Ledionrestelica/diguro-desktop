@@ -41,7 +41,9 @@ export function Message({ role, parts, thinking, showActions = true }: MessagePr
   return (
     <div className="flex flex-col gap-4">
       {thinking && (
-        <p className="thinking-gradient-text w-fit text-base font-medium leading-6">Thinking..</p>
+        <p className="thinking-gradient-text w-fit text-base font-medium leading-6 animate-bounce">
+          Thinking..
+        </p>
       )}
       {searchState && <SearchIndicator state={searchState} />}
       {files.length > 0 && <AttachmentGrid files={files} align="start" />}
@@ -53,7 +55,9 @@ export function Message({ role, parts, thinking, showActions = true }: MessagePr
               p: ({ children }) => <p className="mb-4 last:mb-0">{children}</p>,
               strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
               ul: ({ children }) => <ul className="mb-4 list-disc pl-5 last:mb-0">{children}</ul>,
-              ol: ({ children }) => <ol className="mb-4 list-decimal pl-5 last:mb-0">{children}</ol>,
+              ol: ({ children }) => (
+                <ol className="mb-4 list-decimal pl-5 last:mb-0">{children}</ol>
+              ),
               li: ({ children }) => <li className="mb-1 last:mb-0">{children}</li>,
               code: ({ children, className }) => (
                 <code
@@ -87,9 +91,7 @@ export function Message({ role, parts, thinking, showActions = true }: MessagePr
 function SearchIndicator({ state }: { state: 'searching' | 'done' }) {
   return (
     <div className="flex w-fit items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600">
-      <Globe
-        className={`size-3.5 text-zinc-500 ${state === 'searching' ? 'animate-pulse' : ''}`}
-      />
+      <Globe className={`size-3.5 text-zinc-500 ${state === 'searching' ? 'animate-pulse' : ''}`} />
       {state === 'searching' ? 'Searching the web…' : 'Searched the web'}
     </div>
   );
@@ -195,7 +197,10 @@ function mediaBadge(mediaType: string, filename: string | undefined): string {
   if (filename) {
     const dot = filename.lastIndexOf('.');
     if (dot >= 0 && dot < filename.length - 1) {
-      return filename.slice(dot + 1).toUpperCase().slice(0, 4);
+      return filename
+        .slice(dot + 1)
+        .toUpperCase()
+        .slice(0, 4);
     }
   }
   return 'FILE';
