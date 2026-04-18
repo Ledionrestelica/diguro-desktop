@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "bun --hot src/index.ts",
+    "dev:inngest": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest",
     "build": "bun build src/index.ts --target=bun --outdir=dist",
     "start": "bun src/index.ts",
     "typecheck": "tsc --noEmit",
@@ -30,6 +31,7 @@
     "hono": "^4.6.15",
     "inngest": "^4.2.4",
     "superjson": "^2.2.2",
+    "unpdf": "^1.6.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

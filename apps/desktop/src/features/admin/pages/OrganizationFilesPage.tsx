@@ -16,11 +16,30 @@ import { AdminPageBody } from '../AdminLayout';
  * the UI shows the ingest status per file (Uploading → Processing → Ready
  * / Failed) so admins can see where each doc is.
  */
+// Statuses that are transient — once every file is in a terminal state we
+// can stop polling. `EXTRACTING` currently counts as terminal for Phase 1a
+// since chunking/embedding aren't wired yet; it'll graduate to transient
+// when Phase 2+ lands.
+const TRANSIENT_STATUSES = new Set(['PENDING', 'CHUNKING', 'EMBEDDING']);
+
 export function OrganizationFilesPage() {
   const [search, setSearch] = useState('');
   const utils = trpc.useUtils();
   const filesQuery = trpc.adminOrganization.filesList.useQuery(
     search.trim() ? { search: search.trim() } : undefined,
+    {
+      // Poll while any file is being processed by Inngest. Stops polling
+      // once every file reaches a terminal status (DONE / FAILED / the
+      // Phase-1a stopping point of EXTRACTING).
+      refetchInterval: (query) => {
+        const data = query.state.data;
+        if (!data || data.length === 0) return false;
+        const anyTransient = data.some(
+          (f) => f.ingestStatus && TRANSIENT_STATUSES.has(f.ingestStatus),
+        );
+        return anyTransient ? 2000 : false;
+      },
+    },
   );
 
   const initiate = trpc.adminOrganization.filesInitiateUpload.useMutation();
@@ -245,11 +264,29 @@ function statusConfig(status: string | null): {
         spinner: false,
       };
     case 'PENDING':
+      return {
+        label: 'Queued',
+        className: 'border-amber-200 bg-amber-50 text-amber-700',
+        spinner: true,
+      };
     case 'EXTRACTING':
+      // Phase 1a terminal state: extraction is the last step wired up,
+      // so we label it "Text extracted" rather than the ambiguous
+      // "Processing" until chunking / embedding lands in Phase 2+.
+      return {
+        label: 'Text extracted',
+        className: 'border-blue-200 bg-blue-50 text-blue-700',
+        spinner: false,
+      };
     case 'CHUNKING':
+      return {
+        label: 'Chunking',
+        className: 'border-amber-200 bg-amber-50 text-amber-700',
+        spinner: true,
+      };
     case 'EMBEDDING':
       return {
-        label: 'Processing',
+        label: 'Indexing',
         className: 'border-amber-200 bg-amber-50 text-amber-700',
         spinner: true,
       };

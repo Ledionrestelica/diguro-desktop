@@ -12,8 +12,11 @@ import { appRouter } from './trpc/root.ts';
 import { createModelRegistry } from './ai/registry.ts';
 import { handleChat } from './hono/chat-route.ts';
 import { createS3ObjectStore } from './adapters/s3/index.ts';
+import { createMistralOcrProvider } from './adapters/mistral/ocr.ts';
+import { createExtractor } from './services/extraction/index.ts';
 import { createInngest } from './inngest/index.ts';
 import { createInngestQueueAdapter } from './adapters/inngest/queue.ts';
+import type { OcrProvider } from './ports/ocrProvider.ts';
 
 const config = loadConfig();
 const logger = createLogger(config.LOG_LEVEL);
@@ -21,10 +24,27 @@ const db = createDb(config.DATABASE_URL);
 const auth = createAuth(db, config);
 const modelRegistry = createModelRegistry(config);
 const objectStore = createS3ObjectStore(config);
+
+// OCR is optional in dev (scanned PDFs won't extract but text-layer PDFs
+// and MD/TXT still work). Throw in prod if missing — Phase 10 config
+// validation will make this stricter per-customer.
+const ocr: OcrProvider = config.MISTRAL_API_KEY
+  ? createMistralOcrProvider({ apiKey: config.MISTRAL_API_KEY })
+  : {
+      ocrDocument: () => {
+        throw new Error(
+          'OCR not configured — set MISTRAL_API_KEY to enable image-PDF ingestion',
+        );
+      },
+    };
+const extractor = createExtractor({ ocr, logger });
+
 const { client: inngestClient, functions: inngestFunctions } = createInngest({
   db,
   logger,
   config,
+  objectStore,
+  extractor,
 });
 const queue = createInngestQueueAdapter(inngestClient);
 

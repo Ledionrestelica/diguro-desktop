@@ -29,25 +29,27 @@ export const organizations = pgTable(
 
     /**
      * Defaults aimed at the "Town" tier — small municipality / records-heavy
-     * SMB. Override per-customer via platform admin when they upgrade.
-     *   maxUsers: 25 staff (clerk + planning + public works + admin).
-     *   maxWorkspaces: 5 (one per department — Clerk, Planning, PW, Legal, HR).
-     *   maxResourcesPerWorkspace: 2_000 (x5 workspaces = 10k docs total,
-     *     enough for ~5 years of typical small-town volume).
-     *   maxMonthlySpendMicrodollars: $300 (300_000_000 microdollars) — covers
-     *     steady-state AI usage for the Town tier. Phase 10 enforcement
+     * SMB. Sized for the real customer shape: 1-2K total docs, 10-15 staff,
+     * low chat volume. Override per-customer via platform admin when they
+     * upgrade.
+     *   maxUsers: 15 (clerk + planning + PW + admin for a small town).
+     *   maxWorkspaces: 3 (small orgs consolidate — Clerk, Planning, PW).
+     *   maxResourcesPerWorkspace: 1_000 (x3 = 3K total with 50% headroom
+     *     over the 1-2K real-world ceiling).
+     *   maxMonthlySpendMicrodollars: $75 (75_000_000 microdollars) — covers
+     *     steady-state ($24/mo) with 3x spike buffer. Phase 10 enforcement
      *     blocks new chat turns once this is hit.
      */
-    maxUsers: integer('max_users').notNull().default(25),
-    maxWorkspaces: integer('max_workspaces').notNull().default(5),
+    maxUsers: integer('max_users').notNull().default(15),
+    maxWorkspaces: integer('max_workspaces').notNull().default(3),
     maxResourcesPerWorkspace: integer('max_resources_per_workspace')
       .notNull()
-      .default(2000),
+      .default(1000),
     maxMonthlySpendMicrodollars: bigint('max_monthly_spend_microdollars', {
       mode: 'bigint',
     })
       .notNull()
-      .default(sql`300000000`),
+      .default(sql`75000000`),
 
     suspended: text('suspended'), // null = active, else reason
 

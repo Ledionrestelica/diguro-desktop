@@ -71,6 +71,17 @@ export function createS3ObjectStore(config: Config): ObjectStore {
       return getSignedUrl(client, cmd, { expiresIn });
     },
 
+    async getBytes(key: string): Promise<Uint8Array> {
+      const res = await client.send(
+        new GetObjectCommand({ Bucket: bucket, Key: key }),
+      );
+      if (!res.Body) throw new Error(`S3 object ${key} has no body`);
+      // @aws-sdk v3 returns a Node Readable stream in Node/Bun runtimes.
+      // transformToByteArray is added by the SDK response mixin.
+      const bytes = await res.Body.transformToByteArray();
+      return bytes;
+    },
+
     async delete(key: string): Promise<void> {
       await client
         .send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))

@@ -44,6 +44,8 @@ const ConfigSchema = z.object({
 
   VOYAGE_API_KEY: z.string().optional(),
   COHERE_API_KEY: z.string().optional(),
+  /** Mistral OCR — used for scanned/image PDFs during ingestion extraction. */
+  MISTRAL_API_KEY: z.string().optional(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

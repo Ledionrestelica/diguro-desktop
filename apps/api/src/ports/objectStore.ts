@@ -9,6 +9,8 @@ export interface ObjectStore {
   presignPut(args: PresignPutArgs): Promise<PresignedPut>;
   /** Generate a time-limited GET URL for reading an object. */
   presignGet(args: PresignGetArgs): Promise<string>;
+  /** Download object bytes into memory. Use for server-side ingestion work. */
+  getBytes(key: string): Promise<Uint8Array>;
   /** Delete a single object. Swallows 404 — idempotent. */
   delete(key: string): Promise<void>;
   /** Delete every object under a prefix. Returns the count deleted. */
