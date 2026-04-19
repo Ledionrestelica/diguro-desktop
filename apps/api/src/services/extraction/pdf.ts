@@ -2,6 +2,7 @@ import { extractText } from 'unpdf';
 import type { ExtractedDoc, ExtractorInput } from '../../ports/extractor.ts';
 import type { OcrProvider } from '../../ports/ocrProvider.ts';
 import type { Logger } from '../../lib/logger.ts';
+import { sanitizeExtractedText } from './sanitize.ts';
 
 /**
  * PDF extractor. Tries the text layer first (free, fast — unpdf wraps
@@ -66,9 +67,13 @@ export async function extractPdf(
       totalPages,
       sparsePages: sparsePages.length,
     });
+    const cleanPages = pages.map((t, i) => ({
+      pageNumber: i + 1,
+      text: sanitizeExtractedText(t),
+    }));
     return {
-      pages: pages.map((t, i) => ({ pageNumber: i + 1, text: t })),
-      fullText: pages.join('\n\n'),
+      pages: cleanPages,
+      fullText: cleanPages.map((p) => p.text).join('\n\n'),
       ocrUsed: false,
       ocrPageCount: 0,
     };
@@ -96,10 +101,14 @@ export async function extractPdf(
         },
   );
 
+  const cleanOcrPages = ocrResult.pages.map((p) => ({
+    ...p,
+    text: sanitizeExtractedText(p.text),
+  }));
   return {
-    pages: ocrResult.pages,
-    fullText: ocrResult.pages.map((p) => p.text).join('\n\n'),
+    pages: cleanOcrPages,
+    fullText: cleanOcrPages.map((p) => p.text).join('\n\n'),
     ocrUsed: true,
-    ocrPageCount: ocrResult.pages.length,
+    ocrPageCount: cleanOcrPages.length,
   };
 }

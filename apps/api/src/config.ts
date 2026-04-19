@@ -46,6 +46,22 @@ const ConfigSchema = z.object({
   COHERE_API_KEY: z.string().optional(),
   /** Mistral OCR — used for scanned/image PDFs during ingestion extraction. */
   MISTRAL_API_KEY: z.string().optional(),
+  /**
+   * Which provider runs the chunk-contextualizer step. OpenAI (GPT-5-nano
+   * with automatic prefix caching) is the default; Anthropic (Haiku 4.5
+   * with explicit cache_control) is the opt-in alternative when you have
+   * Anthropic credits.
+   */
+  CONTEXTUALIZE_PROVIDER: z.enum(['openai', 'anthropic']).default('openai'),
+  /**
+   * Which provider runs embeddings. Default is OpenAI (text-embedding-3
+   * -large at 1024 dim, uses OPENAI_API_KEY, tier-1 rate limits). Voyage
+   * is the opt-in alternative (voyage-3-large, marginally higher retrieval
+   * quality, requires VOYAGE_API_KEY with payment on file for sustained
+   * workloads). Switching providers requires a re-ingest — vectors from
+   * different providers aren't comparable.
+   */
+  EMBED_PROVIDER: z.enum(['openai', 'voyage']).default('openai'),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

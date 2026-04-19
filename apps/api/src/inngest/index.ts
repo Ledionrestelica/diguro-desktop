@@ -5,6 +5,9 @@ import type { Logger } from '../lib/logger.ts';
 import type { Config } from '../config.ts';
 import type { ObjectStore } from '../ports/objectStore.ts';
 import type { Extractor } from '../ports/extractor.ts';
+import type { Chunker } from '../ports/chunker.ts';
+import type { EmbedProvider } from '../ports/embedProvider.ts';
+import type { Contextualizer } from '../ports/contextualizer.ts';
 
 /**
  * Wire the Inngest client + all its functions. Returns the client (for the
@@ -18,6 +21,9 @@ export function createInngest(deps: {
   config: Config;
   objectStore: ObjectStore;
   extractor: Extractor;
+  chunker: Chunker;
+  embedProvider: EmbedProvider;
+  contextualizer: Contextualizer | null;
 }) {
   const client: InngestClient = createInngestClient({
     eventKey: deps.config.INNGEST_EVENT_KEY,
@@ -32,6 +38,9 @@ export function createInngest(deps: {
       logger: deps.logger,
       objectStore: deps.objectStore,
       extractor: deps.extractor,
+      chunker: deps.chunker,
+      embedProvider: deps.embedProvider,
+      contextualizer: deps.contextualizer,
     }),
   ];
 

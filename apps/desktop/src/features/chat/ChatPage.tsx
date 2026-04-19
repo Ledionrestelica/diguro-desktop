@@ -7,7 +7,8 @@ import { Message } from './Message';
 import type { ChatOutletContext } from './ChatLayout';
 
 export function ChatPage() {
-  const { chatId, session, hydrating } = useOutletContext<ChatOutletContext>();
+  const { chatId, session, hydrating, citationsByMessageId } =
+    useOutletContext<ChatOutletContext>();
   const { messages, sendMessage, status, stop, error } = session;
 
   const isSubmitting = status === 'submitted';
@@ -58,6 +59,7 @@ export function ChatPage() {
                   parts={m.parts}
                   thinking={m.role === 'assistant' && isLast && isStreaming}
                   showActions={m.role === 'assistant' && !(isLast && isStreaming)}
+                  citations={citationsByMessageId.get(m.id) ?? []}
                 />
               );
             })}

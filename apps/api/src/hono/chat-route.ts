@@ -14,12 +14,16 @@ import {
 } from '../services/chat/persist.ts';
 import { resolveAttachmentUrlsInParts } from '../services/chat/attachments.ts';
 import { generateAndApplyConversationTitle } from '../services/chat/generate-title.ts';
+import { persistCitationsFromMessage } from '../services/chat/citations.ts';
 import { createUITools } from '../ai/ui-tools/index.ts';
+import { createRetrievalTool } from '../ai/retrieval-tool.ts';
 import { mapDomainError } from '../trpc/error-mapper.ts';
 import { Unauthorized } from '@diguro/shared/errors';
 import type { Logger } from '../lib/logger.ts';
 import type { Db } from '@diguro/db';
 import type { ObjectStore } from '../ports/objectStore.ts';
+import type { EmbedProvider } from '../ports/embedProvider.ts';
+import type { RerankProvider } from '../ports/rerankProvider.ts';
 
 const ChatRequestSchema = z.object({
   id: z.string().min(1),
@@ -34,7 +38,7 @@ const ChatRequestSchema = z.object({
  * web_search is billed per call with per-token snippet overhead — rule of
  * thumb is ~1-2k input tokens added per search at searchContextSize=low.
  */
-const CHAT_SYSTEM_PROMPT = [
+const CHAT_SYSTEM_PROMPT_BASE = [
   'You are Diguro, a helpful assistant. Be concise.',
   '',
   '# Web search',
@@ -66,12 +70,46 @@ const CHAT_SYSTEM_PROMPT = [
   '- Do NOT combine web_search and a UI tool in the same response unless the user explicitly asked for both.',
 ].join('\n');
 
+const RETRIEVAL_SYSTEM_PROMPT_ADDITION = [
+  '',
+  '# Organization knowledge base — your primary job',
+  'This product exists to answer questions over the organization\'s uploaded documents (policies, contracts, minutes, permits, financials, runbooks, etc.) using the `search_documents` tool.',
+  '',
+  '## Default behavior: search first, talk later',
+  'On any user question that could plausibly be answered by an internal document, **your first action is always to call `search_documents`**. Do NOT ask the user to clarify which policy, which document, or which system — just search. Clarifying questions belong AFTER you\'ve seen retrieval results, not before.',
+  '',
+  'The user is already inside their organization\'s app. When they ask "What\'s the minimum password length?", "What\'s our late fee?", "When did we sign with Acme?" — these are ALWAYS about this organization\'s documents. Do not hedge. Do not list generic NIST guidance. Do not ask which system. **Search.**',
+  '',
+  'Search your best-guess interpretation first. If results come back and match, answer with citations. If results are empty or irrelevant, only THEN explain what you searched and ask the user to disambiguate.',
+  '',
+  '## When it is OK to skip search',
+  'Only skip `search_documents` for:',
+  '- Pure greetings or small-talk ("hi", "thanks").',
+  '- Direct follow-ups referencing a chunk already retrieved in this conversation (already in your working context).',
+  '- Meta questions about the assistant itself ("what can you do").',
+  '',
+  'If you\'re unsure whether to search, SEARCH. Searching is cheap. Making the user repeat themselves is expensive and breaks trust.',
+  '',
+  '## Search technique',
+  '- Rephrase the user\'s question in retrieval-friendly terms: specific nouns ("late fee", "noise ordinance", "grace period"), known entities ("Globex", "Acme"), policy-style vocabulary.',
+  '- If your first search returns nothing relevant, try ONE different phrasing. Don\'t loop more than twice.',
+  '- Never call the same query twice in a row.',
+  '',
+  '## Citations',
+  '- When you use a passage from a retrieved chunk, cite it inline using `[cite:<chunkId>]`. Example: "The minimum is 14 characters [cite:abc-123]."',
+  '- Cite every factual claim that came from a retrieved chunk. Do not invent chunkIds — only use ones returned by `search_documents`.',
+  '- If retrieval returned nothing useful, say so plainly: "I couldn\'t find this in the uploaded documents." Then ask for clarification or suggest the user upload the relevant file.',
+  '- Do NOT pad with generic industry guidance when the user asked about THEIR docs and retrieval came up empty. Say you couldn\'t find it.',
+].join('\n');
+
 interface Deps {
   auth: Auth;
   registry: ModelRegistry;
   db: Db;
   logger: Logger;
   objectStore: ObjectStore;
+  embedProvider: EmbedProvider;
+  rerankProvider: RerankProvider | null;
 }
 
 /**
@@ -144,12 +182,39 @@ export function handleChat(deps: Deps) {
 
       const nativeTools = deps.registry.nativeTools(modelId, { webSearch: true });
       const uiTools = createUITools();
-      const tools = { ...(nativeTools ?? {}), ...uiTools };
+
+      // Retrieval tool is scope-bound per request. We close over the
+      // caller's organizationId so the model physically cannot query a
+      // different org's files. When workspace-scoped chats land, this is
+      // where we'd resolve the scope from conversation.workspaceId.
+      const organizationId =
+        (session.user as { organizationId?: string | null }).organizationId ?? null;
+      const retrievalTools = organizationId
+        ? {
+            search_documents: createRetrievalTool({
+              db: deps.db,
+              embedProvider: deps.embedProvider,
+              rerankProvider: deps.rerankProvider,
+              logger: deps.logger,
+              scope: { kind: 'organization', organizationId },
+            }),
+          }
+        : {};
+
+      const tools = { ...(nativeTools ?? {}), ...uiTools, ...retrievalTools };
+
+      // Compose the system prompt. The retrieval addition only ships when
+      // the user has an organization — otherwise the tool isn't attached
+      // and the addition would be misleading.
+      const systemPrompt = organizationId
+        ? CHAT_SYSTEM_PROMPT_BASE + RETRIEVAL_SYSTEM_PROMPT_ADDITION
+        : CHAT_SYSTEM_PROMPT_BASE;
 
       deps.logger.info('chat request tools', {
         conversationId,
         modelId,
         toolsAttached: Object.keys(tools),
+        hasRetrieval: Boolean(organizationId),
       });
 
       const result = await streamReply(
@@ -157,11 +222,12 @@ export function handleChat(deps: Deps) {
         {
           modelId,
           messages: resolvedMessages,
-          systemPrompt: CHAT_SYSTEM_PROMPT,
+          systemPrompt,
           tools,
-          // UI tools are pass-through; web_search may take a round-trip.
-          // Keep 3 steps total: one tool call + one follow-up + framing text.
-          maxSteps: 3,
+          // With retrieval in play we need room for: (optional) 1-2
+          // search calls, their results, follow-up reasoning, and the
+          // final answer. 5 steps gives headroom without runaway cost.
+          maxSteps: 5,
         },
       );
 
@@ -177,13 +243,44 @@ export function handleChat(deps: Deps) {
               { db: deps.db },
               { conversationId, modelId, messages: [responseMessage] },
             );
+            const [persistedMessage] = saved.messages;
             deps.logger.info('persisted assistant message', {
               conversationId,
               modelId,
-              responseMessageId: responseMessage.id,
-              rowsSaved: saved,
+              // Log the ID we actually wrote, not the (often empty) UIMessage.id.
+              persistedMessageId: persistedMessage?.id ?? null,
+              rowsSaved: saved.inserted,
               partTypes: responseMessage.parts.map((p) => p.type),
             });
+
+            // Citations: parse [cite:chunkId] markers in the assistant's
+            // text parts, verify the chunkIds exist, write Citation rows.
+            // Link to the DB-generated id, not responseMessage.id (which
+            // can be empty from AI-SDK v6 → ensureId auto-assigns).
+            if (persistedMessage) {
+              try {
+                const citationCount = await persistCitationsFromMessage(
+                  { db: deps.db },
+                  {
+                    messageId: persistedMessage.id,
+                    parts: persistedMessage.parts,
+                  },
+                );
+                if (citationCount > 0) {
+                  deps.logger.info('persisted citations', {
+                    conversationId,
+                    messageId: persistedMessage.id,
+                    citations: citationCount,
+                  });
+                }
+              } catch (citErr) {
+                deps.logger.warn('citation persist failed (non-fatal)', {
+                  conversationId,
+                  error:
+                    citErr instanceof Error ? citErr.message : String(citErr),
+                });
+              }
+            }
           } catch (err) {
             deps.logger.error('failed to persist assistant messages', {
               conversationId,
@@ -228,7 +325,8 @@ async function resolveMessagesForModel(
 }
 
 /**
- * Drop parts from an assistant message that the provider can't safely replay.
+ * Drop parts from an assistant message that the provider can't safely replay,
+ * and strip provider-specific metadata from anything we keep.
  *
  *  - `reasoning` parts carry server-side item ids (e.g. OpenAI `rs_...`). When
  *    we echo them back, the Responses API tries to look them up and 404s if
@@ -236,16 +334,26 @@ async function resolveMessagesForModel(
  *  - `tool-<name>` parts carry tool invocation state (call ids, provider
  *    metadata, search results). The model doesn't need to "remember" past
  *    tool calls — the user sees the rendered output and asks follow-ups in
- *    plain text. Stripping keeps the input small and avoids provider state
- *    mismatch.
+ *    plain text.
+ *  - Text parts from OpenAI carry `providerMetadata.openai.itemId = msg_...`
+ *    which references the companion reasoning item. Stripping reasoning
+ *    without also stripping these back-references makes OpenAI reject the
+ *    replay with "message provided without its required reasoning item".
+ *    So we null out providerMetadata on every part we keep.
  *
- * Kept: text, source-url (used by the model for attribution if it references
- * prior sources), file parts (images/PDFs the user attached).
+ * Kept: text (content only), source-url, file.
  */
 function stripEphemeralAssistantParts<T extends { type: string }>(parts: T[]): T[] {
-  return parts.filter((p) => {
-    if (p.type === 'reasoning') return false;
-    if (p.type.startsWith('tool-')) return false;
-    return true;
-  });
+  const out: T[] = [];
+  for (const p of parts) {
+    if (p.type === 'reasoning') continue;
+    if (p.type.startsWith('tool-')) continue;
+    // Clone without providerMetadata — prevents OpenAI from trying to
+    // resolve msg_/rs_ cross-references that no longer exist.
+    const { providerMetadata: _unused, ...rest } = p as T & {
+      providerMetadata?: unknown;
+    };
+    out.push(rest as T);
+  }
+  return out;
 }

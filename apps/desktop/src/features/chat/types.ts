@@ -8,4 +8,5 @@ export type {
   ConversationSummary,
   ConversationDetail,
   PersistedMessage,
+  MessageCitation,
 } from '@diguro/trpc';

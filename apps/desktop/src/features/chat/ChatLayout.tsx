@@ -6,7 +6,7 @@ import { ChatSidebar } from './ChatSidebar';
 import { TopBar } from './TopBar';
 import { WorkspaceRail } from './WorkspaceRail';
 import { useChatSession, type ChatSession } from './useChatSession';
-import type { PersistedMessage } from './types';
+import type { MessageCitation, PersistedMessage } from './types';
 
 export interface ChatOutletContext {
   chatId: string;
@@ -15,6 +15,13 @@ export interface ChatOutletContext {
   hydrating: boolean;
   /** True when this layout is rendering a "new chat" (no URL param yet). */
   isNewChat: boolean;
+  /**
+   * Citations parsed from assistant messages, keyed by message id. Only
+   * populated for messages already persisted by the API — live-streamed
+   * messages show `[cite:chunkId]` chips without source metadata until
+   * the backend finishes and the query refetches.
+   */
+  citationsByMessageId: Map<string, MessageCitation[]>;
 }
 
 /**
@@ -49,6 +56,17 @@ export function ChatLayout() {
     if (!conversationQuery.data) return undefined;
     return conversationQuery.data.messages.map(toUIMessage);
   }, [conversationQuery.data, isNewChat]);
+
+  const citationsByMessageId = useMemo<Map<string, MessageCitation[]>>(() => {
+    const m = new Map<string, MessageCitation[]>();
+    const rows = conversationQuery.data?.messages ?? [];
+    for (const row of rows) {
+      if (row.citations && row.citations.length > 0) {
+        m.set(row.id, row.citations);
+      }
+    }
+    return m;
+  }, [conversationQuery.data]);
 
   const utils = trpc.useUtils();
 
@@ -123,6 +141,7 @@ export function ChatLayout() {
     session,
     hydrating: !isNewChat && conversationQuery.isLoading,
     isNewChat,
+    citationsByMessageId,
   };
 
   return (

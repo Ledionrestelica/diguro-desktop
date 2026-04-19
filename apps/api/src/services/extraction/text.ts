@@ -1,4 +1,5 @@
 import type { ExtractedDoc, ExtractorInput } from '../../ports/extractor.ts';
+import { sanitizeExtractedText } from './sanitize.ts';
 
 /**
  * Passthrough extractor for already-textual formats (MD, TXT, CSV, JSON).
@@ -11,7 +12,7 @@ export function extractText(input: ExtractorInput): ExtractedDoc {
   const raw = decoder.decode(input.bytes);
   return {
     pages: [],
-    fullText: raw,
+    fullText: sanitizeExtractedText(raw),
     ocrUsed: false,
     ocrPageCount: 0,
   };

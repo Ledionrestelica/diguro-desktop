@@ -26,7 +26,10 @@ export default tseslint.config(
       '**/dist-electron/**',
       '**/node_modules/**',
       '**/.turbo/**',
-      '**/drizzle/**',
+      // Only ignore drizzle-kit's migration output, not handwritten TS in
+      // any directory happening to be named "drizzle" (e.g.
+      // apps/api/src/adapters/drizzle/).
+      'packages/db/drizzle/**',
       '**/*.config.js',
       '**/*.config.ts',
       'eslint.config.js',

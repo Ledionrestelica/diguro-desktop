@@ -76,6 +76,24 @@ export interface PersistAssistantMessagesInput {
   messages: UIMessage[];
 }
 
+export interface PersistedAssistantMessage {
+  /** The ID actually written to the DB (auto-generated when the model
+   *  returned an empty id). Citations must FK-link to this, not to the
+   *  original UIMessage.id which may be empty. */
+  id: string;
+  /** Persisted parts — in the same order as the AI-SDK message, but
+   *  filtered to the shapes we store. Citation parsing reads from here. */
+  parts: PersistablePart[];
+}
+
+export interface PersistAssistantMessagesResult {
+  /** Count of rows actually inserted (minus no-op conflicts). */
+  inserted: number;
+  /** One entry per input message with a persisted id + filtered parts,
+   *  in the same order. Callers use these to link downstream rows. */
+  messages: PersistedAssistantMessage[];
+}
+
 /**
  * Save one or more assistant messages emitted by a single `streamText` run.
  * Called from the `onFinish` callback where `response.messages` is available.
@@ -83,8 +101,8 @@ export interface PersistAssistantMessagesInput {
 export async function persistAssistantMessages(
   deps: { db: Db },
   input: PersistAssistantMessagesInput,
-): Promise<number> {
-  if (input.messages.length === 0) return 0;
+): Promise<PersistAssistantMessagesResult> {
+  if (input.messages.length === 0) return { inserted: 0, messages: [] };
   const rows = input.messages
     .map((m) => ({
       id: ensureId(m.id),
@@ -95,7 +113,7 @@ export async function persistAssistantMessages(
     }))
     .filter((row) => row.parts.length > 0);
 
-  if (rows.length === 0) return 0;
+  if (rows.length === 0) return { inserted: 0, messages: [] };
 
   const inserted = await deps.db
     .insert(schema.messages)
@@ -108,7 +126,10 @@ export async function persistAssistantMessages(
     .set({ modelId: input.modelId })
     .where(sql`${schema.conversations.id} = ${input.conversationId}`);
 
-  return inserted.length;
+  return {
+    inserted: inserted.length,
+    messages: rows.map((r) => ({ id: r.id, parts: r.parts })),
+  };
 }
 
 /**

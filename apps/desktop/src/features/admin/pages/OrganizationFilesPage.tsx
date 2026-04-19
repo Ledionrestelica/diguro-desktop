@@ -17,10 +17,13 @@ import { AdminPageBody } from '../AdminLayout';
  * / Failed) so admins can see where each doc is.
  */
 // Statuses that are transient — once every file is in a terminal state we
-// can stop polling. `EXTRACTING` currently counts as terminal for Phase 1a
-// since chunking/embedding aren't wired yet; it'll graduate to transient
-// when Phase 2+ lands.
-const TRANSIENT_STATUSES = new Set(['PENDING', 'CHUNKING', 'EMBEDDING']);
+// can stop polling. Terminal = DONE (success) or FAILED.
+const TRANSIENT_STATUSES = new Set([
+  'PENDING',
+  'EXTRACTING',
+  'CHUNKING',
+  'EMBEDDING',
+]);
 
 export function OrganizationFilesPage() {
   const [search, setSearch] = useState('');
@@ -270,13 +273,10 @@ function statusConfig(status: string | null): {
         spinner: true,
       };
     case 'EXTRACTING':
-      // Phase 1a terminal state: extraction is the last step wired up,
-      // so we label it "Text extracted" rather than the ambiguous
-      // "Processing" until chunking / embedding lands in Phase 2+.
       return {
-        label: 'Text extracted',
-        className: 'border-blue-200 bg-blue-50 text-blue-700',
-        spinner: false,
+        label: 'Extracting text',
+        className: 'border-amber-200 bg-amber-50 text-amber-700',
+        spinner: true,
       };
     case 'CHUNKING':
       return {

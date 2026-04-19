@@ -10,4 +10,5 @@ export type {
 export type {
   ConversationDetail,
   PersistedMessage,
+  MessageCitation,
 } from '../services/conversations/get.ts';

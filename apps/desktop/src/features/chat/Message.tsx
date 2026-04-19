@@ -1,4 +1,5 @@
-import { Globe } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { FileText, Globe } from 'lucide-react';
 import type { UIMessage, UIMessagePart } from 'ai';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -6,6 +7,7 @@ import { MessageActions } from './MessageActions';
 import { useAttachmentUrl } from './useAttachmentUrl';
 import { ToolPart } from './tools/registry';
 import { isGenerativeUIToolName } from './tools/names';
+import type { MessageCitation } from './types';
 
 type MessageRole = 'user' | 'assistant';
 
@@ -16,9 +18,28 @@ export interface MessageProps {
   thinking?: boolean;
   /** Hide the action toolbar while the assistant is still streaming. */
   showActions?: boolean;
+  /**
+   * Persisted citations for this message, ordered by rank. When set, text
+   * parts have their `[cite:chunkId]` markers replaced with numbered chips
+   * and a Sources section is rendered at the end of the message.
+   */
+  citations?: MessageCitation[];
 }
 
-export function Message({ role, parts, thinking, showActions = true }: MessageProps) {
+const CITATION_MARKER_RE = /\[cite:([a-zA-Z0-9-]+)\]/g;
+
+export function Message({
+  role,
+  parts,
+  thinking,
+  showActions = true,
+  citations,
+}: MessageProps) {
+  // Build a chunkId → rank map. Assistant messages use ranks from the
+  // server-persisted citations (stable across page reloads). For live
+  // streamed messages that haven't been persisted yet, we assign ranks
+  // by first-appearance in the text.
+  const citationRanks = useMessageCitationRanks(parts, citations);
   const blocks = buildBlocks(parts);
   const sources = extractSources(parts);
   const searchState = extractSearchState(parts);
@@ -40,7 +61,10 @@ export function Message({ role, parts, thinking, showActions = true }: MessagePr
     );
   }
 
-  const hasRenderableContent = blocks.length > 0 || sources.length > 0;
+  const hasRenderableContent =
+    blocks.length > 0 ||
+    sources.length > 0 ||
+    (citations && citations.length > 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -51,9 +75,12 @@ export function Message({ role, parts, thinking, showActions = true }: MessagePr
       )}
       {searchState && <SearchIndicator state={searchState} />}
       {blocks.map((block, i) => (
-        <BlockRender key={i} block={block} />
+        <BlockRender key={i} block={block} citationRanks={citationRanks} />
       ))}
       {sources.length > 0 && <SourceList sources={sources} />}
+      {citations && citations.length > 0 && (
+        <DocumentSourceList citations={citations} />
+      )}
       {showActions && hasRenderableContent && <MessageActions />}
     </div>
   );
@@ -119,30 +146,66 @@ function buildBlocks(parts: UIMessage['parts']): Block[] {
   return out;
 }
 
-function BlockRender({ block }: { block: Block }) {
-  if (block.kind === 'text') return <AssistantText text={block.text} />;
+function BlockRender({
+  block,
+  citationRanks,
+}: {
+  block: Block;
+  citationRanks: Map<string, number>;
+}) {
+  if (block.kind === 'text')
+    return <AssistantText text={block.text} citationRanks={citationRanks} />;
   if (block.kind === 'files') return <AttachmentGrid files={block.parts} align="start" />;
   return <ToolPart part={block.part} />;
 }
 
-function AssistantText({ text }: { text: string }) {
+function AssistantText({
+  text,
+  citationRanks,
+}: {
+  text: string;
+  citationRanks: Map<string, number>;
+}) {
+  // Swap `[cite:chunkId]` markers for a markdown-safe placeholder that
+  // ReactMarkdown will pass through unchanged, then render as <sup> chips
+  // via a custom `code` / direct replacement. We replace markers with a
+  // custom inline syntax before passing to markdown so list/paragraph
+  // parsing stays intact.
+  const withMarkers = text.replace(CITATION_MARKER_RE, (_, id: string) => {
+    const rank = citationRanks.get(id);
+    // Markdown passes unknown HTML through when enabled; we use a
+    // custom marker the transformer picks up inline.
+    return `⟨cite:${id}:${rank ?? '?'}⟩`;
+  });
+
   return (
     <div className="text-base leading-6 text-zinc-800">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          p: ({ children }) => <p className="mb-4 last:mb-0">{children}</p>,
-          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+          p: ({ children }) => (
+            <p className="mb-4 last:mb-0">
+              {mapCitationsInChildren(children)}
+            </p>
+          ),
+          strong: ({ children }) => (
+            <strong className="font-semibold">
+              {mapCitationsInChildren(children)}
+            </strong>
+          ),
+          em: ({ children }) => <em>{mapCitationsInChildren(children)}</em>,
           ul: ({ children }) => <ul className="mb-4 list-disc pl-5 last:mb-0">{children}</ul>,
           ol: ({ children }) => (
             <ol className="mb-4 list-decimal pl-5 last:mb-0">{children}</ol>
           ),
-          li: ({ children }) => <li className="mb-1 last:mb-0">{children}</li>,
+          li: ({ children }) => (
+            <li className="mb-1 last:mb-0">{mapCitationsInChildren(children)}</li>
+          ),
           code: ({ children, className }) => (
             <code
               className={`rounded bg-zinc-100 px-1 py-0.5 font-sans text-[0.9em] ${className ?? ''}`}
             >
-              {children}
+              {mapCitationsInChildren(children)}
             </code>
           ),
           a: ({ children, href }) => (
@@ -152,13 +215,159 @@ function AssistantText({ text }: { text: string }) {
               rel="noopener noreferrer"
               className="text-zinc-900 underline underline-offset-2 hover:text-zinc-700"
             >
-              {children}
+              {mapCitationsInChildren(children)}
             </a>
+          ),
+          h1: ({ children }) => (
+            <h1 className="mb-3 text-xl font-semibold">
+              {mapCitationsInChildren(children)}
+            </h1>
+          ),
+          h2: ({ children }) => (
+            <h2 className="mb-3 text-lg font-semibold">
+              {mapCitationsInChildren(children)}
+            </h2>
+          ),
+          h3: ({ children }) => (
+            <h3 className="mb-2 text-base font-semibold">
+              {mapCitationsInChildren(children)}
+            </h3>
           ),
         }}
       >
-        {text}
+        {withMarkers}
       </ReactMarkdown>
+    </div>
+  );
+}
+
+/**
+ * Walk text nodes in a rendered markdown block and replace `⟨cite:id:N⟩`
+ * placeholders with numbered chips. Recurses through nested elements —
+ * a citation inside `<strong>` or `<em>` gets the same treatment as one
+ * directly in a `<p>`. Without recursion, hydrated markdown (which more
+ * often wraps text in inline elements than the streaming renderer) would
+ * leak raw `⟨cite:...⟩` placeholders into the DOM.
+ */
+function mapCitationsInChildren(children: React.ReactNode): React.ReactNode {
+  return React.Children.map(children, (child) => {
+    if (typeof child === 'string') return renderWithCitations(child);
+    if (
+      typeof child === 'number' ||
+      typeof child === 'boolean' ||
+      child === null ||
+      child === undefined
+    ) {
+      return child;
+    }
+    if (React.isValidElement(child)) {
+      const element = child as React.ReactElement<{ children?: React.ReactNode }>;
+      if (element.props.children !== undefined) {
+        return React.cloneElement(element, {
+          children: mapCitationsInChildren(element.props.children),
+        });
+      }
+    }
+    return child;
+  });
+}
+
+function renderWithCitations(text: string): React.ReactNode {
+  const re = /⟨cite:([a-zA-Z0-9-]+):(\d+|\?)⟩/g;
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > last) parts.push(text.slice(last, match.index));
+    const rankStr = match[2];
+    const rank = rankStr && rankStr !== '?' ? Number(rankStr) : null;
+    parts.push(<CitationChip key={`c-${key++}`} rank={rank} />);
+    last = match.index + match[0].length;
+  }
+  if (parts.length === 0) return text;
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
+
+function CitationChip({ rank }: { rank: number | null }) {
+  return (
+    <sup className="mx-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-zinc-200 bg-zinc-50 px-1 text-[10px] font-semibold text-zinc-700 align-super">
+      {rank ?? '?'}
+    </sup>
+  );
+}
+
+/* ---------------------- Document citations ---------------------- */
+
+function useMessageCitationRanks(
+  parts: UIMessage['parts'],
+  citations: MessageCitation[] | undefined,
+): Map<string, number> {
+  return useMemo(() => {
+    const map = new Map<string, number>();
+    // Prefer server-assigned ranks — they're stable across renders and
+    // match the Sources list ordering.
+    if (citations && citations.length > 0) {
+      for (const c of citations) map.set(c.chunkId, c.rank);
+      return map;
+    }
+    // Fallback: message is streaming / unpersisted. Number by first
+    // appearance in the text parts so chips at least stay consistent
+    // within this render.
+    let rank = 0;
+    for (const p of parts) {
+      if ((p as { type?: unknown }).type !== 'text') continue;
+      const text = (p as { text?: unknown }).text;
+      if (typeof text !== 'string') continue;
+      const re = /\[cite:([a-zA-Z0-9-]+)\]/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(text)) !== null) {
+        const id = m[1];
+        if (!id || map.has(id)) continue;
+        rank += 1;
+        map.set(id, rank);
+      }
+    }
+    return map;
+  }, [parts, citations]);
+}
+
+function DocumentSourceList({ citations }: { citations: MessageCitation[] }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+        Sources
+      </p>
+      <ul className="flex flex-col gap-1.5">
+        {citations.map((c) => (
+          <li key={c.id}>
+            <button
+              type="button"
+              title={c.snippet}
+              className="group flex w-full items-start gap-2 rounded-[10px] border border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-700 transition-colors hover:bg-zinc-50"
+            >
+              <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-zinc-100 text-[10px] font-semibold text-zinc-600">
+                {c.rank}
+              </span>
+              <span className="grid size-5 shrink-0 place-items-center text-zinc-400">
+                <FileText className="size-3.5" />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate font-medium text-zinc-900 group-hover:underline">
+                  {c.sourceName}
+                  {c.pageNumber != null && (
+                    <span className="font-normal text-zinc-500">
+                      {' '}· p. {c.pageNumber}
+                    </span>
+                  )}
+                </span>
+                <span className="line-clamp-2 text-zinc-600">{c.snippet}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
