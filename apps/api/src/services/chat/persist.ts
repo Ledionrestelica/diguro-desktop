@@ -5,24 +5,32 @@ import { MessagePart, MessageParts, type MessagePart as PersistablePart } from '
 const TITLE_MAX_LENGTH = 60;
 const TITLE_FALLBACK = 'New chat';
 
+export type ConversationRetrievalScope = 'organization' | 'user';
+
 export interface UpsertConversationInput {
   conversationId: string;
   userId: string;
   workspaceId: string | null;
   modelId: string;
   firstUserText: string | undefined;
+  /** Scope the retrieval tool will search for this conversation. Only
+   *  applied on first-create; subsequent messages reuse the stored value. */
+  retrievalScope: ConversationRetrievalScope;
 }
 
 export interface UpsertConversationResult {
   /** True when the conversation row was just created; false when it already existed. */
   isNew: boolean;
+  /** Effective retrieval scope for this conversation — the newly-inserted
+   *  value on first-create, or the previously-stored value on reuse. */
+  retrievalScope: ConversationRetrievalScope;
 }
 
 /**
  * Create the conversation row if it doesn't exist yet. Idempotent — subsequent
  * messages in the same conversation reuse it via onConflictDoNothing. Returns
- * whether the row was freshly inserted, so callers can trigger one-time side
- * effects (e.g. AI title generation) only on first creation.
+ * whether the row was freshly inserted (for one-time side effects) and the
+ * effective retrieval scope for chat-route to build the retrieval tool.
  */
 export async function upsertConversation(
   deps: { db: Db },
@@ -37,10 +45,32 @@ export async function upsertConversation(
       workspaceId: input.workspaceId,
       title,
       modelId: input.modelId,
+      retrievalScope: input.retrievalScope,
     })
     .onConflictDoNothing({ target: schema.conversations.id })
-    .returning({ id: schema.conversations.id });
-  return { isNew: inserted.length > 0 };
+    .returning({
+      id: schema.conversations.id,
+      retrievalScope: schema.conversations.retrievalScope,
+    });
+
+  const isNew = inserted.length > 0;
+  if (isNew) {
+    return {
+      isNew,
+      retrievalScope: inserted[0]?.retrievalScope ?? input.retrievalScope,
+    };
+  }
+
+  // Row already existed — fetch its stored scope so we respect it.
+  const existing = await deps.db
+    .select({ retrievalScope: schema.conversations.retrievalScope })
+    .from(schema.conversations)
+    .where(sql`${schema.conversations.id} = ${input.conversationId}`)
+    .limit(1);
+  return {
+    isNew,
+    retrievalScope: existing[0]?.retrievalScope ?? 'organization',
+  };
 }
 
 export interface PersistUserMessageInput {

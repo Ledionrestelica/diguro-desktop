@@ -6,7 +6,9 @@ import type { Extractor } from '../../ports/extractor.ts';
 import type { Chunker } from '../../ports/chunker.ts';
 import type { EmbedProvider } from '../../ports/embedProvider.ts';
 import type { Contextualizer } from '../../ports/contextualizer.ts';
+import type { CallUsage } from '../../ports/usage.ts';
 import { contextualizeChunks } from '../../services/rag/contextualize.ts';
+import { recordUsage, type UsageType } from '../../services/usage/record.ts';
 
 /**
  * Ingestion pipeline for an uploaded resource.
@@ -50,6 +52,7 @@ export function createResourceUploadedFunction(args: {
             s3Key: schema.resourceVersions.s3Key,
             mimeType: schema.resourceVersions.mimeType,
             fileSize: schema.resourceVersions.fileSize,
+            uploaderId: schema.resourceVersions.uploaderId,
           })
           .from(schema.resourceVersions)
           .where(eq(schema.resourceVersions.id, versionId))
@@ -58,6 +61,41 @@ export function createResourceUploadedFunction(args: {
         if (!v) throw new Error(`ResourceVersion ${versionId} not found`);
         return v;
       });
+
+      // Thin helper — every ingest-stage call attributes spend to the
+      // uploader + version, so we don't repeat the scope plumbing.
+      const logUsage = async (type: UsageType, usage: CallUsage) => {
+        await recordUsage(
+          { db: args.db, logger: args.logger },
+          {
+            userId: version.uploaderId,
+            workspaceId: null,
+            type,
+            modelId: usage.modelId,
+            ...(usage.promptTokens !== undefined
+              ? { promptTokens: usage.promptTokens }
+              : {}),
+            ...(usage.completionTokens !== undefined
+              ? { completionTokens: usage.completionTokens }
+              : {}),
+            ...(usage.cachedInputTokens !== undefined
+              ? { cachedInputTokens: usage.cachedInputTokens }
+              : {}),
+            ...(usage.reasoningTokens !== undefined
+              ? { reasoningTokens: usage.reasoningTokens }
+              : {}),
+            ...(usage.units !== undefined ? { units: usage.units } : {}),
+            ...(usage.requestCount !== undefined
+              ? { requestCount: usage.requestCount }
+              : {}),
+            ...(usage.providerRequestId !== undefined
+              ? { providerRequestId: usage.providerRequestId }
+              : {}),
+            ...(usage.latencyMs !== undefined ? { latencyMs: usage.latencyMs } : {}),
+            resourceVersionId: versionId,
+          },
+        );
+      };
 
       if (version.status === 'DONE') {
         args.logger.info('ingest skipped: already DONE', { versionId });
@@ -111,6 +149,10 @@ export function createResourceUploadedFunction(args: {
         ocrUsed: extracted.ocrUsed,
         ocrPageCount: extracted.ocrPageCount,
       });
+
+      if (extracted.ocrUsage) {
+        await logUsage('OCR', extracted.ocrUsage);
+      }
 
       // Persist page count (useful metadata) even before chunking lands.
       if (extracted.pages.length > 0) {
@@ -217,7 +259,11 @@ export function createResourceUploadedFunction(args: {
               contextualizer,
               logger: args.logger,
             },
-            { resourceVersionId: versionId, fullText: extracted.fullText },
+            {
+              resourceVersionId: versionId,
+              fullText: extracted.fullText,
+              onUsage: (usage) => logUsage('CONTEXTUALIZE', usage),
+            },
           );
           args.logger.info('contextualize step result', {
             versionId,
@@ -287,8 +333,9 @@ export function createResourceUploadedFunction(args: {
         const tVoyageStart = Date.now();
         for (let i = 0; i < inputs.length; i += VOYAGE_BATCH) {
           const slice = inputs.slice(i, i + VOYAGE_BATCH);
-          const batch = await args.embedProvider.embedDocuments(slice);
+          const { vectors: batch, usage } = await args.embedProvider.embedDocuments(slice);
           vectors.push(...batch);
+          await logUsage('EMBED', usage);
         }
         const tVoyage = Date.now() - tVoyageStart;
 

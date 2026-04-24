@@ -51,6 +51,20 @@ export const organizations = pgTable(
       .notNull()
       .default(sql`75000000`),
 
+    /**
+     * Per-seat AI budget included in the org's plan, in microdollars per
+     * user per calendar month. Default is $20 (20_000_000 microdollars) —
+     * typical Town-tier seat. When a user has no explicit `spending_limits`
+     * row their monthly cap falls back to this value. Superadmin can raise
+     * it per-org; org-admin can override for a single user via the per-user
+     * spending_limits row.
+     */
+    defaultUserAiBudgetMicrodollars: bigint('default_user_ai_budget_microdollars', {
+      mode: 'bigint',
+    })
+      .notNull()
+      .default(sql`20000000`),
+
     suspended: text('suspended'), // null = active, else reason
 
     createdAt: timestamp('created_at').notNull().defaultNow(),

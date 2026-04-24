@@ -12,6 +12,7 @@ import { appRouter } from './trpc/root.ts';
 import { createModelRegistry } from './ai/registry.ts';
 import { handleChat } from './hono/chat-route.ts';
 import { createS3ObjectStore } from './adapters/s3/index.ts';
+import { createResendEmailProvider } from './adapters/resend/email.ts';
 import { createMistralOcrProvider } from './adapters/mistral/ocr.ts';
 import { createVoyageEmbedProvider } from './adapters/voyage/embed.ts';
 import { createOpenAIEmbedProvider } from './adapters/openai/embed.ts';
@@ -26,6 +27,7 @@ import type { OcrProvider } from './ports/ocrProvider.ts';
 import type { EmbedProvider } from './ports/embedProvider.ts';
 import type { RerankProvider } from './ports/rerankProvider.ts';
 import type { Contextualizer } from './ports/contextualizer.ts';
+import type { EmailProvider } from './ports/emailProvider.ts';
 
 const config = loadConfig();
 const logger = createLogger(config.LOG_LEVEL);
@@ -33,6 +35,20 @@ const db = createDb(config.DATABASE_URL);
 const auth = createAuth(db, config);
 const modelRegistry = createModelRegistry(config);
 const objectStore = createS3ObjectStore(config);
+
+// Resend is optional in dev — without RESEND_API_KEY the invitation flow
+// still creates invites (admin copies the link manually from the Members
+// page). With it configured, invites auto-send via the verified sender.
+const emailProvider: EmailProvider | null = config.RESEND_API_KEY
+  ? createResendEmailProvider({
+      apiKey: config.RESEND_API_KEY,
+      defaultFrom: config.INVITE_EMAIL_FROM,
+      logger,
+    })
+  : null;
+if (!emailProvider) {
+  logger.info('email provider not configured — invitations will fall back to copy-link UX');
+}
 
 // OCR is optional in dev (scanned PDFs won't extract but text-layer PDFs
 // and MD/TXT still work). Throw in prod if missing — Phase 10 config
@@ -95,16 +111,23 @@ const rerankProvider: RerankProvider | null = config.COHERE_API_KEY
 //     per-token pricing, and the Responses API auto-caches prefixes.
 //   - Anthropic is still an option: set CONTEXTUALIZE_PROVIDER=anthropic
 //     to override (useful if you have Anthropic credits + prefer Haiku).
+const ANTHROPIC_CTX_MODEL = 'anthropic/claude-haiku-4-5';
+const OPENAI_CTX_MODEL = 'openai/gpt-5-nano';
 const contextualizer: Contextualizer | null =
   config.CONTEXTUALIZE_PROVIDER === 'anthropic' && config.ANTHROPIC_API_KEY
     ? createAnthropicContextualizer(
-        modelRegistry.resolve('anthropic/claude-haiku-4-5'),
+        modelRegistry.resolve(ANTHROPIC_CTX_MODEL),
+        ANTHROPIC_CTX_MODEL,
       )
     : config.OPENAI_API_KEY
-      ? createOpenAIContextualizer(modelRegistry.resolve('openai/gpt-5-nano'))
+      ? createOpenAIContextualizer(
+          modelRegistry.resolve(OPENAI_CTX_MODEL),
+          OPENAI_CTX_MODEL,
+        )
       : config.ANTHROPIC_API_KEY
         ? createAnthropicContextualizer(
-            modelRegistry.resolve('anthropic/claude-haiku-4-5'),
+            modelRegistry.resolve(ANTHROPIC_CTX_MODEL),
+            ANTHROPIC_CTX_MODEL,
           )
         : null;
 
@@ -169,7 +192,10 @@ app.all('/trpc/*', (c) =>
     req: c.req.raw,
     router: appRouter,
     createContext: () =>
-      buildCtx({ db, auth, config, logger, objectStore, queue }, c.req.raw),
+      buildCtx(
+        { db, auth, config, logger, objectStore, queue, emailProvider },
+        c.req.raw,
+      ),
   }),
 );
 

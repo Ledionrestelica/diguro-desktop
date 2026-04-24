@@ -1,0 +1,2 @@
+CREATE TYPE "public"."retrieval_scope" AS ENUM('organization', 'user');--> statement-breakpoint
+ALTER TABLE "conversations" ADD COLUMN "retrieval_scope" "retrieval_scope" DEFAULT 'organization' NOT NULL;

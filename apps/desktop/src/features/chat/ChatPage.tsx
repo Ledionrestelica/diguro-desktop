@@ -5,35 +5,59 @@ import { cn } from '@/lib/utils';
 import { Composer, type ReadyAttachment } from './Composer';
 import { Message } from './Message';
 import type { ChatOutletContext } from './ChatLayout';
+import { trpc } from '@/lib/trpc';
 
 export function ChatPage() {
-  const { chatId, session, hydrating, citationsByMessageId } =
-    useOutletContext<ChatOutletContext>();
+  const {
+    chatId,
+    session,
+    hydrating,
+    citationsByMessageId,
+    conversationScope,
+    scopeLocked,
+  } = useOutletContext<ChatOutletContext>();
   const { messages, sendMessage, status, stop, error } = session;
+  const me = trpc.health.me.useQuery();
+  const preferredModelId = me.data?.preferredChatModelId ?? null;
 
   const isSubmitting = status === 'submitted';
   const isStreaming = status === 'streaming';
   const isBusy = isSubmitting || isStreaming;
 
-  function handleSend(text: string, attachments: ReadyAttachment[]) {
+  function handleSend(
+    text: string,
+    attachments: ReadyAttachment[],
+    scope: 'organization' | 'user',
+    modelId: string | null,
+  ) {
+    // The server only honors `retrievalScope` on conversation creation;
+    // subsequent messages reuse the stored scope. `modelId` is respected
+    // on every turn — the chat-route stamps it as the sticky user pref.
+    const body: Record<string, unknown> = { retrievalScope: scope };
+    if (modelId) body['modelId'] = modelId;
+    const options = { body };
+
     // Build the parts array explicitly so we can include `chat://` file URLs.
     // AI-SDK v6 useChat's sendMessage accepts a { role, parts } payload.
     if (attachments.length === 0) {
-      void sendMessage({ text });
+      void sendMessage({ text }, options);
       return;
     }
-    void sendMessage({
-      role: 'user',
-      parts: [
-        ...(text.length > 0 ? [{ type: 'text' as const, text }] : []),
-        ...attachments.map((a) => ({
-          type: 'file' as const,
-          url: a.url,
-          mediaType: a.mediaType,
-          filename: a.filename,
-        })),
-      ],
-    });
+    void sendMessage(
+      {
+        role: 'user',
+        parts: [
+          ...(text.length > 0 ? [{ type: 'text' as const, text }] : []),
+          ...attachments.map((a) => ({
+            type: 'file' as const,
+            url: a.url,
+            mediaType: a.mediaType,
+            filename: a.filename,
+          })),
+        ],
+      },
+      options,
+    );
   }
 
   return (
@@ -83,6 +107,9 @@ export function ChatPage() {
           onSend={handleSend}
           onStop={() => void stop()}
           streaming={isBusy}
+          initialScope={conversationScope ?? 'organization'}
+          scopeLocked={scopeLocked}
+          initialModelId={preferredModelId}
         />
         <p className="mt-3 text-center text-sm leading-4 text-neutral-500">
           AI can make mistakes. Check important info.

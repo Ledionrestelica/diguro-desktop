@@ -13,6 +13,7 @@ import type { OcrInput, OcrProvider, OcrResult } from '../../ports/ocrProvider.t
  */
 
 const MODEL = 'mistral-ocr-latest';
+const MODEL_ID = `mistral/${MODEL}`;
 const ENDPOINT = 'https://api.mistral.ai/v1/ocr';
 
 const MistralOcrResponse = z.object({
@@ -38,6 +39,7 @@ export function createMistralOcrProvider(deps: MistralDeps): OcrProvider {
   return {
     async ocrDocument(input: OcrInput): Promise<OcrResult> {
       const body = buildBody(input);
+      const startedAt = Date.now();
       const res = await fetch(ENDPOINT, {
         method: 'POST',
         headers: {
@@ -56,14 +58,22 @@ export function createMistralOcrProvider(deps: MistralDeps): OcrProvider {
         throw new Error(`Mistral OCR response shape mismatch: ${parsed.error.message}`);
       }
 
+      const pages = parsed.data.pages.map((p) => ({
+        // Mistral returns 0-based; we expose 1-based externally to match
+        // what humans expect when clicking citation chips.
+        pageNumber: p.index + 1,
+        text: p.markdown,
+      }));
+      const pageCount = parsed.data.usage_info?.pages_processed ?? pages.length;
+
       return {
-        pages: parsed.data.pages.map((p) => ({
-          // Mistral returns 0-based; we expose 1-based externally to match
-          // what humans expect when clicking citation chips.
-          pageNumber: p.index + 1,
-          text: p.markdown,
-        })),
-        usageTokens: parsed.data.usage_info?.pages_processed ?? 0,
+        pages,
+        usage: {
+          modelId: MODEL_ID,
+          units: pageCount,
+          providerRequestId: res.headers.get('x-request-id'),
+          latencyMs: Date.now() - startedAt,
+        },
       };
     },
   };

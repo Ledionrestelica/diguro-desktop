@@ -2,6 +2,8 @@ import { and, eq, schema } from '@diguro/db';
 import { authedProcedure, publicProcedure, router } from '../trpc.ts';
 import { resolveOrganizationLogoUrl } from '../../services/organizations/attachments.ts';
 import { resolveWorkspaceLogoUrl } from '../../services/workspaces/attachments.ts';
+import { getUserUsageSnapshot } from '../../services/usage/limits.ts';
+import { mapDomainError } from '../error-mapper.ts';
 
 /**
  * `health.me` — the client bootstrap call. Returns the signed-in user +
@@ -105,6 +107,14 @@ export const healthRouter = router({
       }
     }
 
+    // Pull the user's sticky model preference at the same time; the
+    // chat composer uses it to pre-select the last-chosen model.
+    const preferredRows = await ctx.db
+      .select({ preferredChatModelId: schema.users.preferredChatModelId })
+      .from(schema.users)
+      .where(eq(schema.users.id, ctx.user.id))
+      .limit(1);
+
     return {
       id: ctx.user.id,
       email: ctx.user.email,
@@ -113,6 +123,15 @@ export const healthRouter = router({
       organization,
       activeWorkspaceId,
       activeWorkspace,
+      preferredChatModelId: preferredRows[0]?.preferredChatModelId ?? null,
     };
+  }),
+
+  usageSnapshot: authedProcedure.query(async ({ ctx }) => {
+    try {
+      return await getUserUsageSnapshot({ db: ctx.db }, { userId: ctx.user.id });
+    } catch (err) {
+      throw mapDomainError(err);
+    }
   }),
 });

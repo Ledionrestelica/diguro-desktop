@@ -1,3 +1,5 @@
+import type { CallUsage } from './usage.ts';
+
 /**
  * OCR provider port. Runs OCR on a document (PDF or image) and returns
  * per-page text. Concrete implementations: Mistral OCR (v1), GPT-5 Vision
@@ -6,6 +8,9 @@
  * Input: either a remote URL we can hand the provider (preferred — lets the
  * provider fetch directly from S3) or raw bytes + mime type (provider
  * uploads for us).
+ *
+ * Billing is per-page for Mistral; `usage.units` should be the page count
+ * so the cost calculator multiplies by the per-unit rate.
  */
 export interface OcrProvider {
   ocrDocument(input: OcrInput): Promise<OcrResult>;
@@ -17,8 +22,7 @@ export type OcrInput =
 
 export interface OcrResult {
   pages: OcrPage[];
-  /** Tokens used — for token_usage tracking. Zero if provider doesn't report. */
-  usageTokens: number;
+  usage: CallUsage;
 }
 
 export interface OcrPage {

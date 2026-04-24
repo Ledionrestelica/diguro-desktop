@@ -6,6 +6,10 @@ export interface ConversationDetail {
   title: string;
   workspaceId: string | null;
   modelId: string | null;
+  /** Which corpus this conversation's retrieval tool searches. Locked on
+   *  first-create; client uses this to render the (disabled) scope pill
+   *  when opening an existing chat. */
+  retrievalScope: 'organization' | 'user';
   createdAt: Date;
   messages: PersistedMessage[];
 }
@@ -77,6 +81,7 @@ export async function getConversation(
     title: conv.title,
     workspaceId: conv.workspaceId,
     modelId: conv.modelId,
+    retrievalScope: conv.retrievalScope ?? 'organization',
     createdAt: conv.createdAt,
     messages,
   };

@@ -1,5 +1,6 @@
 import { eq, schema, type Db } from '@diguro/db';
 import type { Contextualizer } from '../../ports/contextualizer.ts';
+import type { CallUsage } from '../../ports/usage.ts';
 import type { Logger } from '../../lib/logger.ts';
 
 /**
@@ -29,6 +30,9 @@ export interface ContextualizeDeps {
 export interface ContextualizeInput {
   resourceVersionId: string;
   fullText: string;
+  /** Called once per successful contextualizer call so the ingest pipeline
+   *  can write tokenUsage rows tagged with the resource version. */
+  onUsage?: (usage: CallUsage) => void | Promise<void>;
 }
 
 export interface ContextualizeResult {
@@ -75,10 +79,20 @@ export async function contextualizeChunks(
 
   await runWithConcurrency(chunks, CONCURRENCY, async (chunk) => {
     try {
-      const prefix = await deps.contextualizer.prefixForChunk({
+      const { prefix, usage } = await deps.contextualizer.prefixForChunk({
         fullText: input.fullText,
         chunkText: chunk.text,
       });
+      if (input.onUsage) {
+        try {
+          await input.onUsage(usage);
+        } catch (err) {
+          deps.logger.warn('contextualize onUsage callback failed', {
+            chunkId: chunk.id,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
       // Sanitize: collapse newlines, cap length. The prefix goes in front
       // of chunk text at embed time; we don't want a 2000-token monologue
       // burning input tokens.

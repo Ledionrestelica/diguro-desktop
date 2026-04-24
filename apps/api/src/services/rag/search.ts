@@ -1,6 +1,7 @@
 import type { Db } from '@diguro/db';
 import type { EmbedProvider } from '../../ports/embedProvider.ts';
 import type { RerankProvider } from '../../ports/rerankProvider.ts';
+import type { CallUsage } from '../../ports/usage.ts';
 import type { Logger } from '../../lib/logger.ts';
 import {
   hybridSearch,
@@ -11,17 +12,15 @@ import {
 /**
  * RAG search orchestration. Given a query + scope, returns the top K most
  * relevant chunks by:
- *   1. embed the query (Voyage query-mode)
+ *   1. embed the query
  *   2. hybrid search (pgvector + tsvector, RRF-merged top 50)
  *   3. rerank with Cohere cross-encoder → top 8
  *
- * Rerank is graceful: if COHERE_API_KEY is missing the adapter throws on
- * first call, which we catch and fall back to the RRF-ranked top K. The
- * pipeline still works, just with lower precision — useful for dev or if
- * Cohere has an outage.
- *
- * Scope filter is enforced at the SQL layer — retrieval never crosses
- * organization / workspace / user boundaries.
+ * Every provider call (embed + rerank) surfaces a `CallUsage` to the
+ * optional `onUsage` callback so the caller can write tokenUsage rows
+ * tagged with its scope (userId, conversationId). Rerank is graceful: if
+ * the provider throws we fall back to the RRF top K and emit no usage
+ * for the failed call.
  */
 
 export interface SearchInput {
@@ -31,6 +30,9 @@ export interface SearchInput {
   topK?: number;
   /** Candidates pulled from each modality before RRF/rerank. Default 50. */
   candidatesPerModality?: number;
+  /** Called for each billable provider call. Errors are swallowed so
+   *  telemetry issues never break retrieval. */
+  onUsage?: (usage: CallUsage, kind: 'EMBED' | 'RERANK') => void | Promise<void>;
 }
 
 export interface SearchResult extends HybridCandidate {
@@ -52,12 +54,13 @@ export async function searchAndRerank(
   const t0 = Date.now();
   const topK = input.topK ?? 8;
 
-  const queryEmbedding = await deps.embedProvider.embedQuery(input.queryText);
+  const embedResult = await deps.embedProvider.embedQuery(input.queryText);
+  await safeOnUsage(input.onUsage, embedResult.usage, 'EMBED', deps.logger);
   const tEmbed = Date.now() - t0;
 
   const tHybridStart = Date.now();
   const candidates = await hybridSearch(deps.db, {
-    queryEmbedding,
+    queryEmbedding: embedResult.vector,
     queryText: input.queryText,
     scope: input.scope,
     ...(input.candidatesPerModality
@@ -78,15 +81,16 @@ export async function searchAndRerank(
   if (deps.rerankProvider && candidates.length > 1) {
     const tRerankStart = Date.now();
     try {
-      const reranked = await deps.rerankProvider.rerank({
+      const rerankResponse = await deps.rerankProvider.rerank({
         query: input.queryText,
         documents: candidates.map((c) => c.text),
         topK,
       });
+      await safeOnUsage(input.onUsage, rerankResponse.usage, 'RERANK', deps.logger);
       const tRerank = Date.now() - tRerankStart;
 
       const results: SearchResult[] = [];
-      for (const r of reranked) {
+      for (const r of rerankResponse.results) {
         const c = candidates[r.index];
         if (!c) continue;
         results.push({ ...c, rerankScore: r.score });
@@ -125,4 +129,21 @@ export async function searchAndRerank(
     totalMs: Date.now() - t0,
   });
   return fallback;
+}
+
+async function safeOnUsage(
+  cb: SearchInput['onUsage'],
+  usage: CallUsage,
+  kind: 'EMBED' | 'RERANK',
+  logger: Logger,
+): Promise<void> {
+  if (!cb) return;
+  try {
+    await cb(usage, kind);
+  } catch (err) {
+    logger.warn('search onUsage callback failed', {
+      kind,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }

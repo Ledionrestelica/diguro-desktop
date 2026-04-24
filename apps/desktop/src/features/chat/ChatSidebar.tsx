@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { MoreHorizontal, PenLine, Pencil, Search, Trash2 } from 'lucide-react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { FolderClosed, MoreHorizontal, PenLine, Pencil, Search, Trash2 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
 import {
@@ -18,7 +18,10 @@ interface Props {
 
 export function ChatSidebar({ activeChatId }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const conversations = trpc.conversations.list.useQuery();
+
+  const onMyFiles = location.pathname.startsWith('/my-files');
 
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col gap-6 overflow-hidden bg-[#f4f4f5] px-2 py-6">
@@ -30,8 +33,14 @@ export function ChatSidebar({ activeChatId }: Props) {
             New chat
           </SidebarButton>
           <SidebarButton
+            icon={<FolderClosed className="size-4" />}
+            onClick={() => navigate('/my-files')}
+            variant={onMyFiles ? 'filled' : 'ghost'}
+          >
+            My files
+          </SidebarButton>
+          <SidebarButton
             icon={<Search className="size-4" />}
-            variant="filled"
             onClick={() => {
               /* search overlay — v1.1 */
             }}

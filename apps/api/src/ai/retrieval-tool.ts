@@ -5,6 +5,7 @@ import type { EmbedProvider } from '../ports/embedProvider.ts';
 import type { RerankProvider } from '../ports/rerankProvider.ts';
 import type { Logger } from '../lib/logger.ts';
 import { searchAndRerank } from '../services/rag/search.ts';
+import { recordUsage } from '../services/usage/record.ts';
 import type { SearchScope } from '../adapters/drizzle/hybridSearch.ts';
 
 /**
@@ -13,9 +14,9 @@ import type { SearchScope } from '../adapters/drizzle/hybridSearch.ts';
  * tool per chat turn with the caller's scope closed over), so the model
  * literally cannot break scope isolation even if it tries.
  *
- * The tool returns short excerpts + source metadata — not full chunk
- * bodies — to keep context tokens cheap. When the model wants the full
- * chunk or surrounding section it calls `view_document` (Phase 7b, TODO).
+ * Usage telemetry: every embed + rerank call writes a tokenUsage row
+ * tagged with the caller's userId and conversationId. Lets the admin
+ * dashboard show per-chat retrieval cost.
  */
 
 const SearchInput = z.object({
@@ -34,6 +35,12 @@ export type RetrievalToolDeps = {
   rerankProvider: RerankProvider | null;
   logger: Logger;
   scope: SearchScope;
+  /** Context used for usage-row attribution. */
+  telemetry: {
+    userId: string;
+    workspaceId: string | null;
+    conversationId: string;
+  };
 };
 
 export interface RetrievalToolResult {
@@ -69,13 +76,42 @@ export function createRetrievalTool(deps: RetrievalToolDeps): Tool {
           queryText: query,
           scope: deps.scope,
           topK: 8,
+          onUsage: (usage, kind) =>
+            recordUsage(
+              { db: deps.db, logger: deps.logger },
+              {
+                userId: deps.telemetry.userId,
+                workspaceId: deps.telemetry.workspaceId,
+                type: kind,
+                modelId: usage.modelId,
+                ...(usage.promptTokens !== undefined
+                  ? { promptTokens: usage.promptTokens }
+                  : {}),
+                ...(usage.completionTokens !== undefined
+                  ? { completionTokens: usage.completionTokens }
+                  : {}),
+                ...(usage.cachedInputTokens !== undefined
+                  ? { cachedInputTokens: usage.cachedInputTokens }
+                  : {}),
+                ...(usage.reasoningTokens !== undefined
+                  ? { reasoningTokens: usage.reasoningTokens }
+                  : {}),
+                ...(usage.units !== undefined ? { units: usage.units } : {}),
+                ...(usage.requestCount !== undefined
+                  ? { requestCount: usage.requestCount }
+                  : {}),
+                ...(usage.providerRequestId !== undefined
+                  ? { providerRequestId: usage.providerRequestId }
+                  : {}),
+                ...(usage.latencyMs !== undefined
+                  ? { latencyMs: usage.latencyMs }
+                  : {}),
+                conversationId: deps.telemetry.conversationId,
+              },
+            ),
         },
       );
 
-      // Debug log — lets you see exactly which chunks won the top-K for a
-      // given query. Critical for diagnosing "model said it couldn't find
-      // X but X is in the corpus" failures — is the chunk missing, ranked
-      // low, or retrieved-but-ignored by the model?
       deps.logger.info('search_documents results', {
         query: query.slice(0, 120),
         matched: results.length,
@@ -95,8 +131,6 @@ export function createRetrievalTool(deps: RetrievalToolDeps): Tool {
           source: r.resourceName,
           page: r.pageNumber,
           excerpt: r.text.length > 800 ? r.text.slice(0, 800) + '…' : r.text,
-          // Prefer rerank score (0-1, higher = more relevant) when present;
-          // fall back to RRF. Model can use this to decide confidence.
           score: r.rerankScore ?? r.rrfScore,
         })),
       };

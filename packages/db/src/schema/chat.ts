@@ -1,5 +1,5 @@
 import { index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
-import { messageRoleEnum } from './enums.ts';
+import { messageRoleEnum, retrievalScope } from './enums.ts';
 import { workspaces } from './workspace.ts';
 import { users } from './auth.ts';
 import { chunks } from './chunk.ts';
@@ -21,6 +21,13 @@ export const conversations = pgTable(
     folderId: text('folder_id'),
     title: text('title').notNull(),
     modelId: text('model_id'),
+    /**
+     * Which file corpus this chat's retrieval tool queries. Stamped on
+     * conversation create from the composer toggle; cannot be changed
+     * mid-conversation (the user can always start a new chat in the other
+     * scope). Retrieval never crosses scopes.
+     */
+    retrievalScope: retrievalScope('retrieval_scope').notNull().default('organization'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => [

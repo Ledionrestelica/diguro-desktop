@@ -1,34 +1,26 @@
 import { z } from 'zod';
-import type { EmbedProvider } from '../../ports/embedProvider.ts';
+import type {
+  EmbedDocumentsResult,
+  EmbedProvider,
+  EmbedQueryResult,
+} from '../../ports/embedProvider.ts';
+import type { CallUsage } from '../../ports/usage.ts';
 import type { Logger } from '../../lib/logger.ts';
 
 /**
  * OpenAI text-embedding-3-large, requested at 1024 dimensions to match
  * the existing pgvector column. OpenAI's newer embeddings use matryoshka
  * representation learning — a 1024-dim truncation is a principled
- * projection of the full 3072-dim vector, not a lossy crop. Benchmark
- * quality is very close to Voyage-3-large (within a few percent on
- * MIRACL / MTEB).
+ * projection of the full 3072-dim vector, not a lossy crop.
  *
- * Why offer it as an alternative to Voyage:
- *   - Pricing is comparable ($0.13/M input vs Voyage's $0.12/M).
- *   - Uses existing OPENAI_API_KEY — no second billing relationship.
- *   - OpenAI tier-1 rate limits are much higher than Voyage's free tier,
- *     so dev work doesn't stall on 3 RPM caps.
- *   - Swap between providers is one env var + re-ingest (vectors from
- *     different providers share a column but live in different semantic
- *     spaces — they must all come from the same provider to be
- *     comparable at query time).
- *
- * Retry pattern mirrors the Voyage adapter: exponential backoff on 429
- * and 5xx, respects Retry-After.
+ * Every call returns a `CallUsage` with provider-reported input tokens,
+ * so the caller can write a tokenUsage row tagged with the right scope
+ * (chat conversation for queries, resource version for ingest).
  */
 
 const MODEL = 'text-embedding-3-large';
+const MODEL_ID = `openai/${MODEL}`;
 const DIMENSIONS = 1024;
-/** OpenAI accepts up to 2048 inputs per request but charges per token;
- * we size batches to ~8K tokens per request to stay comfortable under
- * request-level size caps and keep a single 429 cheap to retry. */
 const MAX_BATCH = 16;
 const ENDPOINT = 'https://api.openai.com/v1/embeddings';
 
@@ -43,7 +35,15 @@ const EmbedResponse = z.object({
       index: z.number().int().nonnegative(),
     }),
   ),
+  usage: z
+    .object({
+      prompt_tokens: z.number().int().nonnegative().optional(),
+      total_tokens: z.number().int().nonnegative().optional(),
+    })
+    .optional(),
 });
+
+type Parsed = z.infer<typeof EmbedResponse>;
 
 export interface OpenAIEmbedDeps {
   apiKey: string;
@@ -51,19 +51,27 @@ export interface OpenAIEmbedDeps {
 }
 
 export function createOpenAIEmbedProvider(deps: OpenAIEmbedDeps): EmbedProvider {
-  async function call(inputs: readonly string[]): Promise<number[][]> {
+  async function call(
+    inputs: readonly string[],
+  ): Promise<{ vectors: number[][]; usage: CallUsage }> {
     const batches: string[][] = [];
     for (let i = 0; i < inputs.length; i += MAX_BATCH) {
       batches.push([...inputs.slice(i, i + MAX_BATCH)]);
     }
 
     const out: (number[] | undefined)[] = Array.from({ length: inputs.length });
+    let totalTokens = 0;
+    let lastRequestId: string | null = null;
+    const startedAt = Date.now();
+
     for (const [batchIdx, batch] of batches.entries()) {
-      const parsed = await callBatch(deps, batch);
+      const { parsed, requestId } = await callBatch(deps, batch);
       const baseOffset = batchIdx * MAX_BATCH;
       for (const entry of parsed.data) {
         out[baseOffset + entry.index] = entry.embedding;
       }
+      totalTokens += parsed.usage?.prompt_tokens ?? parsed.usage?.total_tokens ?? 0;
+      if (requestId) lastRequestId = requestId;
     }
 
     const final: number[][] = new Array<number[]>(out.length);
@@ -72,16 +80,26 @@ export function createOpenAIEmbedProvider(deps: OpenAIEmbedDeps): EmbedProvider 
       if (!v) throw new Error(`OpenAI returned no embedding at index ${i}`);
       final[i] = v;
     }
-    return final;
+
+    return {
+      vectors: final,
+      usage: {
+        modelId: MODEL_ID,
+        promptTokens: totalTokens,
+        providerRequestId: lastRequestId,
+        latencyMs: Date.now() - startedAt,
+      },
+    };
   }
 
   return {
     dimensions: DIMENSIONS,
-    embedDocuments: call,
-    embedQuery: async (input) => {
-      const [v] = await call([input]);
-      if (!v) throw new Error('OpenAI returned no embedding for query');
-      return v;
+    embedDocuments: async (inputs): Promise<EmbedDocumentsResult> => call(inputs),
+    embedQuery: async (input): Promise<EmbedQueryResult> => {
+      const { vectors, usage } = await call([input]);
+      const vector = vectors[0];
+      if (!vector) throw new Error('OpenAI returned no embedding for query');
+      return { vector, usage };
     },
   };
 }
@@ -89,7 +107,7 @@ export function createOpenAIEmbedProvider(deps: OpenAIEmbedDeps): EmbedProvider 
 async function callBatch(
   deps: OpenAIEmbedDeps,
   batch: string[],
-): Promise<z.infer<typeof EmbedResponse>> {
+): Promise<{ parsed: Parsed; requestId: string | null }> {
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
@@ -111,7 +129,7 @@ async function callBatch(
       if (!parsed.success) {
         throw new Error(`OpenAI embed response shape mismatch: ${parsed.error.message}`);
       }
-      return parsed.data;
+      return { parsed: parsed.data, requestId: res.headers.get('x-request-id') };
     }
 
     const retriable = res.status === 429 || res.status >= 500;

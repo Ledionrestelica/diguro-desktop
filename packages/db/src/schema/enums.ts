@@ -47,7 +47,17 @@ export const usageType = pgEnum('usage_type', [
   'OCR',
   'SUMMARY',
   'REWRITE',
+  'CONTEXTUALIZE',
+  'TITLE',
 ]);
+
+/**
+ * Which corpus a conversation's retrieval tool searches. `organization` =
+ * every org-scoped resource the user's org has uploaded. `user` = only the
+ * user's personal library. Switchable per-conversation via the composer
+ * toggle. Retrieval never crosses scopes (CLAUDE.md invariant).
+ */
+export const retrievalScope = pgEnum('retrieval_scope', ['organization', 'user']);
 
 export const reconciliationFinding = pgEnum('reconciliation_finding', [
   'ORPHAN_S3_OBJECT',

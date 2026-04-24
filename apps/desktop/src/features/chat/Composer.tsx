@@ -9,9 +9,10 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from 'react';
-import { AlertCircle, Loader2, Mic, Paperclip, Square, X } from 'lucide-react';
+import { AlertCircle, Building2, Loader2, Lock, Mic, Paperclip, Square, User, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/lib/trpc';
+import { ModelPicker } from './ModelPicker';
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25 MB per file
 const MAX_FILES = 3;
@@ -47,14 +48,32 @@ export interface ReadyAttachment {
   mediaType: string;
 }
 
+export type RetrievalScope = 'organization' | 'user';
+
 interface Props {
   /** Conversation the uploads are scoped to. */
   conversationId: string;
-  onSend: (text: string, attachments: ReadyAttachment[]) => void;
+  onSend: (
+    text: string,
+    attachments: ReadyAttachment[],
+    scope: RetrievalScope,
+    modelId: string | null,
+  ) => void;
   onStop?: () => void;
   /** Set while a response is streaming; disables send, exposes Stop. */
   streaming?: boolean;
   disabled?: boolean;
+  /** Initial scope selection. Parent sets this based on conversation state:
+   *  new chat → user preference / default 'organization'; existing chat →
+   *  the value stored on conversations.retrievalScope. */
+  initialScope?: RetrievalScope;
+  /** When true, the toggle is disabled and shown with a lock indicator —
+   *  the conversation already has messages, so the server has locked the
+   *  scope. Parent flips this once messages exist. */
+  scopeLocked?: boolean;
+  /** Starting model id. New chat → user preference; existing chat → last
+   *  model used. `null` lets ModelPicker fall back to the catalog default. */
+  initialModelId?: string | null;
 }
 
 export function Composer({
@@ -63,12 +82,26 @@ export function Composer({
   onStop,
   streaming = false,
   disabled = false,
+  initialScope = 'organization',
+  scopeLocked = false,
+  initialModelId = null,
 }: Props) {
   const [value, setValue] = useState('');
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [scope, setScope] = useState<RetrievalScope>(initialScope);
+  const [modelId, setModelId] = useState<string | null>(initialModelId);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Follow the parent when the conversation context changes (e.g. user
+  // navigated from a new chat to an existing one mid-session).
+  useEffect(() => {
+    setScope(initialScope);
+  }, [initialScope]);
+  useEffect(() => {
+    setModelId(initialModelId);
+  }, [initialModelId]);
 
   const presign = trpc.chatAttachments.presignUpload.useMutation();
 
@@ -194,7 +227,7 @@ export function Composer({
       filename: a.filename,
       mediaType: a.mediaType,
     }));
-    onSend(trimmed, readyAttachments);
+    onSend(trimmed, readyAttachments, scope, modelId);
     // Revoke remaining blob URLs
     for (const a of attachments) URL.revokeObjectURL(a.localPreview);
     setValue('');
@@ -311,9 +344,19 @@ export function Composer({
             <CircleIconButton label="Voice input" onClick={() => {}} disabled>
               <Mic className="size-4" />
             </CircleIconButton>
+            <ScopeToggle
+              scope={scope}
+              locked={scopeLocked}
+              onChange={setScope}
+            />
           </div>
 
           <div className="flex items-center gap-2">
+            <ModelPicker
+              value={modelId}
+              onChange={setModelId}
+              disabled={streaming || disabled}
+            />
             {streaming ? (
               <CircleIconButton label="Stop" onClick={() => onStop?.()}>
                 <Square className="size-3.5 fill-current" />
@@ -336,6 +379,58 @@ export function Composer({
         </div>
       </form>
     </div>
+  );
+}
+
+/**
+ * Two-state pill that picks which corpus the chat searches. Locked once
+ * the conversation has messages — the server won't let you change scope
+ * mid-conversation anyway, so we surface that constraint in the UI.
+ */
+function ScopeToggle({
+  scope,
+  locked,
+  onChange,
+}: {
+  scope: RetrievalScope;
+  locked: boolean;
+  onChange: (next: RetrievalScope) => void;
+}) {
+  const label = scope === 'user' ? 'My files' : 'Organization';
+  const Icon = scope === 'user' ? User : Building2;
+
+  if (locked) {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-600"
+        title="Scope locked for this conversation"
+      >
+        <Lock className="size-3 text-zinc-400" />
+        <Icon className="size-3.5 text-zinc-500" />
+        {label}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(scope === 'user' ? 'organization' : 'user')}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+        scope === 'user'
+          ? 'border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100'
+          : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50',
+      )}
+      title={
+        scope === 'user'
+          ? 'Searching only your files — click to search organization files instead'
+          : 'Searching organization files — click to search your files instead'
+      }
+    >
+      <Icon className="size-3.5" />
+      {label}
+    </button>
   );
 }
 

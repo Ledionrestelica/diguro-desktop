@@ -11,12 +11,34 @@ import {
 } from '../../services/organizations/attachments.ts';
 import { resolveWorkspaceLogoUrl } from '../../services/workspaces/attachments.ts';
 import {
+  confirmOrganizationResourceReplace,
   confirmOrganizationResourceUpload,
+  initiateOrganizationResourceReplace,
   initiateOrganizationResourceUpload,
   listOrganizationResources,
   MAX_RESOURCE_BYTES,
+  moveOrganizationResource,
   removeOrganizationResource,
 } from '../../services/resources/organizationFiles.ts';
+import {
+  createOrganizationFolder,
+  deleteOrganizationFolder,
+  ensureOrganizationFolder,
+  listOrganizationFolders,
+  moveOrganizationFolder,
+  renameOrganizationFolder,
+} from '../../services/resources/folders.ts';
+import {
+  getOrganizationUsageSummary,
+  listRecentOrganizationUsage,
+} from '../../services/usage/queries.ts';
+import { listOrganizationPerUserSpend } from '../../services/usage/limits.ts';
+import { listOrganizationAuditEvents } from '../../services/audit/queries.ts';
+import {
+  createOrgInvitation,
+  listOrgInvitations,
+  revokeOrgInvitation,
+} from '../../services/organizations/invitations.ts';
 
 const SlugShape = z
   .string()
@@ -322,7 +344,14 @@ export const adminOrganizationRouter = router({
   /* === Organization files (RAG resources) === */
 
   filesList: organizationAdminProcedure
-    .input(z.object({ search: z.string().max(120).optional() }).optional())
+    .input(
+      z
+        .object({
+          search: z.string().max(120).optional(),
+          folderId: z.string().min(1).nullable().optional(),
+        })
+        .optional(),
+    )
     .query(async ({ ctx, input }) => {
       try {
         return await listOrganizationResources(
@@ -330,6 +359,7 @@ export const adminOrganizationRouter = router({
           {
             organizationId: ctx.organization.id,
             ...(input?.search ? { search: input.search } : {}),
+            ...(input && 'folderId' in input ? { folderId: input.folderId ?? null } : {}),
           },
         );
       } catch (err) {
@@ -343,6 +373,7 @@ export const adminOrganizationRouter = router({
         filename: z.string().min(1).max(255),
         contentType: z.string().min(1).max(255),
         contentLength: z.number().int().positive().max(MAX_RESOURCE_BYTES),
+        folderId: z.string().min(1).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -355,6 +386,7 @@ export const adminOrganizationRouter = router({
             filename: input.filename,
             contentType: input.contentType,
             contentLength: input.contentLength,
+            folderId: input.folderId ?? null,
           },
         );
       } catch (err) {
@@ -367,8 +399,12 @@ export const adminOrganizationRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         await confirmOrganizationResourceUpload(
-          { db: ctx.db, queue: ctx.queue },
-          { organizationId: ctx.organization.id, versionId: input.versionId },
+          { db: ctx.db, queue: ctx.queue, logger: ctx.logger },
+          {
+            organizationId: ctx.organization.id,
+            versionId: input.versionId,
+            actorUserId: ctx.user.id,
+          },
         );
         return { ok: true as const };
       } catch (err) {
@@ -381,10 +417,341 @@ export const adminOrganizationRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         await removeOrganizationResource(
-          { db: ctx.db, objectStore: ctx.objectStore },
-          { organizationId: ctx.organization.id, resourceId: input.resourceId },
+          { db: ctx.db, objectStore: ctx.objectStore, logger: ctx.logger },
+          {
+            organizationId: ctx.organization.id,
+            resourceId: input.resourceId,
+            actorUserId: ctx.user.id,
+          },
         );
         return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  filesInitiateReplace: organizationAdminProcedure
+    .input(
+      z.object({
+        resourceId: z.string().min(1),
+        filename: z.string().min(1).max(255),
+        contentType: z.string().min(1).max(255),
+        contentLength: z.number().int().positive().max(MAX_RESOURCE_BYTES),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await initiateOrganizationResourceReplace(
+          { db: ctx.db, objectStore: ctx.objectStore },
+          {
+            organizationId: ctx.organization.id,
+            uploaderId: ctx.user.id,
+            resourceId: input.resourceId,
+            filename: input.filename,
+            contentType: input.contentType,
+            contentLength: input.contentLength,
+          },
+        );
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  filesConfirmReplace: organizationAdminProcedure
+    .input(z.object({ versionId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await confirmOrganizationResourceReplace(
+          { db: ctx.db, queue: ctx.queue, logger: ctx.logger },
+          {
+            organizationId: ctx.organization.id,
+            versionId: input.versionId,
+            actorUserId: ctx.user.id,
+          },
+        );
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  filesMove: organizationAdminProcedure
+    .input(
+      z.object({
+        resourceId: z.string().min(1),
+        folderId: z.string().min(1).nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await moveOrganizationResource(
+          { db: ctx.db },
+          {
+            organizationId: ctx.organization.id,
+            resourceId: input.resourceId,
+            folderId: input.folderId,
+          },
+        );
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  /* === Organization folders === */
+
+  foldersList: organizationAdminProcedure.query(async ({ ctx }) => {
+    try {
+      return await listOrganizationFolders(
+        { db: ctx.db },
+        { organizationId: ctx.organization.id },
+      );
+    } catch (err) {
+      throw mapDomainError(err);
+    }
+  }),
+
+  folderCreate: organizationAdminProcedure
+    .input(
+      z.object({
+        name: z.string().min(1).max(120),
+        parentId: z.string().min(1).nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await createOrganizationFolder(
+          { db: ctx.db },
+          {
+            organizationId: ctx.organization.id,
+            name: input.name,
+            parentId: input.parentId ?? null,
+          },
+        );
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  folderEnsure: organizationAdminProcedure
+    .input(
+      z.object({
+        name: z.string().min(1).max(120),
+        parentId: z.string().min(1).nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await ensureOrganizationFolder(
+          { db: ctx.db },
+          {
+            organizationId: ctx.organization.id,
+            name: input.name,
+            parentId: input.parentId ?? null,
+          },
+        );
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  folderRename: organizationAdminProcedure
+    .input(
+      z.object({
+        folderId: z.string().min(1),
+        name: z.string().min(1).max(120),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await renameOrganizationFolder(
+          { db: ctx.db },
+          {
+            organizationId: ctx.organization.id,
+            folderId: input.folderId,
+            name: input.name,
+          },
+        );
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  folderMove: organizationAdminProcedure
+    .input(
+      z.object({
+        folderId: z.string().min(1),
+        parentId: z.string().min(1).nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await moveOrganizationFolder(
+          { db: ctx.db },
+          {
+            organizationId: ctx.organization.id,
+            folderId: input.folderId,
+            parentId: input.parentId,
+          },
+        );
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  folderDelete: organizationAdminProcedure
+    .input(z.object({ folderId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await deleteOrganizationFolder(
+          { db: ctx.db },
+          {
+            organizationId: ctx.organization.id,
+            folderId: input.folderId,
+          },
+        );
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  /* === Token usage + audit (org-admin read-only views) === */
+
+  usageSummary: organizationAdminProcedure
+    .input(
+      z
+        .object({
+          /** ISO string. Defaults to current month (UTC). */
+          since: z.string().datetime().optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        return await getOrganizationUsageSummary(
+          { db: ctx.db },
+          {
+            organizationId: ctx.organization.id,
+            ...(input?.since ? { since: new Date(input.since) } : {}),
+          },
+        );
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  usageRecent: organizationAdminProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().int().min(1).max(200).optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        return await listRecentOrganizationUsage(
+          { db: ctx.db },
+          {
+            organizationId: ctx.organization.id,
+            ...(input?.limit !== undefined ? { limit: input.limit } : {}),
+          },
+        );
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  invitesList: organizationAdminProcedure.query(async ({ ctx }) => {
+    try {
+      return await listOrgInvitations(
+        { db: ctx.db },
+        { organizationId: ctx.organization.id },
+      );
+    } catch (err) {
+      throw mapDomainError(err);
+    }
+  }),
+
+  inviteCreate: organizationAdminProcedure
+    .input(
+      z.object({
+        email: z.string().email().max(200),
+        role: z.enum(['user', 'organization_admin']),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await createOrgInvitation(
+          {
+            db: ctx.db,
+            email: ctx.emailProvider,
+            logger: ctx.logger,
+            appBaseUrl: ctx.config.APP_BASE_URL,
+          },
+          {
+            organizationId: ctx.organization.id,
+            inviterUserId: ctx.user.id,
+            email: input.email,
+            role: input.role,
+          },
+        );
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  inviteRevoke: organizationAdminProcedure
+    .input(z.object({ invitationId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await revokeOrgInvitation(
+          { db: ctx.db, logger: ctx.logger },
+          {
+            organizationId: ctx.organization.id,
+            invitationId: input.invitationId,
+            actorUserId: ctx.user.id,
+          },
+        );
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  usagePerUser: organizationAdminProcedure.query(async ({ ctx }) => {
+    try {
+      return await listOrganizationPerUserSpend(
+        { db: ctx.db },
+        { organizationId: ctx.organization.id },
+      );
+    } catch (err) {
+      throw mapDomainError(err);
+    }
+  }),
+
+  auditList: organizationAdminProcedure
+    .input(
+      z
+        .object({
+          action: z.string().min(1).max(60).nullable().optional(),
+          limit: z.number().int().min(1).max(500).optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        return await listOrganizationAuditEvents(
+          { db: ctx.db },
+          {
+            organizationId: ctx.organization.id,
+            action: input?.action ?? null,
+            ...(input?.limit !== undefined ? { limit: input.limit } : {}),
+          },
+        );
       } catch (err) {
         throw mapDomainError(err);
       }

@@ -17,7 +17,11 @@ import { generateAndApplyConversationTitle } from '../services/chat/generate-tit
 import { persistCitationsFromMessage } from '../services/chat/citations.ts';
 import { createUITools } from '../ai/ui-tools/index.ts';
 import { createRetrievalTool } from '../ai/retrieval-tool.ts';
+import { recordUsage } from '../services/usage/record.ts';
+import { assertUserWithinCap } from '../services/usage/limits.ts';
+import { isKnownChatModel } from '../ai/model-catalog.ts';
 import { mapDomainError } from '../trpc/error-mapper.ts';
+import { eq, schema } from '@diguro/db';
 import { Unauthorized } from '@diguro/shared/errors';
 import type { Logger } from '../lib/logger.ts';
 import type { Db } from '@diguro/db';
@@ -31,6 +35,12 @@ const ChatRequestSchema = z.object({
   trigger: z.string().optional(),
   messageId: z.string().optional(),
   modelId: z.string().optional(),
+  /**
+   * Requested retrieval scope for a NEW conversation — applied on
+   * first-create and then locked for the lifetime of the conversation.
+   * Subsequent messages in the same chat reuse the stored value.
+   */
+  retrievalScope: z.enum(['organization', 'user']).optional(),
 });
 
 /**
@@ -140,9 +150,32 @@ export function handleChat(deps: Deps) {
 
     const conversationId = parsed.data.id;
     const modelId = parsed.data.modelId ?? DEFAULT_CHAT_MODEL;
+    const requestedScope = parsed.data.retrievalScope ?? 'organization';
     const messages = parsed.data.messages as UIMessage[];
 
     try {
+      // Spend cap pre-flight: reject before we start a stream the user
+      // can't afford to finish. Gates on MTD already >= cap, so the last
+      // call may slightly overshoot — preferable to mid-stream errors.
+      await assertUserWithinCap({ db: deps.db }, { userId: session.user.id });
+
+      // Sticky model preference: remember whichever model the user just
+      // chose so the picker defaults to it next time. Safe to fire in
+      // parallel with the stream — it's a single UPDATE on the user row.
+      if (isKnownChatModel(modelId)) {
+        void deps.db
+          .update(schema.users)
+          .set({ preferredChatModelId: modelId, updatedAt: new Date() })
+          .where(eq(schema.users.id, session.user.id))
+          .catch((err: unknown) => {
+            deps.logger.warn('failed to update preferred chat model', {
+              userId: session.user.id,
+              modelId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          });
+      }
+
       const firstUserText = extractFirstUserText(messages);
       const upsertResult = await upsertConversation(
         { db: deps.db },
@@ -152,15 +185,17 @@ export function handleChat(deps: Deps) {
           workspaceId: null,
           modelId,
           firstUserText,
+          retrievalScope: requestedScope,
         },
       );
+      const effectiveScope = upsertResult.retrievalScope;
 
       // On first creation only, fire-and-forget AI-generated title.
       // Runs in parallel with streaming — doesn't block first-token latency.
       if (upsertResult.isNew && firstUserText) {
         void generateAndApplyConversationTitle(
           { registry: deps.registry, db: deps.db, logger: deps.logger },
-          { conversationId, firstUserText },
+          { conversationId, firstUserText, userId: session.user.id },
         );
       }
 
@@ -184,19 +219,34 @@ export function handleChat(deps: Deps) {
       const uiTools = createUITools();
 
       // Retrieval tool is scope-bound per request. We close over the
-      // caller's organizationId so the model physically cannot query a
-      // different org's files. When workspace-scoped chats land, this is
-      // where we'd resolve the scope from conversation.workspaceId.
+      // caller's org/user id so the model physically cannot query a
+      // different scope's files. `effectiveScope` comes from the
+      // conversation row — locked in on create, respected on every reply.
       const organizationId =
         (session.user as { organizationId?: string | null }).organizationId ?? null;
-      const retrievalTools = organizationId
+      const toolScope:
+        | { kind: 'organization'; organizationId: string }
+        | { kind: 'user'; userId: string }
+        | null =
+        effectiveScope === 'user'
+          ? { kind: 'user', userId: session.user.id }
+          : organizationId
+            ? { kind: 'organization', organizationId }
+            : null;
+
+      const retrievalTools = toolScope
         ? {
             search_documents: createRetrievalTool({
               db: deps.db,
               embedProvider: deps.embedProvider,
               rerankProvider: deps.rerankProvider,
               logger: deps.logger,
-              scope: { kind: 'organization', organizationId },
+              scope: toolScope,
+              telemetry: {
+                userId: session.user.id,
+                workspaceId: null,
+                conversationId,
+              },
             }),
           }
         : {};
@@ -204,9 +254,9 @@ export function handleChat(deps: Deps) {
       const tools = { ...(nativeTools ?? {}), ...uiTools, ...retrievalTools };
 
       // Compose the system prompt. The retrieval addition only ships when
-      // the user has an organization — otherwise the tool isn't attached
-      // and the addition would be misleading.
-      const systemPrompt = organizationId
+      // a retrieval tool is actually attached — mentioning it without one
+      // would confuse the model into claiming it can search.
+      const systemPrompt = toolScope
         ? CHAT_SYSTEM_PROMPT_BASE + RETRIEVAL_SYSTEM_PROMPT_ADDITION
         : CHAT_SYSTEM_PROMPT_BASE;
 
@@ -228,6 +278,24 @@ export function handleChat(deps: Deps) {
           // search calls, their results, follow-up reasoning, and the
           // final answer. 5 steps gives headroom without runaway cost.
           maxSteps: 5,
+          onFinish: async ({ usage, providerRequestId, latencyMs }) => {
+            await recordUsage(
+              { db: deps.db, logger: deps.logger },
+              {
+                userId: session.user.id,
+                workspaceId: null,
+                type: 'CHAT',
+                modelId,
+                promptTokens: usage.promptTokens,
+                cachedInputTokens: usage.cachedInputTokens,
+                completionTokens: usage.completionTokens,
+                reasoningTokens: usage.reasoningTokens,
+                providerRequestId,
+                latencyMs,
+                conversationId,
+              },
+            );
+          },
         },
       );
 

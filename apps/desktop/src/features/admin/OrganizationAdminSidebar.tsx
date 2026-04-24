@@ -6,6 +6,7 @@ import {
   CreditCard,
   FolderOpen,
   Loader2,
+  ScrollText,
   Settings2,
   Users,
   type LucideIcon,
@@ -26,6 +27,7 @@ const ORGANIZATION_ITEMS: NavItem[] = [
   { label: 'Workspaces', to: '/admin/organization/workspaces', icon: Boxes },
   { label: 'Files', to: '/admin/organization/files', icon: FolderOpen },
   { label: 'Token Usage', to: '/admin/organization/token-usage', icon: Coins },
+  { label: 'Audit Log', to: '/admin/organization/audit-log', icon: ScrollText },
   { label: 'Billing', to: '/admin/organization/billing', icon: CreditCard },
 ];
 

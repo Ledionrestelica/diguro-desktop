@@ -22,6 +22,13 @@ export interface ChatOutletContext {
    * the backend finishes and the query refetches.
    */
   citationsByMessageId: Map<string, MessageCitation[]>;
+  /** The scope this conversation's retrieval tool searches. Null for a
+   *  brand-new chat with no conversation row yet — composer uses its own
+   *  default and the server locks it on first message. */
+  conversationScope: 'organization' | 'user' | null;
+  /** Server-enforced: once the conversation has any message, scope is
+   *  locked. Composer surfaces this with a lock indicator. */
+  scopeLocked: boolean;
 }
 
 /**
@@ -142,6 +149,14 @@ export function ChatLayout() {
     hydrating: !isNewChat && conversationQuery.isLoading,
     isNewChat,
     citationsByMessageId,
+    conversationScope: conversationQuery.data?.retrievalScope ?? null,
+    // Locked once the conversation has messages (server-side rule). For
+    // live sessions we also treat "any message in useChat state" as locked
+    // — once the user has sent one, subsequent scope changes wouldn't
+    // take effect because the server already stamped the row.
+    scopeLocked:
+      (conversationQuery.data?.messages.length ?? 0) > 0 ||
+      session.messages.length > 0,
   };
 
   return (

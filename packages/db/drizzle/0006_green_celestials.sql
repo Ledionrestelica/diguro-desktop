@@ -1,0 +1,1 @@
+ALTER TABLE "organizations" ADD COLUMN "default_user_ai_budget_microdollars" bigint DEFAULT 20000000 NOT NULL;

@@ -1,33 +1,26 @@
 import { z } from 'zod';
-import type { EmbedProvider } from '../../ports/embedProvider.ts';
+import type {
+  EmbedDocumentsResult,
+  EmbedProvider,
+  EmbedQueryResult,
+} from '../../ports/embedProvider.ts';
+import type { CallUsage } from '../../ports/usage.ts';
 import type { Logger } from '../../lib/logger.ts';
 
 /**
  * Voyage-3-large. 1024-dim, locked per DB — swapping models requires a full
  * re-embed + Postgres column migration. Uses REST (no SDK needed).
  *
- * Batching + rate limiting:
- *   - Voyage's free tier is 3 RPM / 10K TPM. Standard (paid) tier is much
- *     higher. We size batches to stay comfortably under the per-request
- *     portion of the free TPM cap so dev works out-of-the-box; paid users
- *     get the same code path with zero waste.
- *   - Retry on 429 / 5xx with exponential backoff, honoring Retry-After
- *     when the server sends it. A transient rate-limit blip won't fail
- *     the whole ingest.
+ * Each call returns `CallUsage` with provider-reported total tokens so the
+ * caller can write an accurate tokenUsage row.
  */
 
 const MODEL = 'voyage-3-large';
+const MODEL_ID = `voyage/${MODEL}`;
 const DIMENSIONS = 1024;
-/**
- * Chunks per request. At ~450 tokens/chunk (contextualized chunk + body),
- * 16 × 450 ≈ 7.2K tokens — inside free-tier 10K TPM so a single request
- * fits. Paid tier ignores this cap entirely; tuning higher saves RTT but
- * the gain is in the single-digit-% range. Keep it pessimistic.
- */
 const MAX_BATCH = 16;
 const ENDPOINT = 'https://api.voyageai.com/v1/embeddings';
 
-/** Backoff caps — keep total retry window under Inngest's step timeout. */
 const MAX_RETRIES = 4;
 const MAX_BACKOFF_MS = 30_000;
 const MIN_BACKOFF_MS = 2_000;
@@ -39,7 +32,14 @@ const EmbedResponse = z.object({
       index: z.number().int().nonnegative(),
     }),
   ),
+  usage: z
+    .object({
+      total_tokens: z.number().int().nonnegative().optional(),
+    })
+    .optional(),
 });
+
+type Parsed = z.infer<typeof EmbedResponse>;
 
 export interface VoyageDeps {
   apiKey: string;
@@ -50,42 +50,54 @@ export function createVoyageEmbedProvider(deps: VoyageDeps): EmbedProvider {
   async function call(
     inputs: readonly string[],
     inputType: 'document' | 'query',
-  ): Promise<number[][]> {
+  ): Promise<{ vectors: number[][]; usage: CallUsage }> {
     const batches: string[][] = [];
     for (let i = 0; i < inputs.length; i += MAX_BATCH) {
       batches.push([...inputs.slice(i, i + MAX_BATCH)]);
     }
 
     const out: (number[] | undefined)[] = Array.from({ length: inputs.length });
+    let totalTokens = 0;
+    let lastRequestId: string | null = null;
+    const startedAt = Date.now();
+
     for (const [batchIdx, batch] of batches.entries()) {
-      const parsed = await callBatch(deps, batch, inputType);
-      // Voyage returns entries keyed by `index` within the request batch;
-      // map back into the caller's original positions.
+      const { parsed, requestId } = await callBatch(deps, batch, inputType);
       const baseOffset = batchIdx * MAX_BATCH;
       for (const entry of parsed.data) {
         out[baseOffset + entry.index] = entry.embedding;
       }
+      totalTokens += parsed.usage?.total_tokens ?? 0;
+      if (requestId) lastRequestId = requestId;
     }
 
-    // Safety: every slot must be filled before we return.
     const final: number[][] = new Array<number[]>(out.length);
     for (let i = 0; i < out.length; i++) {
       const v = out[i];
-      if (!v) {
-        throw new Error(`Voyage response missing embedding at index ${i}`);
-      }
+      if (!v) throw new Error(`Voyage response missing embedding at index ${i}`);
       final[i] = v;
     }
-    return final;
+
+    return {
+      vectors: final,
+      usage: {
+        modelId: MODEL_ID,
+        promptTokens: totalTokens,
+        providerRequestId: lastRequestId,
+        latencyMs: Date.now() - startedAt,
+      },
+    };
   }
 
   return {
     dimensions: DIMENSIONS,
-    embedDocuments: (inputs) => call(inputs, 'document'),
-    embedQuery: async (input) => {
-      const [v] = await call([input], 'query');
-      if (!v) throw new Error('Voyage returned no embedding for query');
-      return v;
+    embedDocuments: async (inputs): Promise<EmbedDocumentsResult> =>
+      call(inputs, 'document'),
+    embedQuery: async (input): Promise<EmbedQueryResult> => {
+      const { vectors, usage } = await call([input], 'query');
+      const vector = vectors[0];
+      if (!vector) throw new Error('Voyage returned no embedding for query');
+      return { vector, usage };
     },
   };
 }
@@ -94,7 +106,7 @@ async function callBatch(
   deps: VoyageDeps,
   batch: string[],
   inputType: 'document' | 'query',
-): Promise<z.infer<typeof EmbedResponse>> {
+): Promise<{ parsed: Parsed; requestId: string | null }> {
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
@@ -115,7 +127,7 @@ async function callBatch(
       if (!parsed.success) {
         throw new Error(`Voyage response shape mismatch: ${parsed.error.message}`);
       }
-      return parsed.data;
+      return { parsed: parsed.data, requestId: res.headers.get('x-request-id') };
     }
 
     const retriable = res.status === 429 || res.status >= 500;
@@ -137,8 +149,6 @@ async function callBatch(
 }
 
 function resolveBackoffMs(retryAfter: string | null, attempt: number): number {
-  // Retry-After can be a delta-seconds integer or an HTTP-date. We only
-  // handle the integer form; Voyage sends seconds.
   if (retryAfter) {
     const seconds = Number(retryAfter);
     if (Number.isFinite(seconds) && seconds > 0) {

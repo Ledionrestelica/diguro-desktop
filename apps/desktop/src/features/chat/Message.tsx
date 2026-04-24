@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FileText, Globe } from 'lucide-react';
+import { Eye, FileText, Globe } from 'lucide-react';
 import type { UIMessage, UIMessagePart } from 'ai';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -8,6 +8,8 @@ import { useAttachmentUrl } from './useAttachmentUrl';
 import { ToolPart } from './tools/registry';
 import { isGenerativeUIToolName } from './tools/names';
 import type { MessageCitation } from './types';
+
+const RETRIEVAL_TOOL_NAME = 'search_documents';
 
 type MessageRole = 'user' | 'assistant';
 
@@ -66,17 +68,28 @@ export function Message({
     sources.length > 0 ||
     (citations && citations.length > 0);
 
+  // Pick the thinking label based on what's happening right now:
+  //   - no blocks yet, model hasn't started doing anything → "Thinking..."
+  //   - a retrieval call is in flight but no text streamed yet → swallowed
+  //     (the retrieval block itself conveys activity)
+  //   - retrieval finished, text still hasn't arrived → "Answering..."
+  //     so the user knows the model is composing, not stuck.
+  //   - text is already streaming → nothing; the text is feedback enough.
+  const thinkingLabel = thinking
+    ? pickThinkingLabel(blocks)
+    : null;
+
   return (
     <div className="flex flex-col gap-4">
-      {thinking && (
-        <p className="thinking-gradient-text w-fit animate-bounce text-base font-medium leading-6">
-          Thinking..
-        </p>
-      )}
       {searchState && <SearchIndicator state={searchState} />}
       {blocks.map((block, i) => (
         <BlockRender key={i} block={block} citationRanks={citationRanks} />
       ))}
+      {thinkingLabel && (
+        <p className="thinking-gradient-text w-fit animate-bounce text-base font-medium leading-6">
+          {thinkingLabel}
+        </p>
+      )}
       {sources.length > 0 && <SourceList sources={sources} />}
       {citations && citations.length > 0 && (
         <DocumentSourceList citations={citations} />
@@ -86,13 +99,48 @@ export function Message({
   );
 }
 
+function pickThinkingLabel(blocks: Block[]): string | null {
+  if (blocks.length === 0) return 'Thinking..';
+  const last = blocks[blocks.length - 1];
+  if (!last) return 'Thinking..';
+  // Once text is streaming, the text IS the feedback — don't stack a label
+  // on top of it.
+  if (last.kind === 'text') return null;
+  // A tool is in progress → its own indicator carries the load.
+  if (last.kind === 'retrieval') {
+    return last.state === 'output-available' || last.state === 'output-error'
+      ? 'Answering..'
+      : null;
+  }
+  if (last.kind === 'tool') return null;
+  return 'Thinking..';
+}
+
 /* ------------------------------------------------------------------ */
 /* Block model — walks parts in stream order, coalescing adjacent text*/
 /* ------------------------------------------------------------------ */
 
+type ToolState = 'input-streaming' | 'input-available' | 'output-available' | 'output-error';
+
+interface RetrievalResult {
+  chunkId: string;
+  source: string;
+  page: number | null;
+  excerpt: string;
+  score: number;
+}
+
 type Block =
   | { kind: 'text'; text: string }
   | { kind: 'tool'; part: UIMessagePart<unknown, Record<string, never>> }
+  | {
+      kind: 'retrieval';
+      state: ToolState;
+      query: string | null;
+      matched: number | null;
+      sources: string[];
+      errorText: string | null;
+    }
   | { kind: 'files'; parts: FileLikePart[] };
 
 function buildBlocks(parts: UIMessage['parts']): Block[] {
@@ -132,6 +180,12 @@ function buildBlocks(parts: UIMessage['parts']): Block[] {
 
     if (type.startsWith('tool-')) {
       const name = type.slice('tool-'.length);
+      if (name === RETRIEVAL_TOOL_NAME) {
+        flushText();
+        flushFiles();
+        out.push(toRetrievalBlock(part));
+        continue;
+      }
       // Provider-native tools (web_search) have a dedicated inline indicator
       // + source footer — don't render them as a generic block.
       if (!isGenerativeUIToolName(name)) continue;
@@ -146,6 +200,40 @@ function buildBlocks(parts: UIMessage['parts']): Block[] {
   return out;
 }
 
+function toRetrievalBlock(
+  part: UIMessagePart<unknown, Record<string, never>>,
+): Extract<Block, { kind: 'retrieval' }> {
+  const state = ((part as { state?: unknown }).state ?? 'input-streaming') as ToolState;
+  const input = (part as { input?: unknown }).input as { query?: unknown } | undefined;
+  const output = (part as { output?: unknown }).output as
+    | { matched?: unknown; results?: unknown }
+    | undefined;
+  const errorText = (part as { errorText?: unknown }).errorText;
+
+  const query = typeof input?.query === 'string' ? input.query : null;
+  const matched = typeof output?.matched === 'number' ? output.matched : null;
+
+  const sources: string[] = [];
+  if (Array.isArray(output?.results)) {
+    const seen = new Set<string>();
+    for (const r of output.results as RetrievalResult[]) {
+      if (r && typeof r.source === 'string' && !seen.has(r.source)) {
+        seen.add(r.source);
+        sources.push(r.source);
+      }
+    }
+  }
+
+  return {
+    kind: 'retrieval',
+    state,
+    query,
+    matched,
+    sources,
+    errorText: typeof errorText === 'string' ? errorText : null,
+  };
+}
+
 function BlockRender({
   block,
   citationRanks,
@@ -156,7 +244,82 @@ function BlockRender({
   if (block.kind === 'text')
     return <AssistantText text={block.text} citationRanks={citationRanks} />;
   if (block.kind === 'files') return <AttachmentGrid files={block.parts} align="start" />;
+  if (block.kind === 'retrieval') return <RetrievalBlock block={block} />;
   return <ToolPart part={block.part} />;
+}
+
+function RetrievalBlock({
+  block,
+}: {
+  block: Extract<Block, { kind: 'retrieval' }>;
+}) {
+  const inFlight = block.state === 'input-streaming' || block.state === 'input-available';
+  const errored = block.state === 'output-error';
+  const done = block.state === 'output-available';
+
+  // Screenshot-style labels: past-tense "Viewed" once the result is in,
+  // with the source pills carrying the information. During flight we show
+  // the live query so the user knows what's being looked up.
+  const doneLabel = (() => {
+    if (block.matched === 0 || block.sources.length === 0) {
+      return 'No matching passages';
+    }
+    return 'Viewed';
+  })();
+
+  const flightLabel = block.query
+    ? (
+        <>
+          Searching for{' '}
+          <span className="italic text-zinc-600">&ldquo;{block.query}&rdquo;</span>
+        </>
+      )
+    : 'Searching…';
+
+  return (
+    <div className="flex flex-col gap-1.5 text-sm">
+      <div className="flex items-center gap-2.5 text-zinc-500">
+        {inFlight && <DottedSpinner />}
+        {done && <Eye className="size-3.5 text-zinc-400" />}
+        {errored && (
+          <span className="grid size-3.5 place-items-center rounded-full bg-red-100 text-[9px] font-semibold text-red-600">
+            !
+          </span>
+        )}
+        <span className={inFlight ? 'text-zinc-500' : 'text-zinc-700'}>
+          {errored ? 'Search failed' : inFlight ? flightLabel : doneLabel}
+        </span>
+        {done && block.sources.length > 0 && (
+          <span className="flex flex-wrap items-center gap-1.5">
+            {block.sources.map((src, i) => (
+              <SourceChipInline key={`${src}-${i}`} name={src} />
+            ))}
+          </span>
+        )}
+      </div>
+      {errored && block.errorText && (
+        <p className="ml-6 text-xs text-red-500">{block.errorText}</p>
+      )}
+    </div>
+  );
+}
+
+function SourceChipInline({ name }: { name: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-800">
+      <FileText className="size-3 text-zinc-500" />
+      <span className="max-w-[180px] truncate">{name}</span>
+    </span>
+  );
+}
+
+function DottedSpinner() {
+  return (
+    <span
+      aria-hidden
+      className="inline-block size-3.5 animate-spin rounded-full border-2 border-dotted border-zinc-400"
+    />
+  );
 }
 
 function AssistantText({

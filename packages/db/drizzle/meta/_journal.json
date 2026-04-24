@@ -36,6 +36,34 @@
       "when": 1776538622528,
       "tag": "0004_dry_dreadnoughts",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1776978433115,
+      "tag": "0005_sweet_the_hunter",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1776979551196,
+      "tag": "0006_green_celestials",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1776979779881,
+      "tag": "0007_pretty_ultimatum",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1776980810381,
+      "tag": "0008_blue_jubilee",
+      "breakpoints": true
     }
   ]
 }

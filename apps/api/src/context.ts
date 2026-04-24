@@ -4,6 +4,7 @@ import type { Config } from './config.ts';
 import type { Logger } from './lib/logger.ts';
 import type { ObjectStore } from './ports/objectStore.ts';
 import type { Queue } from './ports/queue.ts';
+import type { EmailProvider } from './ports/emailProvider.ts';
 
 /**
  * Dependencies that are constant across requests. Constructed once at boot
@@ -16,6 +17,10 @@ export interface AppDeps {
   readonly logger: Logger;
   readonly objectStore: ObjectStore;
   readonly queue: Queue;
+  /** Null when no email provider is configured (RESEND_API_KEY missing).
+   *  Callers must handle the null case — invitations fall back to
+   *  copy-link UX when email isn't available. */
+  readonly emailProvider: EmailProvider | null;
 }
 
 /**

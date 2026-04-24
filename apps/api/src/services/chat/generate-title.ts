@@ -3,6 +3,7 @@ import type { ModelRegistry } from '../../ai/registry.ts';
 import { DEFAULT_REWRITE_MODEL } from '../../ai/registry.ts';
 import { eq, schema, type Db } from '@diguro/db';
 import type { Logger } from '../../lib/logger.ts';
+import { recordUsage } from '../usage/record.ts';
 
 const SYSTEM = [
   'You generate short titles for chat conversations.',
@@ -22,6 +23,8 @@ const TITLE_MAX_CHARS = 60;
 
 export interface GenerateTitleInput {
   conversationId: string;
+  /** User whose conversation this is — usage is attributed to them. */
+  userId: string;
   firstUserText: string;
   modelId?: string;
 }
@@ -42,9 +45,10 @@ export async function generateAndApplyConversationTitle(
   const trimmed = input.firstUserText.trim();
   if (!trimmed) return;
 
+  const modelId = input.modelId ?? DEFAULT_REWRITE_MODEL;
   let model;
   try {
-    model = deps.registry.resolve(input.modelId ?? DEFAULT_REWRITE_MODEL);
+    model = deps.registry.resolve(modelId);
   } catch (err) {
     deps.logger.warn('title gen skipped: model unavailable', {
       conversationId: input.conversationId,
@@ -54,7 +58,8 @@ export async function generateAndApplyConversationTitle(
   }
 
   try {
-    const { text } = await generateText({
+    const startedAt = Date.now();
+    const result = await generateText({
       model,
       system: SYSTEM,
       prompt: `First user message:\n${trimmed.slice(0, 800)}`,
@@ -65,6 +70,35 @@ export async function generateAndApplyConversationTitle(
         openai: { reasoningEffort: 'minimal' },
       },
     });
+    const text = result.text;
+
+    // Record usage before title validation — we paid for the call whether
+    // or not the generated title was usable.
+    const u = (result.usage ?? {}) as Record<string, unknown>;
+    const totalInput =
+      asNumber(u['inputTokens']) ?? asNumber(u['promptTokens']) ?? 0;
+    const cached =
+      asNumber(u['cachedInputTokens']) ?? asNumber(u['cachedPromptTokens']) ?? 0;
+    const reasoning = asNumber(u['reasoningTokens']) ?? 0;
+    const totalOutput =
+      asNumber(u['outputTokens']) ?? asNumber(u['completionTokens']) ?? 0;
+    await recordUsage(
+      { db: deps.db, logger: deps.logger },
+      {
+        userId: input.userId,
+        workspaceId: null,
+        type: 'TITLE',
+        modelId,
+        promptTokens: Math.max(0, totalInput - cached),
+        cachedInputTokens: cached,
+        completionTokens: Math.max(0, totalOutput - reasoning),
+        reasoningTokens: reasoning,
+        providerRequestId:
+          typeof result.response?.id === 'string' ? result.response.id : null,
+        latencyMs: Date.now() - startedAt,
+        conversationId: input.conversationId,
+      },
+    );
 
     const title = sanitizeTitle(text);
     if (!title) return;
@@ -87,6 +121,10 @@ export async function generateAndApplyConversationTitle(
       error: err instanceof Error ? err.message : String(err),
     });
   }
+}
+
+function asNumber(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
 
 function sanitizeTitle(raw: string): string {

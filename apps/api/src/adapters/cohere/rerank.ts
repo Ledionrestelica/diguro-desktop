@@ -2,19 +2,24 @@ import { z } from 'zod';
 import type {
   RerankInput,
   RerankProvider,
-  RerankResult,
+  RerankResponse as RerankProviderResponse,
 } from '../../ports/rerankProvider.ts';
 
 /**
  * Cohere Rerank v3.5. REST, no SDK dependency. Keeps one of CLAUDE.md's
  * locked-in quality decisions — replacing Jaccard/word-overlap with a
  * proper cross-encoder produces the biggest single-step lift we can buy.
+ *
+ * Billing is per-request. The returned `usage.requestCount` is 1 so the
+ * pricing module multiplies correctly.
  */
 
 const MODEL = 'rerank-v3.5';
+const MODEL_ID = `cohere/${MODEL}`;
 const ENDPOINT = 'https://api.cohere.ai/v2/rerank';
 
-const RerankResponse = z.object({
+const CohereResponseShape = z.object({
+  id: z.string().optional(),
   results: z.array(
     z.object({
       index: z.number().int().nonnegative(),
@@ -29,9 +34,15 @@ export interface CohereDeps {
 
 export function createCohereRerankProvider(deps: CohereDeps): RerankProvider {
   return {
-    async rerank(input: RerankInput): Promise<RerankResult[]> {
-      if (input.documents.length === 0) return [];
+    async rerank(input: RerankInput): Promise<RerankProviderResponse> {
+      if (input.documents.length === 0) {
+        return {
+          results: [],
+          usage: { modelId: MODEL_ID, requestCount: 0 },
+        };
+      }
 
+      const startedAt = Date.now();
       const res = await fetch(ENDPOINT, {
         method: 'POST',
         headers: {
@@ -50,14 +61,22 @@ export function createCohereRerankProvider(deps: CohereDeps): RerankProvider {
         throw new Error(`Cohere ${res.status}: ${body.slice(0, 500)}`);
       }
       const raw: unknown = await res.json();
-      const parsed = RerankResponse.safeParse(raw);
+      const parsed = CohereResponseShape.safeParse(raw);
       if (!parsed.success) {
         throw new Error(`Cohere response shape mismatch: ${parsed.error.message}`);
       }
-      return parsed.data.results.map((r) => ({
-        index: r.index,
-        score: r.relevance_score,
-      }));
+      return {
+        results: parsed.data.results.map((r) => ({
+          index: r.index,
+          score: r.relevance_score,
+        })),
+        usage: {
+          modelId: MODEL_ID,
+          requestCount: 1,
+          providerRequestId: parsed.data.id ?? null,
+          latencyMs: Date.now() - startedAt,
+        },
+      };
     },
   };
 }

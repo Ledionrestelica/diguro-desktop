@@ -1,3 +1,5 @@
+import type { CallUsage } from './usage.ts';
+
 /**
  * Extractor port. Turns a raw file (bytes + metadata) into structured text
  * that the chunker can work with. Implementations dispatch by mime type:
@@ -30,8 +32,10 @@ export interface ExtractedDoc {
   pages: ExtractedPage[];
   /** Whether OCR had to run on any page. */
   ocrUsed: boolean;
-  /** Count of pages OCR'd — used for cost tracking. */
+  /** Count of pages OCR'd — legacy field retained for logs; prefer `ocrUsage.units`. */
   ocrPageCount: number;
+  /** Full OCR CallUsage when OCR ran. Undefined when pure text-layer extraction. */
+  ocrUsage?: CallUsage;
 }
 
 export interface ExtractedPage {

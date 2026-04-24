@@ -6,6 +6,11 @@ import { OrganizationAdminLayout } from '@/features/admin/OrganizationAdminLayou
 import { GeneralSettingsPage } from '@/features/admin/pages/GeneralSettingsPage';
 import { OrganizationGeneralSettingsPage } from '@/features/admin/pages/OrganizationGeneralSettingsPage';
 import { OrganizationFilesPage } from '@/features/admin/pages/OrganizationFilesPage';
+import { PersonalFilesPage } from '@/features/files/PersonalFilesPage';
+import { TokenUsagePage } from '@/features/admin/pages/TokenUsagePage';
+import { AuditLogPage } from '@/features/admin/pages/AuditLogPage';
+import { MembersPage } from '@/features/admin/pages/MembersPage';
+import { AcceptInvitePage } from '@/features/invitations/AcceptInvitePage';
 import { StubPage } from '@/features/admin/pages/StubPage';
 import { WorkspacePickerPage } from '@/features/workspaces/WorkspacePickerPage';
 import { NewWorkspaceWizardPage } from '@/features/workspaces/NewWorkspaceWizardPage';
@@ -26,6 +31,8 @@ export const router = createHashRouter([
   { path: '/', element: <Navigate to="/workspaces" replace /> },
   { path: '/workspaces', element: <WorkspacePickerPage /> },
   { path: '/workspaces/new', element: <NewWorkspaceWizardPage /> },
+  { path: '/accept-invite/:token', element: <AcceptInvitePage /> },
+  { path: '/my-files', element: <PersonalFilesPage /> },
 
   // Back-compat redirects for older links.
   { path: '/orgs', element: <Navigate to="/workspaces" replace /> },
@@ -47,16 +54,7 @@ export const router = createHashRouter([
     children: [
       { index: true, element: <Navigate to="/admin/organization/general" replace /> },
       { path: 'general', element: <OrganizationGeneralSettingsPage /> },
-      {
-        path: 'members',
-        element: (
-          <StubPage
-            title="Members"
-            description="Everyone with access to this organization. Invite, promote, and remove."
-            eta="Next up"
-          />
-        ),
-      },
+      { path: 'members', element: <MembersPage /> },
       {
         path: 'workspaces',
         element: (
@@ -68,16 +66,8 @@ export const router = createHashRouter([
         ),
       },
       { path: 'files', element: <OrganizationFilesPage /> },
-      {
-        path: 'token-usage',
-        element: (
-          <StubPage
-            title="Token Usage"
-            description="Spend across all workspaces in this organization."
-            eta="Ships with usage tracking"
-          />
-        ),
-      },
+      { path: 'token-usage', element: <TokenUsagePage /> },
+      { path: 'audit-log', element: <AuditLogPage /> },
       {
         path: 'billing',
         element: (

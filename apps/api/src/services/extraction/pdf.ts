@@ -110,5 +110,6 @@ export async function extractPdf(
     fullText: cleanOcrPages.map((p) => p.text).join('\n\n'),
     ocrUsed: true,
     ocrPageCount: cleanOcrPages.length,
+    ocrUsage: ocrResult.usage,
   };
 }

@@ -62,6 +62,25 @@ const ConfigSchema = z.object({
    * different providers aren't comparable.
    */
   EMBED_PROVIDER: z.enum(['openai', 'voyage']).default('openai'),
+
+  /**
+   * Resend transactional email. Optional in dev — when unset the invitation
+   * flow still creates invites but can't send email; admin copies the link
+   * from the Members page.
+   */
+  RESEND_API_KEY: z.string().optional(),
+  /**
+   * From-address for transactional mail. Must be a verified Resend domain
+   * in prod. Dev default `onboarding@resend.dev` only delivers to the
+   * account owner's email (good enough for local smoke tests).
+   */
+  INVITE_EMAIL_FROM: z.string().default('Diguro <onboarding@resend.dev>'),
+  /**
+   * Public URL of the client app — base for invite links embedded in
+   * email. Keep in sync with `ALLOWED_ORIGINS` so the browser accepts the
+   * app when the recipient clicks the link.
+   */
+  APP_BASE_URL: z.string().url().default('http://localhost:5173'),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
