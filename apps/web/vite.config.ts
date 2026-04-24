@@ -53,8 +53,6 @@ export default defineConfig({
       overrideTsx('app/AuthGate'),
       overrideTsx('app/router'),
       override('app/auth-context'),
-      // Web-only pages (sign-in / sign-up / home / accept-invite).
-      overrideDir('pages'),
       // Fall-through: shared desktop tree (components/ui, features, hooks).
       { find: '@', replacement: desktopSrc },
     ],
@@ -62,6 +60,25 @@ export default defineConfig({
   server: {
     port: 5174,
     strictPort: true,
+    // Dev proxy so every API call from the browser goes out to the same
+    // origin (localhost:5174), then Vite forwards to the API (3000).
+    // This lets Better-Auth's cookies stay same-site and dodges all the
+    // cross-origin Set-Cookie / SameSite headaches. In prod the web
+    // bundle + API sit on the same domain anyway (app.diguro.se →
+    // rewrite /api/* to api.diguro.se, or subdomain with shared parent).
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: false,
+        // Chat streams SSE / chunked. Without ws:true the upgrade works
+        // fine but we also want long-lived POSTs to stay open.
+        ws: true,
+      },
+      '/trpc': {
+        target: 'http://localhost:3000',
+        changeOrigin: false,
+      },
+    },
   },
   build: {
     outDir: 'dist',

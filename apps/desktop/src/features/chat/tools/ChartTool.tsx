@@ -104,7 +104,7 @@ function renderChart(
       formatter={(v: unknown) => {
         if (typeof v === 'number') return formatValue(v);
         if (typeof v === 'string') return v;
-        return String(v ?? '');
+        return '';
       }}
     />
   );

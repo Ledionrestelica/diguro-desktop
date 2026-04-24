@@ -10,11 +10,12 @@
  * web-side trpc-client.ts and useChatSession.ts shims).
  */
 export const authStore = {
-  async get(): Promise<string | null> {
-    return null;
+  get(): Promise<string | null> {
+    return Promise.resolve(null);
   },
-  async set(_token: string | null): Promise<void> {
-    /* web doesn't store tokens client-side; cookies handle persistence */
+  set(_token: string | null): Promise<void> {
+    // web doesn't store tokens client-side; cookies handle persistence.
+    return Promise.resolve();
   },
   clear(): void {
     /* no-op — sign-out hits /api/auth/sign-out which clears the cookie */

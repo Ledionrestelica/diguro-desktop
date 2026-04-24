@@ -5,7 +5,10 @@ import { trpc } from '@/lib/trpc';
 import { ChatSidebar } from './ChatSidebar';
 import { TopBar } from './TopBar';
 import { WorkspaceRail } from './WorkspaceRail';
-import { useChatSession, type ChatSession } from './useChatSession';
+// Absolute alias (not `./useChatSession`) so web's Vite alias override
+// in apps/web/vite.config.ts can swap this file for the cookie-auth
+// variant at build time. Relative imports bypass aliases.
+import { useChatSession, type ChatSession } from '@/features/chat/useChatSession';
 import type { MessageCitation, PersistedMessage } from './types';
 
 export interface ChatOutletContext {

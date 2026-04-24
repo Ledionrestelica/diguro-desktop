@@ -1,57 +1,50 @@
-import { useEffect, type ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { type ReactNode } from 'react';
 import { trpc } from '@/lib/trpc';
-import { AuthContext } from './auth-context';
 import { apiAuth } from '@/lib/api-auth';
+import { SignIn } from '@/features/auth/SignIn';
+import { AuthContext } from './auth-context';
 
 /**
- * Web-side AuthGate. Checks the session by calling `health.me` — if it
- * resolves, the user is authenticated (Better-Auth cookie is present).
- * If not, redirect to /sign-in with a returnTo so the user lands back
- * here after logging in.
+ * Web-side AuthGate. Mirrors desktop's pattern exactly:
+ *   - Unauthenticated → render SignIn inline (same component, same styles).
+ *   - Authenticated → render children inside an AuthContext provider so
+ *     anywhere in the tree can call `useAuth().signOut()`.
  *
- * Public routes (/sign-in, /sign-up, /accept-invite/*) bypass the gate
- * so unauthenticated users can reach them.
+ * The current URL is preserved through sign-in because we never navigate
+ * away — SignIn swaps itself out for children as soon as the `health.me`
+ * query flips from null to data. Invite flow: recipient clicks
+ * `/accept-invite/:token`, AuthGate shows SignIn, they sign up with the
+ * invited email, AuthGate re-renders, AcceptInvitePage takes over on the
+ * same URL.
  */
-const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/accept-invite', '/home'];
-
 export function AuthGate({ children }: { children: ReactNode }) {
-  const location = useLocation();
-  const navigate = useNavigate();
   const me = trpc.health.me.useQuery(undefined, { retry: false });
   const utils = trpc.useUtils();
 
-  const isPublic = PUBLIC_PATHS.some(
-    (p) => location.pathname === p || location.pathname.startsWith(`${p}/`),
-  );
-
-  useEffect(() => {
-    if (isPublic) return;
-    if (me.isLoading) return;
-    if (me.data) return;
-    void navigate(
-      `/sign-in?returnTo=${encodeURIComponent(location.pathname + location.search)}`,
-      { replace: true },
-    );
-  }, [isPublic, me.isLoading, me.data, navigate, location.pathname, location.search]);
-
-  if (!isPublic && me.isLoading) {
+  if (me.isLoading) {
     return (
-      <div className="grid min-h-screen place-items-center text-sm text-zinc-500">
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
         Loading…
       </div>
     );
   }
 
-  // On public routes we always render children; on private routes we've
-  // either confirmed auth (me.data) or redirected above.
+  if (!me.data) {
+    return (
+      <SignIn
+        onSignedIn={() => {
+          void utils.health.me.invalidate();
+        }}
+      />
+    );
+  }
+
   return (
     <AuthContext.Provider
       value={{
         signOut: () => {
-          void apiAuth.signOut().then(async () => {
-            await utils.health.me.invalidate();
-            void navigate('/sign-in', { replace: true });
+          void apiAuth.signOut().then(() => {
+            void utils.health.me.invalidate();
           });
         },
       }}

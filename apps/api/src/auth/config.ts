@@ -69,6 +69,19 @@ export function createAuth(db: Db, config: Config) {
 
     trustedOrigins: config.ALLOWED_ORIGINS,
 
+    // Cookie session attributes. Cross-origin browser calls (web app on
+    // 5174 → API on 3000 in dev; app.diguro.se → api.diguro.se in prod)
+    // only receive cookies when SameSite=None + Secure. Chrome treats
+    // `localhost` as a secure context so Secure works in dev without
+    // HTTPS; prod is genuine HTTPS either way. Desktop is bearer-auth
+    // via the Electron keychain so these attributes never apply there.
+    advanced: {
+      defaultCookieAttributes: {
+        sameSite: 'none',
+        secure: true,
+      },
+    },
+
     plugins: [
       organization({
         // Workspaces are created from our own admin UI via tRPC; we don't

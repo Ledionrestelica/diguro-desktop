@@ -20,7 +20,6 @@
       "@/app/AuthGate": ["./src/app/AuthGate.tsx"],
       "@/app/router": ["./src/app/router.tsx"],
       "@/app/auth-context": ["./src/app/auth-context.ts"],
-      "@/pages/*": ["./src/pages/*"],
       "@/*": ["../desktop/src/*"]
     }
   },

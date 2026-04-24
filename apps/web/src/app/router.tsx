@@ -1,20 +1,16 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { AuthGate } from './AuthGate';
 
-// Web-owned pages (public + cookie-auth specific)
-import { SignInPage } from '@/pages/SignInPage';
-import { SignUpPage } from '@/pages/SignUpPage';
-import { HomePage } from '@/pages/HomePage';
-import { AcceptInvitePage } from '@/pages/AcceptInvitePage';
-
-// Shared features — imported from desktop's src via vite alias fallthrough.
-// Each file's internal `@/lib/*` imports resolve to WEB's shims thanks to
-// the higher-priority alias overrides in vite.config.
+// Shared features from desktop — imported via the `@` alias fallthrough in
+// vite.config.ts. Internal `@/lib/*` imports inside these files resolve
+// to web shims (cookie auth, cookie tRPC, cookie streaming transport) via
+// the higher-priority alias overrides.
 import { ChatLayout } from '@/features/chat/ChatLayout';
 import { ChatPage } from '@/features/chat/ChatPage';
 import { WorkspacePickerPage } from '@/features/workspaces/WorkspacePickerPage';
 import { NewWorkspaceWizardPage } from '@/features/workspaces/NewWorkspaceWizardPage';
 import { PersonalFilesPage } from '@/features/files/PersonalFilesPage';
+import { AcceptInvitePage } from '@/features/invitations/AcceptInvitePage';
 import { OrganizationAdminLayout } from '@/features/admin/OrganizationAdminLayout';
 import { OrganizationGeneralSettingsPage } from '@/features/admin/pages/OrganizationGeneralSettingsPage';
 import { OrganizationFilesPage } from '@/features/admin/pages/OrganizationFilesPage';
@@ -26,34 +22,28 @@ import { GeneralSettingsPage } from '@/features/admin/pages/GeneralSettingsPage'
 import { StubPage } from '@/features/admin/pages/StubPage';
 
 /**
- * Browser router so invite emails link to clean HTTPS paths. AuthGate
- * is injected at the root so every route gets session gating + the
- * AuthContext provider; AuthGate itself decides which paths are public
- * (`/sign-in`, `/sign-up`, `/accept-invite/*`, `/home`).
+ * Web router — mirrors desktop's route set so the same pages render at the
+ * same paths across both clients. Every route is gated by AuthGate; when
+ * the user is not signed in, AuthGate shows the desktop SignIn inline
+ * without navigating away. That keeps the current URL — critical for
+ * invite flows (`/accept-invite/:token`) so post-sign-in the user lands
+ * exactly where they clicked from.
  */
-function RootLayout() {
-  return (
-    <AuthGate>
-      <Outlet />
-    </AuthGate>
-  );
-}
-
 export const router = createBrowserRouter([
   {
-    element: <RootLayout />,
+    element: (
+      <AuthGate>
+        <Outlet />
+      </AuthGate>
+    ),
     children: [
       { path: '/', element: <Navigate to="/workspaces" replace /> },
-      { path: '/home', element: <HomePage /> },
-      { path: '/sign-in', element: <SignInPage /> },
-      { path: '/sign-up', element: <SignUpPage /> },
+
       { path: '/accept-invite/:token', element: <AcceptInvitePage /> },
 
-      // Workspace picker + wizard — same pages as desktop.
       { path: '/workspaces', element: <WorkspacePickerPage /> },
       { path: '/workspaces/new', element: <NewWorkspaceWizardPage /> },
 
-      // Chat — imported from desktop, auth/transport shimmed to cookies.
       {
         path: '/chat',
         element: <ChatLayout />,
@@ -63,10 +53,8 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // Personal files.
       { path: '/my-files', element: <PersonalFilesPage /> },
 
-      // Organization admin.
       {
         path: '/admin/organization',
         element: <OrganizationAdminLayout />,
@@ -103,7 +91,6 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // Workspace admin.
       {
         path: '/admin',
         element: <AdminLayout />,
@@ -163,7 +150,7 @@ export const router = createBrowserRouter([
         ],
       },
 
-      { path: '*', element: <Navigate to="/home" replace /> },
+      { path: '*', element: <Navigate to="/workspaces" replace /> },
     ],
   },
 ]);
