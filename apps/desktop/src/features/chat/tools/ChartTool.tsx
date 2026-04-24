@@ -37,7 +37,7 @@ const ChartInput = z.object({
  * line/area use just the first color. Keeping the palette short and tonal
  * avoids the rainbow look that cheap chart libraries fall into by default.
  */
-const PALETTE = [
+const PALETTE: readonly string[] = [
   '#18181b',
   '#52525b',
   '#a1a1aa',
@@ -47,6 +47,10 @@ const PALETTE = [
   '#3f3f46',
   '#e4e4e7',
 ];
+/** The "primary" palette color the chart uses when only one series is drawn.
+ *  Indexing `PALETTE[0]` on its own returns `string | undefined` under
+ *  `noUncheckedIndexedAccess`, which recharts' typed props don't allow. */
+const PRIMARY: string = '#18181b';
 
 export function ChartTool({ input, state }: { input: unknown; state: ToolState }) {
   if (state === 'input-streaming' || state === 'input-available') {
@@ -97,9 +101,11 @@ function renderChart(
         fontSize: 12,
         padding: '6px 10px',
       }}
-      formatter={(v: number | string) =>
-        typeof v === 'number' ? formatValue(v) : v
-      }
+      formatter={(v: unknown) => {
+        if (typeof v === 'number') return formatValue(v);
+        if (typeof v === 'string') return v;
+        return String(v ?? '');
+      }}
     />
   );
 
@@ -116,7 +122,7 @@ function renderChart(
         <XAxis dataKey="label" {...axisProps} />
         <YAxis {...axisProps} tickFormatter={formatValue} />
         {tooltip}
-        <Bar dataKey="value" fill={PALETTE[0]} radius={[6, 6, 0, 0]} />
+        <Bar dataKey="value" fill={PRIMARY} radius={[6, 6, 0, 0]} />
       </BarChart>
     );
   }
@@ -130,9 +136,9 @@ function renderChart(
         <Line
           type="monotone"
           dataKey="value"
-          stroke={PALETTE[0]}
+          stroke={PRIMARY}
           strokeWidth={2}
-          dot={{ fill: PALETTE[0], r: 3 }}
+          dot={{ fill: PRIMARY, r: 3 }}
         />
       </LineChart>
     );
@@ -142,8 +148,8 @@ function renderChart(
       <AreaChart data={data.series} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
         <defs>
           <linearGradient id="area-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={PALETTE[0]} stopOpacity={0.25} />
-            <stop offset="95%" stopColor={PALETTE[0]} stopOpacity={0} />
+            <stop offset="5%" stopColor={PRIMARY} stopOpacity={0.25} />
+            <stop offset="95%" stopColor={PRIMARY} stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="rgb(244, 244, 245)" vertical={false} />
@@ -153,7 +159,7 @@ function renderChart(
         <Area
           type="monotone"
           dataKey="value"
-          stroke={PALETTE[0]}
+          stroke={PRIMARY}
           strokeWidth={2}
           fill="url(#area-fill)"
         />
@@ -174,8 +180,8 @@ function renderChart(
         {data.series.map((_, idx) => (
           <Cell
             key={idx}
-            fill={PALETTE[idx % PALETTE.length] ?? PALETTE[0]}
-            stroke="white"
+            fill={PALETTE[idx % PALETTE.length] ?? PRIMARY}
+            stroke="#ffffff"
             strokeWidth={2}
           />
         ))}

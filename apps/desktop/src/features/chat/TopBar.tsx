@@ -49,9 +49,9 @@ export function TopBar() {
         className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:bg-zinc-100"
       >
         <OrganizationMark
-          logoUrl={org?.logoUrl}
-          seed={org?.id}
-          primaryColor={org?.primaryColor}
+          logoUrl={org?.logoUrl ?? null}
+          seed={org?.id ?? ''}
+          primaryColor={org?.primaryColor ?? null}
           size={20}
           alt={orgName}
         />
@@ -60,7 +60,7 @@ export function TopBar() {
           <>
             <span className="text-xs leading-5 text-zinc-300">/</span>
             <OrganizationMark
-              logoUrl={activeWs.logoUrl}
+              logoUrl={activeWs.logoUrl ?? null}
               seed={activeWs.id}
               size={20}
               alt={wsName}
@@ -116,7 +116,9 @@ function initials(email: string | undefined): string {
   const handle = email.split('@')[0] ?? email;
   const parts = handle.split(/[._-]+/).filter(Boolean);
   if (parts.length >= 2) {
-    return (parts[0]![0] + parts[1]![0]).toUpperCase();
+    const a = parts[0]?.[0] ?? '';
+    const b = parts[1]?.[0] ?? '';
+    return (a + b).toUpperCase() || '·';
   }
   return (handle.slice(0, 2) || '·').toUpperCase();
 }

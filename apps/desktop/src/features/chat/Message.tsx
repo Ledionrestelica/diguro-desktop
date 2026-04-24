@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Eye, FileText, Globe } from 'lucide-react';
-import type { UIMessage, UIMessagePart } from 'ai';
+import type { UIMessage } from 'ai';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MessageActions } from './MessageActions';
@@ -132,7 +132,7 @@ interface RetrievalResult {
 
 type Block =
   | { kind: 'text'; text: string }
-  | { kind: 'tool'; part: UIMessagePart<unknown, Record<string, never>> }
+  | { kind: 'tool'; part: unknown }
   | {
       kind: 'retrieval';
       state: ToolState;
@@ -201,7 +201,7 @@ function buildBlocks(parts: UIMessage['parts']): Block[] {
 }
 
 function toRetrievalBlock(
-  part: UIMessagePart<unknown, Record<string, never>>,
+  part: unknown,
 ): Extract<Block, { kind: 'retrieval' }> {
   const state = ((part as { state?: unknown }).state ?? 'input-streaming') as ToolState;
   const input = (part as { input?: unknown }).input as { query?: unknown } | undefined;
@@ -721,9 +721,7 @@ function extractSearchState(parts: UIMessage['parts']): 'searching' | 'done' | u
   return sawInProgress ? 'searching' : 'done';
 }
 
-function isFilePart(
-  part: UIMessagePart<unknown, Record<string, never>>,
-): part is FileLikePart {
+function isFilePart(part: unknown): part is FileLikePart {
   return (
     typeof part === 'object' &&
     part !== null &&
@@ -733,9 +731,7 @@ function isFilePart(
   );
 }
 
-function isSourceUrlPart(
-  part: UIMessagePart<unknown, Record<string, never>>,
-): part is SourceUrlPartShape {
+function isSourceUrlPart(part: unknown): part is SourceUrlPartShape {
   return (
     typeof part === 'object' &&
     part !== null &&

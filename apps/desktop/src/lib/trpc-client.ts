@@ -16,7 +16,11 @@ export function createTrpcClient() {
           return token ? { authorization: `Bearer ${token}` } : {};
         },
         async fetch(url, options) {
-          const res = await fetch(url, { ...options, credentials: 'omit' });
+          const merged: RequestInit = {
+            ...(options as RequestInit),
+            credentials: 'omit',
+          };
+          const res = await fetch(url, merged);
           // If the server rejects our bearer (token revoked, user deleted, DB
           // reset in dev), the token is useless — clear it and reload so
           // AuthGate drops the user back to the sign-in screen instead of

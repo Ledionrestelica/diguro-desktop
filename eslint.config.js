@@ -55,6 +55,7 @@ export default tseslint.config(
           './apps/api/tsconfig.json',
           './apps/desktop/tsconfig.app.json',
           './apps/desktop/tsconfig.electron.json',
+          './apps/web/tsconfig.json',
         ],
         tsconfigRootDir: import.meta.dirname,
       },
@@ -89,9 +90,9 @@ export default tseslint.config(
     },
   },
 
-  // React — hooks + fast-refresh, desktop renderer only
+  // React — hooks + fast-refresh, every React surface
   {
-    files: ['apps/desktop/src/**/*.{ts,tsx}'],
+    files: ['apps/desktop/src/**/*.{ts,tsx}', 'apps/web/src/**/*.{ts,tsx}'],
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,

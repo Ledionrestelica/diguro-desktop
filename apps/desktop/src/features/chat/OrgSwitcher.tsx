@@ -27,9 +27,9 @@ export function OrgSwitcher() {
     >
       <div className="flex size-8 items-center justify-center rounded-[4.8px] bg-white">
         <OrganizationMark
-          logoUrl={org?.logoUrl}
-          seed={org?.id}
-          primaryColor={org?.primaryColor}
+          logoUrl={org?.logoUrl ?? null}
+          seed={org?.id ?? ''}
+          primaryColor={org?.primaryColor ?? null}
           size={20}
           alt={orgName}
         />

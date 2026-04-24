@@ -1,5 +1,4 @@
 import type { ComponentType } from 'react';
-import type { UIMessagePart } from 'ai';
 import { ChartTool } from './ChartTool';
 import { ComparisonTool } from './ComparisonTool';
 import { DocumentCardTool } from './DocumentCardTool';
@@ -27,12 +26,23 @@ const TOOL_COMPONENTS: Record<string, ComponentType<ToolComponentProps>> = {
   render_extraction_form: ExtractionFormTool,
 };
 
+type ToolPartShape = {
+  type: `tool-${string}`;
+  state: ToolState;
+  input: unknown;
+};
+
 /**
  * Render a tool part if its tool name is in the registry. Provider-native
  * tools (e.g. OpenAI `web_search`) return null here — they're rendered by
  * the inline SearchIndicator + SourceList in Message.tsx instead.
+ *
+ * We accept `unknown` for `part` and narrow via `isToolPart` because the
+ * AI-SDK `UIMessagePart` generic requires a `UIDataTypes` map we don't
+ * thread through the tree; our runtime predicate checks what we actually
+ * need.
  */
-export function ToolPart({ part }: { part: UIMessagePart<unknown, Record<string, never>> }) {
+export function ToolPart({ part }: { part: unknown }) {
   if (!isToolPart(part)) return null;
   const name = part.type.slice('tool-'.length);
   const Component = TOOL_COMPONENTS[name];
@@ -40,15 +50,17 @@ export function ToolPart({ part }: { part: UIMessagePart<unknown, Record<string,
   return <Component input={part.input} state={part.state} />;
 }
 
-type ToolPartShape = {
-  type: `tool-${string}`;
-  state: ToolState;
-  input: unknown;
-};
-
-function isToolPart(
-  part: UIMessagePart<unknown, Record<string, never>>,
-): part is ToolPartShape {
+function isToolPart(part: unknown): part is ToolPartShape {
+  if (!part || typeof part !== 'object') return false;
   const t = (part as { type?: unknown }).type;
-  return typeof t === 'string' && t.startsWith('tool-') && t.length > 5;
+  if (typeof t !== 'string' || !t.startsWith('tool-') || t.length <= 5) {
+    return false;
+  }
+  const state = (part as { state?: unknown }).state;
+  return (
+    state === 'input-streaming' ||
+    state === 'input-available' ||
+    state === 'output-available' ||
+    state === 'output-error'
+  );
 }

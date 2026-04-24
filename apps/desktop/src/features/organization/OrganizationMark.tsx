@@ -46,7 +46,7 @@ export function OrganizationMark({
     <OrganizationGlyphFallback
       seed={seed ?? 'diguro'}
       size={size}
-      className={className}
+      {...(className ? { className } : {})}
       {...(primaryColor ? { primaryColor } : {})}
     />
   );

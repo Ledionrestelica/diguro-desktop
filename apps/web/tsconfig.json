@@ -1,0 +1,30 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "types": ["vite/client", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "@/lib/auth-store": ["./src/lib/auth-store.ts"],
+      "@/lib/api-auth": ["./src/lib/api-auth.ts"],
+      "@/lib/trpc": ["./src/lib/trpc.ts"],
+      "@/lib/trpc-client": ["./src/lib/trpc-client.ts"],
+      "@/lib/utils": ["./src/lib/utils.ts"],
+      "@/lib/api": ["./src/lib/api.ts"],
+      "@/features/chat/useChatSession": [
+        "./src/features/chat/useChatSession.ts"
+      ],
+      "@/app/App": ["./src/app/App.tsx"],
+      "@/app/AuthGate": ["./src/app/AuthGate.tsx"],
+      "@/app/router": ["./src/app/router.tsx"],
+      "@/app/auth-context": ["./src/app/auth-context.ts"],
+      "@/pages/*": ["./src/pages/*"],
+      "@/*": ["../desktop/src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
+}
+

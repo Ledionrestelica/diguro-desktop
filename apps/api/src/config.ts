@@ -76,11 +76,16 @@ const ConfigSchema = z.object({
    */
   INVITE_EMAIL_FROM: z.string().default('Diguro <onboarding@resend.dev>'),
   /**
-   * Public URL of the client app — base for invite links embedded in
-   * email. Keep in sync with `ALLOWED_ORIGINS` so the browser accepts the
-   * app when the recipient clicks the link.
+   * Public URL of the web-companion app — used as the base for invite
+   * links embedded in email. The web app owns the accept-invite flow
+   * (path-based routing, real HTTPS origin), not the desktop app. Dev
+   * default is the Vite server on port 5174; prod is a real deployed
+   * origin (e.g. https://app.diguro.se).
+   *
+   * Must be listed in `ALLOWED_ORIGINS` for browser CORS to allow the
+   * cookie-session roundtrip from this origin.
    */
-  APP_BASE_URL: z.string().url().default('http://localhost:5173'),
+  APP_BASE_URL: z.string().url().default('http://localhost:5174'),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
