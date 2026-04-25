@@ -18,8 +18,11 @@
 *.log
 .DS_Store
 
-# Desktop artifacts are not needed for the API image.
-apps/desktop
+# NOTE: apps/desktop is intentionally NOT excluded — apps/web's Vite build
+# resolves shared component aliases against apps/desktop/src, so the web
+# Docker build needs desktop source in its context. apps/api's Dockerfile
+# only COPYs apps/api explicitly, so desktop source never lands in the
+# API runtime image.
 
 # Drizzle migration lock backups
 packages/db/drizzle/meta/_journal.json.bak

@@ -1,0 +1,49 @@
+{
+	# Coolify's Traefik handles TLS termination on app.diguro.se → :80
+	# inside this container. Disable Caddy's auto-HTTPS so it just listens
+	# plain HTTP on :80 and lets Traefik own the cert.
+	auto_https off
+	admin off
+}
+
+:80 {
+	log {
+		output stdout
+		format console
+		level INFO
+	}
+
+	# Same-origin shim: forward /api/* and /trpc/* to the public API. The
+	# web's tRPC client uses the relative URL '/trpc' on purpose so cookies
+	# stay same-site. Caddy rewrites the upstream request to api.diguro.se
+	# transparently.
+	@apiPath path /api/* /trpc/*
+	handle @apiPath {
+		reverse_proxy https://api.diguro.se {
+			header_up Host api.diguro.se
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto https
+			# Streaming chat (SSE-ish) and tRPC batch can be slow.
+			transport http {
+				read_timeout 5m
+				write_timeout 5m
+				dial_timeout 10s
+			}
+		}
+	}
+
+	# SPA fallback: serve files from /srv, fall through to index.html for
+	# client-side routes (everything React Router owns).
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+		encode zstd gzip
+
+		# SPA shell — index.html should not be cached, hashed assets are.
+		@html path /index.html /
+		header @html Cache-Control "no-cache, no-store, must-revalidate"
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+	}
+}
