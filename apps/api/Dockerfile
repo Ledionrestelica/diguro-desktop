@@ -14,8 +14,9 @@ WORKDIR /app
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
- && npm install -g corepack@latest \
- && corepack enable && corepack prepare pnpm@10.33.0 --activate
+ && curl -fsSL https://github.com/pnpm/pnpm/releases/download/v10.33.0/pnpm-linuxstatic-x64 -o /usr/local/bin/pnpm \
+ && chmod +x /usr/local/bin/pnpm \
+ && pnpm --version
 
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY turbo.json tsconfig.base.json ./
