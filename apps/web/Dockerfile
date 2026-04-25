@@ -29,7 +29,7 @@ COPY packages/trpc/package.json packages/trpc/package.json
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm-store \
     pnpm config set store-dir /pnpm-store \
- && pnpm install --frozen-lockfile --filter @diguro/web... --prod=false
+ && pnpm install --frozen-lockfile --filter @diguro/web... --filter @diguro/desktop... --prod=false
 
 # --- Stage 2: build ---
 FROM deps AS build
