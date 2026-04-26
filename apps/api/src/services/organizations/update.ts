@@ -54,26 +54,33 @@ export async function deleteOrganization(
   input: { id: string },
 ): Promise<void> {
   await deps.db.transaction(async (tx) => {
-    // 1. Citations belonging to messages of conversations in this org.
+    // 1. Citations attached to messages whose conversations live in any
+    //    workspace owned by this org. Conversations don't carry org_id
+    //    directly — they're scoped via workspace.
     await tx.execute(sql`
       DELETE FROM ${schema.citations}
       WHERE ${schema.citations.messageId} IN (
         SELECT m.id FROM ${schema.messages} m
         JOIN ${schema.conversations} c ON c.id = m.conversation_id
-        WHERE c.organization_id = ${input.id}
+        JOIN ${schema.workspaces} w ON w.id = c.workspace_id
+        WHERE w.organization_id = ${input.id}
       )
     `);
 
-    // 2. Citations whose chunks belong to resources in this org.
-    //    (Picks up the historical citations made against now-replaced
-    //    resource versions — those chunks would block cascade.)
+    // 2. Citations whose chunks belong to resources owned by this org.
+    //    Resources are polymorphically scoped: organization_id OR
+    //    workspace_id is set (CHECK constraint enforces exactly one).
+    //    Cover both: org-scoped directly, or scoped to a workspace that
+    //    belongs to the org.
     await tx.execute(sql`
       DELETE FROM ${schema.citations}
       WHERE ${schema.citations.chunkId} IN (
         SELECT ch.id FROM ${schema.chunks} ch
         JOIN ${schema.resourceVersions} rv ON rv.id = ch.resource_version_id
         JOIN ${schema.resources} r ON r.id = rv.resource_id
+        LEFT JOIN ${schema.workspaces} w ON w.id = r.workspace_id
         WHERE r.organization_id = ${input.id}
+           OR w.organization_id = ${input.id}
       )
     `);
 
