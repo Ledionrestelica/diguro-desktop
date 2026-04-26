@@ -63,11 +63,6 @@ function PlatformAdminTopBar({ save }: { save: AdminSaveAction | null }) {
   return (
     <header className="flex h-[138px] shrink-0 items-start justify-between border-b border-zinc-200 bg-[#fafafa] px-8 pt-10">
       <div className="flex max-w-[640px] items-start gap-4">
-        {/* {crumb.eyebrow && (
-          <span className="mt-1 inline-flex items-center rounded-full border border-zinc-200 bg-white px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-zinc-600">
-            {crumb.eyebrow}
-          </span>
-        )} */}
         <div>
           <h1 className="text-[20px] font-medium leading-7 tracking-[-0.4px] text-black">
             {crumb.title}
