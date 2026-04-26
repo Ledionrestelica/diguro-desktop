@@ -82,6 +82,9 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    // Disabled in prod: the 6.9 MB sourcemap was OOM-killing Coolify's
+    // build container right after module transformation. Re-enable for
+    // local debugging via `vite build --sourcemap` if needed.
+    sourcemap: false,
   },
 });
