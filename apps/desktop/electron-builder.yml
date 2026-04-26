@@ -26,29 +26,31 @@ publish:
   releaseType: release
 
 # ─── macOS ────────────────────────────────────────────────────────────
-# DMG installer for both Intel + Apple Silicon. Identity is unset → ad-hoc
-# signed locally; users will see "unidentified developer" until you set
-# an Apple Developer certificate (CSC_LINK + CSC_KEY_PASSWORD env vars).
+# DMG installer for both Intel + Apple Silicon.
+#
+# `identity: null` is REQUIRED for unsigned builds — without it
+# electron-builder searches for a default keychain identity, falls back
+# to ad-hoc signing of the cwd, and fails with 'not a file'. Once you
+# have an Apple Developer cert (.p12 + CSC_LINK env), remove this line
+# and electron-builder will sign + notarize automatically.
+#
+# `hardenedRuntime: false` because hardened runtime requires real
+# signing (it's a notarization prerequisite). Re-enable when signing.
 mac:
+  identity: null
+  hardenedRuntime: false
   category: public.app-category.productivity
-  hardenedRuntime: true
-  gatekeeperAssess: false
   target:
     - target: dmg
       arch:
         - x64
         - arm64
-  # identity: null → unsigned. Set CSC_LINK + CSC_KEY_PASSWORD in CI to sign.
 
+# Default DMG layout — electron-builder picks sensible defaults
+# (the .app on the left, /Applications shortcut on the right).
+# Override here only when you have brand-specific artwork.
 dmg:
   writeUpdateInfo: true
-  contents:
-    - x: 130
-      y: 220
-    - x: 410
-      y: 220
-      type: link
-      path: /Applications
 
 # ─── Windows ──────────────────────────────────────────────────────────
 # NSIS installer (.exe). Single-file MSI is also possible — leaving it as
