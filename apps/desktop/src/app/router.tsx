@@ -3,6 +3,7 @@ import { ChatLayout } from '@/features/chat/ChatLayout';
 import { ChatPage } from '@/features/chat/ChatPage';
 import { AdminLayout } from '@/features/admin/AdminLayout';
 import { OrganizationAdminLayout } from '@/features/admin/OrganizationAdminLayout';
+import { PlatformAdminLayout } from '@/features/admin/PlatformAdminLayout';
 import { GeneralSettingsPage } from '@/features/admin/pages/GeneralSettingsPage';
 import { OrganizationGeneralSettingsPage } from '@/features/admin/pages/OrganizationGeneralSettingsPage';
 import { OrganizationFilesPage } from '@/features/admin/pages/OrganizationFilesPage';
@@ -10,6 +11,10 @@ import { PersonalFilesPage } from '@/features/files/PersonalFilesPage';
 import { TokenUsagePage } from '@/features/admin/pages/TokenUsagePage';
 import { AuditLogPage } from '@/features/admin/pages/AuditLogPage';
 import { MembersPage } from '@/features/admin/pages/MembersPage';
+import { PlatformDashboardPage } from '@/features/admin/pages/PlatformDashboardPage';
+import { PlatformOrganizationsPage } from '@/features/admin/pages/PlatformOrganizationsPage';
+import { PlatformOrganizationDetailPage } from '@/features/admin/pages/PlatformOrganizationDetailPage';
+import { PlatformUsersPage } from '@/features/admin/pages/PlatformUsersPage';
 import { AcceptInvitePage } from '@/features/invitations/AcceptInvitePage';
 import { StubPage } from '@/features/admin/pages/StubPage';
 import { WorkspacePickerPage } from '@/features/workspaces/WorkspacePickerPage';
@@ -46,6 +51,16 @@ export const router = createHashRouter([
     children: [
       { index: true, element: <ChatPage /> },
       { path: ':chatId', element: <ChatPage /> },
+    ],
+  },
+  {
+    path: '/admin/platform',
+    element: <PlatformAdminLayout />,
+    children: [
+      { index: true, element: <PlatformDashboardPage /> },
+      { path: 'organizations', element: <PlatformOrganizationsPage /> },
+      { path: 'organizations/:id', element: <PlatformOrganizationDetailPage /> },
+      { path: 'users', element: <PlatformUsersPage /> },
     ],
   },
   {
