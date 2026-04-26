@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import { trpc } from '@/lib/trpc';
 import { AuthGate } from './AuthGate';
 
 // Shared features from desktop — imported via the `@` alias fallthrough in
@@ -20,6 +21,46 @@ import { MembersPage } from '@/features/admin/pages/MembersPage';
 import { AdminLayout } from '@/features/admin/AdminLayout';
 import { GeneralSettingsPage } from '@/features/admin/pages/GeneralSettingsPage';
 import { StubPage } from '@/features/admin/pages/StubPage';
+import { PlatformAdminLayout } from '@/features/admin/PlatformAdminLayout';
+import { PlatformDashboardPage } from '@/features/admin/pages/PlatformDashboardPage';
+import { PlatformOrganizationsPage } from '@/features/admin/pages/PlatformOrganizationsPage';
+import { PlatformOrganizationDetailPage } from '@/features/admin/pages/PlatformOrganizationDetailPage';
+import { PlatformUsersPage } from '@/features/admin/pages/PlatformUsersPage';
+
+/**
+ * Role-aware landing for `/`. Superadmins go to the platform overview;
+ * everyone else to the workspace picker. Mirrors the desktop's
+ * RootRedirect — without this, `/` would always redirect to /workspaces,
+ * the WorkspacePickerPage would itself bounce superadmin to /admin/platform,
+ * and the catch-all `*` would 404 it back to /workspaces — infinite loop.
+ */
+function RootRedirect() {
+  const me = trpc.health.me.useQuery(undefined, { retry: false });
+  if (me.isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+  if (me.data?.role === 'superadmin') {
+    return <Navigate to="/admin/platform" replace />;
+  }
+  return <Navigate to="/workspaces" replace />;
+}
+
+/**
+ * Catch-all fallback. Same logic as RootRedirect — sending superadmins to
+ * /workspaces would create a loop with WorkspacePickerPage's own redirect.
+ */
+function NotFoundRedirect() {
+  const me = trpc.health.me.useQuery(undefined, { retry: false });
+  if (me.isLoading) return null;
+  if (me.data?.role === 'superadmin') {
+    return <Navigate to="/admin/platform" replace />;
+  }
+  return <Navigate to="/workspaces" replace />;
+}
 
 /**
  * Web router — mirrors desktop's route set so the same pages render at the
@@ -37,7 +78,7 @@ export const router = createBrowserRouter([
       </AuthGate>
     ),
     children: [
-      { path: '/', element: <Navigate to="/workspaces" replace /> },
+      { path: '/', element: <RootRedirect /> },
 
       { path: '/accept-invite/:token', element: <AcceptInvitePage /> },
 
@@ -54,6 +95,20 @@ export const router = createBrowserRouter([
       },
 
       { path: '/my-files', element: <PersonalFilesPage /> },
+
+      {
+        path: '/admin/platform',
+        element: <PlatformAdminLayout />,
+        children: [
+          { index: true, element: <PlatformDashboardPage /> },
+          { path: 'organizations', element: <PlatformOrganizationsPage /> },
+          {
+            path: 'organizations/:id',
+            element: <PlatformOrganizationDetailPage />,
+          },
+          { path: 'users', element: <PlatformUsersPage /> },
+        ],
+      },
 
       {
         path: '/admin/organization',
@@ -150,7 +205,7 @@ export const router = createBrowserRouter([
         ],
       },
 
-      { path: '*', element: <Navigate to="/workspaces" replace /> },
+      { path: '*', element: <NotFoundRedirect /> },
     ],
   },
 ]);
