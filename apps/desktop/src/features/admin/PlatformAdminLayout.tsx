@@ -28,11 +28,7 @@ export function PlatformAdminLayout() {
   const saveCtx = useMemo<AdminSaveContextValue>(() => ({ register }), [register]);
 
   if (me.isLoading) {
-    return (
-      <div className="grid h-screen place-items-center text-sm text-zinc-500">
-        Loading…
-      </div>
-    );
+    return <div className="grid h-screen place-items-center text-sm text-zinc-500">Loading…</div>;
   }
   if (me.error) {
     return (
@@ -67,11 +63,11 @@ function PlatformAdminTopBar({ save }: { save: AdminSaveAction | null }) {
   return (
     <header className="flex h-[138px] shrink-0 items-start justify-between border-b border-zinc-200 bg-[#fafafa] px-8 pt-10">
       <div className="flex max-w-[640px] items-start gap-4">
-        {crumb.eyebrow && (
+        {/* {crumb.eyebrow && (
           <span className="mt-1 inline-flex items-center rounded-full border border-zinc-200 bg-white px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-zinc-600">
             {crumb.eyebrow}
           </span>
-        )}
+        )} */}
         <div>
           <h1 className="text-[20px] font-medium leading-7 tracking-[-0.4px] text-black">
             {crumb.title}
@@ -90,9 +86,7 @@ function PlatformAdminTopBar({ save }: { save: AdminSaveAction | null }) {
           disabled={save.disabled || save.pending}
           className={cn(
             'flex items-center rounded-[10px] border border-zinc-200 bg-white px-3 py-3 text-sm font-medium text-zinc-800 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.04)] transition-colors',
-            save.disabled || save.pending
-              ? 'cursor-not-allowed opacity-50'
-              : 'hover:bg-zinc-50',
+            save.disabled || save.pending ? 'cursor-not-allowed opacity-50' : 'hover:bg-zinc-50',
           )}
         >
           {save.pending ? 'Saving…' : (save.label ?? 'Save changes')}
@@ -113,8 +107,7 @@ function deriveCrumb(pathname: string): Crumb {
     return {
       eyebrow: 'Platform',
       title: 'Overview',
-      description:
-        'Tenants, users, and system health — across the entire Diguro platform.',
+      description: 'Tenants, users, and system health — across the entire Diguro platform.',
     };
   }
   if (pathname === '/admin/platform/organizations') {
@@ -128,8 +121,7 @@ function deriveCrumb(pathname: string): Crumb {
     return {
       eyebrow: 'Organization',
       title: 'Settings',
-      description:
-        'Edit branding, raise caps, or suspend access. Changes take effect immediately.',
+      description: 'Edit branding, raise caps, or suspend access. Changes take effect immediately.',
     };
   }
   if (pathname === '/admin/platform/users') {

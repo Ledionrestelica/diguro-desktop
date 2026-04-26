@@ -14,8 +14,7 @@ export function OrgSwitcher() {
 
   const org = me.data?.organization;
   const orgName = org?.name ?? '—';
-  const canAdminOrg =
-    me.data?.role === 'superadmin' || me.data?.role === 'organization_admin';
+  const canAdminOrg = me.data?.role === 'superadmin' || me.data?.role === 'organization_admin';
 
   return (
     <div
@@ -44,7 +43,7 @@ export function OrgSwitcher() {
           onClick={() => void navigate('/admin/organization/general')}
           className="grid size-8 place-items-center rounded-md text-zinc-600 hover:bg-black/5"
         >
-          <Settings2 className="size-4" />
+          <Settings2 className="size-4 cursor-pointer" />
         </button>
       )}
     </div>

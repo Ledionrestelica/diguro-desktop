@@ -15,11 +15,16 @@ import { OrgGlyph } from './PlatformDashboardPage';
  */
 export function PlatformOrganizationDetailPage() {
   const params = useParams<{ id: string }>();
-  const id = params.id;
-  if (!id) return <Navigate to="/admin/platform/organizations" replace />;
+  // Stable empty fallback so every hook below runs in the same order
+  // on every render, even on the (rare) missing-id path. The actual
+  // redirect happens in JSX after all hooks have been called.
+  const id = params.id ?? '';
 
   const utils = trpc.useUtils();
-  const orgQuery = trpc.adminPlatform.organizationGet.useQuery({ id });
+  const orgQuery = trpc.adminPlatform.organizationGet.useQuery(
+    { id },
+    { enabled: id !== '' },
+  );
   const update = trpc.adminPlatform.organizationUpdate.useMutation();
 
   // form state
@@ -99,6 +104,9 @@ export function PlatformOrganizationDetailPage() {
     ],
   );
   useAdminSave(saveAction);
+
+  // Post-hooks early returns (safe — every hook above ran).
+  if (!params.id) return <Navigate to="/admin/platform/organizations" replace />;
 
   if (orgQuery.isLoading) {
     return (
@@ -361,7 +369,7 @@ function DangerZone({
       {
         onSuccess: () => {
           void utils.adminPlatform.organizationsList.invalidate();
-          navigate('/admin/platform/organizations');
+          void navigate('/admin/platform/organizations');
         },
       },
     );

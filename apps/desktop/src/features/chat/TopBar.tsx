@@ -1,4 +1,4 @@
-import { Building2, MessageCircleDashed, Shield } from 'lucide-react';
+import { Building2, LogOut, LucideRotate3d, MessageCircleDashed, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiAuth } from '@/lib/api-auth';
 import { useAuth } from '@/app/auth-context';
@@ -90,20 +90,29 @@ export function TopBar() {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem onSelect={() => void navigate('/workspaces')}>
-              <Building2 className="size-4" />
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onSelect={() => void navigate('/workspaces')}
+            >
+              <LucideRotate3d className="size-4" />
               Switch workspace
             </DropdownMenuItem>
             {canAdmin && (
-              <DropdownMenuItem onSelect={() => void navigate('/admin/workspace/general')}>
-                <Shield className="size-4" />
-                Admin settings
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onSelect={() => void navigate('/admin/workspace/general')}
+              >
+                <img src={activeWs?.logoUrl ?? ''} alt={activeWs?.name ?? ''} className="size-4" />
+                Workspace settings
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled>Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={handleSignOut}>Sign out</DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer" onSelect={handleSignOut}>
+              <LogOut className="size-4" />
+              Sign out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
