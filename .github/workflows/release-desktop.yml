@@ -58,6 +58,13 @@ jobs:
       - name: Build + publish to GitHub Release
         working-directory: apps/desktop
         env:
+          # Vite-time vars — baked into the renderer bundle at build.
+          # Without these, the downloaded app falls back to the dev
+          # default (http://localhost:3000) which obviously doesn't
+          # work on a user's machine. Override per-repo via the
+          # `vars` context if you ever need a different production URL.
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://api.diguro.se' }}
+
           # electron-builder reads GH_TOKEN to upload assets to the
           # release that matches `v${version}` from package.json.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

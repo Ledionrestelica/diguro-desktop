@@ -2,8 +2,7 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type UIMessage } from 'ai';
 import { useMemo } from 'react';
 import { authStore } from '@/lib/auth-store';
-
-const API_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
+import { API_URL } from '@/lib/api-url';
 
 interface Options {
   /** Stable id for this conversation — drives useChat's internal state key. */
