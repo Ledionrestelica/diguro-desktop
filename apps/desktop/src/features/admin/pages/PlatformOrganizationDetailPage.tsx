@@ -23,7 +23,15 @@ export function PlatformOrganizationDetailPage() {
   const utils = trpc.useUtils();
   const orgQuery = trpc.adminPlatform.organizationGet.useQuery(
     { id },
-    { enabled: id !== '' },
+    {
+      enabled: id !== '',
+      // userCount + workspaceCount are computed server-side and become
+      // stale whenever a user is created/reassigned/role-changed from
+      // the Users page. Refetch on focus so the detail page reflects
+      // those changes when the operator switches back to this tab.
+      refetchOnWindowFocus: true,
+      staleTime: 5_000,
+    },
   );
   const update = trpc.adminPlatform.organizationUpdate.useMutation();
 

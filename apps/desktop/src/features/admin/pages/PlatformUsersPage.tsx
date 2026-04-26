@@ -62,6 +62,10 @@ export function PlatformUsersPage() {
       {
         onSuccess: () => {
           void utils.adminPlatform.usersList.invalidate();
+          // organizationGet returns counts grouped by org; invalidate so an
+          // org detail page open in another tab reflects the new role.
+          void utils.adminPlatform.organizationGet.invalidate();
+          void utils.adminPlatform.organizationsList.invalidate();
           void utils.health.me.invalidate();
         },
       },
@@ -75,6 +79,9 @@ export function PlatformUsersPage() {
         onSuccess: () => {
           void utils.adminPlatform.usersList.invalidate();
           void utils.adminPlatform.organizationsList.invalidate();
+          // userCount on the org detail page is stale once we move a user
+          // in or out — invalidate so it refetches on next mount/focus.
+          void utils.adminPlatform.organizationGet.invalidate();
         },
       },
     );
@@ -280,6 +287,9 @@ export function PlatformUsersPage() {
             setShowCreate(false);
             void utils.adminPlatform.usersList.invalidate();
             void utils.adminPlatform.organizationsList.invalidate();
+            // The newly-created user counts toward their org's userCount —
+            // refetch the detail page if it's loaded.
+            void utils.adminPlatform.organizationGet.invalidate();
           }}
         />
       )}
