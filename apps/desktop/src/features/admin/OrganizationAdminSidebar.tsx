@@ -8,7 +8,6 @@ import {
   Loader2,
   ScrollText,
   Settings2,
-  ShieldAlert,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -59,34 +58,9 @@ export function OrganizationAdminSidebar({ organizationName }: Props) {
         </div>
       </div>
 
-      <PlatformShortcut />
       <NavGroup label="ORGANIZATION" items={ORGANIZATION_ITEMS} />
       <WorkspacesGroup />
     </aside>
-  );
-}
-
-/**
- * Tiny "elevate to platform admin" affordance shown only to superadmins.
- * Lives at the very top of the sidebar so the operator always has a path
- * up to the platform tier without going hunting through other menus.
- */
-function PlatformShortcut() {
-  const me = trpc.health.me.useQuery();
-  if (me.data?.role !== 'superadmin') return null;
-  return (
-    <div className="px-3.5 pb-1 pt-1">
-      <NavLink
-        to="/admin/platform"
-        className="flex items-center gap-2 rounded-[10px] border border-zinc-200 bg-white px-2 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-      >
-        <span className="grid size-4 place-items-center rounded-[4px] bg-black text-white">
-          <ShieldAlert className="size-2.5" />
-        </span>
-        <span className="flex-1 truncate">Platform admin</span>
-        <span className="text-[10px] text-zinc-400">Super</span>
-      </NavLink>
-    </div>
   );
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router-dom';
 import type { UIMessage } from 'ai';
 import { trpc } from '@/lib/trpc';
+import { useIsSuperadminBlocked, RedirectToPlatform } from '@/lib/role-gate';
 import { ChatSidebar } from './ChatSidebar';
 import { TopBar } from './TopBar';
 import { WorkspaceRail } from './WorkspaceRail';
@@ -43,6 +44,12 @@ export interface ChatOutletContext {
  * after the first send — because this layout owns useChat, no state is lost.
  */
 export function ChatLayout() {
+  // Superadmins are platform-tier only — never enter chat. We check
+  // the flag at the top (hook order matters) but defer the actual
+  // early-return to AFTER every other hook has been called below, so
+  // hook count stays stable across the loading → loaded transition.
+  const isSuperadminBlocked = useIsSuperadminBlocked();
+
   const { chatId: paramChatId } = useParams();
   const navigate = useNavigate();
 
@@ -161,6 +168,9 @@ export function ChatLayout() {
       (conversationQuery.data?.messages.length ?? 0) > 0 ||
       session.messages.length > 0,
   };
+
+  // Bounce superadmins to the platform tier (post-hooks early return).
+  if (isSuperadminBlocked) return <RedirectToPlatform />;
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#fafafa] text-foreground">

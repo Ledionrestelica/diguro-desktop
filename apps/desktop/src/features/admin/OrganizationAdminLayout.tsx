@@ -48,9 +48,12 @@ export function OrganizationAdminLayout() {
   const user = me.data;
   if (!user) return <Navigate to="/chat" replace />;
 
-  const canAdminOrg =
-    user.role === 'superadmin' || user.role === 'organization_admin';
-  if (!canAdminOrg) return <Navigate to="/chat" replace />;
+  // Superadmins live exclusively on the platform tier. They manage every
+  // tenant from /admin/platform/* and never enter the per-org admin
+  // surface as if they were a member.
+  if (user.role === 'superadmin') return <Navigate to="/admin/platform" replace />;
+
+  if (user.role !== 'organization_admin') return <Navigate to="/chat" replace />;
 
   if (orgQuery.isLoading) {
     return (

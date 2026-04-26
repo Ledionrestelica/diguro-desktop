@@ -121,6 +121,54 @@ export const adminPlatformRouter = router({
       }
     }),
 
+  /** Create a user directly with email + password. Admin-driven sign-up,
+   *  bypassing the regular sign-up flow. The new user is created without
+   *  a session — the admin's session is unchanged. Optionally attaches
+   *  the user to an organization at creation time. */
+  userCreate: systemAdminProcedure
+    .input(
+      z.object({
+        email: z.string().email().toLowerCase(),
+        password: z.string().min(8).max(128),
+        name: z.string().min(1).max(120),
+        role: z.enum(['superadmin', 'organization_admin', 'user']),
+        organizationId: z.string().min(1).nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Better-Auth admin plugin creates the user without auto-signin
+        // and without affecting the caller's session.
+        const result = await ctx.auth.api.createUser({
+          body: {
+            email: input.email,
+            password: input.password,
+            name: input.name,
+            role: input.role,
+          },
+          headers: ctx.req.headers,
+        });
+
+        const newUserId = result.user.id;
+
+        // Belt-and-braces: explicitly set role + organizationId via DB,
+        // since `additionalFields.input: false` on `organizationId` means
+        // the auth API path won't write it for us.
+        await ctx.db
+          .update(schema.users)
+          .set({
+            role: input.role,
+            organizationId: input.organizationId ?? null,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.users.id, newUserId));
+
+        return { id: newUserId, email: input.email };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
   userSetRole: systemAdminProcedure
     .input(
       z.object({

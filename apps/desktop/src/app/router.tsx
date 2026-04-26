@@ -1,4 +1,5 @@
 import { createHashRouter, Navigate } from 'react-router-dom';
+import { trpc } from '@/lib/trpc';
 import { ChatLayout } from '@/features/chat/ChatLayout';
 import { ChatPage } from '@/features/chat/ChatPage';
 import { AdminLayout } from '@/features/admin/AdminLayout';
@@ -32,8 +33,27 @@ import { NewWorkspaceWizardPage } from '@/features/workspaces/NewWorkspaceWizard
  *   - ChatLayout for /chat/*
  *   - AdminLayout for /admin/workspace/* (role-gated internally)
  */
+/**
+ * Role-aware landing for `/`. Superadmins go to the platform overview;
+ * everyone else to the workspace picker.
+ */
+function RootRedirect() {
+  const me = trpc.health.me.useQuery(undefined, { retry: false });
+  if (me.isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+  if (me.data?.role === 'superadmin') {
+    return <Navigate to="/admin/platform" replace />;
+  }
+  return <Navigate to="/workspaces" replace />;
+}
+
 export const router = createHashRouter([
-  { path: '/', element: <Navigate to="/workspaces" replace /> },
+  { path: '/', element: <RootRedirect /> },
   { path: '/workspaces', element: <WorkspacePickerPage /> },
   { path: '/workspaces/new', element: <NewWorkspaceWizardPage /> },
   { path: '/accept-invite/:token', element: <AcceptInvitePage /> },

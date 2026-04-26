@@ -180,8 +180,9 @@ export const adminWorkspaceRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        const isPlatformAdmin =
-          ctx.user.role === 'superadmin' || ctx.user.role === 'organization_admin';
+        // Superadmins are blocked at the procedure level. Only org_admin
+        // has the cross-workspace escalation here.
+        const isPlatformAdmin = ctx.user.role === 'organization_admin';
         const myRole = ctx.workspaceMember?.role;
 
         if (!isPlatformAdmin && input.role === 'OWNER' && myRole !== 'OWNER') {
@@ -223,8 +224,9 @@ export const adminWorkspaceRouter = router({
         if (input.userId === ctx.user.id) {
           throw new Forbidden('Cannot remove yourself — use "leave workspace" instead');
         }
-        const isPlatformAdmin =
-          ctx.user.role === 'superadmin' || ctx.user.role === 'organization_admin';
+        // Superadmins are blocked at the procedure level. Only org_admin
+        // has the cross-workspace escalation here.
+        const isPlatformAdmin = ctx.user.role === 'organization_admin';
 
         const targetRows = await ctx.db
           .select({ id: schema.members.id, role: schema.members.role })

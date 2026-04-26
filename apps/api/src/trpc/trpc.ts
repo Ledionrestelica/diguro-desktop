@@ -80,12 +80,15 @@ export const activeOrganizationProcedure = authedProcedure.use(
 );
 
 /**
- * Organization-admin procedure — role in ('superadmin','organization_admin').
- * Used for the per-organization admin surface (manage users + workspaces).
+ * Organization-admin procedure — only `organization_admin` passes. Superadmins
+ * are platform operators, not organization members; they manage tenants
+ * exclusively through `adminPlatform.*` and never through this surface.
+ * This is enforced server-side as defense-in-depth on top of the frontend
+ * redirect that keeps superadmins out of `/admin/organization/*`.
  */
 export const organizationAdminProcedure = activeOrganizationProcedure.use(
   ({ ctx, next }) => {
-    if (ctx.user.role !== 'superadmin' && ctx.user.role !== 'organization_admin') {
+    if (ctx.user.role !== 'organization_admin') {
       throw mapDomainError(new Forbidden('Organization admin access required'));
     }
     return next({ ctx });
@@ -95,14 +98,17 @@ export const organizationAdminProcedure = activeOrganizationProcedure.use(
 /**
  * Workspace-admin procedure — scopes to the caller's active workspace.
  * Grants access if:
- *   - the user is `superadmin` or `organization_admin` (they supersede
- *     workspace roles), OR
+ *   - the user is `organization_admin` of the org that owns the workspace
+ *     (they supersede workspace roles within their tenant), OR
  *   - the user's `members.role` in the active workspace is `OWNER` or `ADMIN`.
  *
- * Attaches `ctx.workspace` and `ctx.workspaceMember` (null for platform admins
- * who aren't members of the specific workspace). Enforces that the active
- * workspace belongs to the user's organization — stale sessions after admin
- * moves can't cross organization boundaries.
+ * Superadmins have NO workspace presence — they operate exclusively at
+ * the platform tier and never as members of a tenant org or workspace.
+ *
+ * Attaches `ctx.workspace` and `ctx.workspaceMember` (null for org admins
+ * who aren't direct members of the specific workspace). Enforces that the
+ * active workspace belongs to the user's organization — stale sessions
+ * after admin moves can't cross organization boundaries.
  */
 export const workspaceAdminProcedure = authedProcedure.use(async ({ ctx, next }) => {
   const sessionRows = await ctx.db
@@ -145,8 +151,10 @@ export const workspaceAdminProcedure = authedProcedure.use(async ({ ctx, next })
     .limit(1);
   const workspaceMember = memberRows[0] ?? null;
 
+  if (ctx.user.role === 'superadmin') {
+    throw mapDomainError(new Forbidden('Superadmins do not have workspace access'));
+  }
   const hasAccess =
-    ctx.user.role === 'superadmin' ||
     ctx.user.role === 'organization_admin' ||
     workspaceMember?.role === 'OWNER' ||
     workspaceMember?.role === 'ADMIN';

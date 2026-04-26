@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { ArrowRight, Plus, Settings } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { WorkspaceGlyph } from './WorkspaceGlyph';
@@ -20,8 +20,13 @@ export function WorkspacePickerPage() {
   const utils = trpc.useUtils();
   const setActive = trpc.workspaces.setActive.useMutation();
 
-  const canCreate =
-    me.data?.role === 'superadmin' || me.data?.role === 'organization_admin';
+  // Superadmins live on /admin/platform — they don't pick workspaces.
+  if (me.data?.role === 'superadmin') {
+    return <Navigate to="/admin/platform" replace />;
+  }
+
+  // Only organization_admins can create new workspaces from here.
+  const canCreate = me.data?.role === 'organization_admin';
 
   async function openWorkspace(workspaceId: string) {
     await setActive.mutateAsync({ workspaceId });

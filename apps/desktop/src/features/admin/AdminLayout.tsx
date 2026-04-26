@@ -49,14 +49,19 @@ export function AdminLayout() {
   }
   const user = me.data;
   if (!user) return <Navigate to="/chat" replace />;
+
+  // Superadmins are platform-tier only — they never operate inside a
+  // workspace or organization. Bounce them up.
+  if (user.role === 'superadmin') return <Navigate to="/admin/platform" replace />;
+
   if (!user.activeWorkspaceId) return <Navigate to="/workspaces" replace />;
 
-  const isPlatformAdmin =
-    user.role === 'superadmin' || user.role === 'organization_admin';
+  // organization_admins have cross-workspace escalation in their tenant.
+  const isOrgAdmin = user.role === 'organization_admin';
   const wsRole = wsQuery.data?.myRole;
-  const canAdmin = isPlatformAdmin || wsRole === 'OWNER' || wsRole === 'ADMIN';
+  const canAdmin = isOrgAdmin || wsRole === 'OWNER' || wsRole === 'ADMIN';
 
-  if (wsQuery.isLoading && !isPlatformAdmin) {
+  if (wsQuery.isLoading && !isOrgAdmin) {
     return (
       <div className="grid h-screen place-items-center text-sm text-zinc-500">
         Loading…

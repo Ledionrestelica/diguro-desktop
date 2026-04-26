@@ -2,6 +2,10 @@ import { useRef, useState } from 'react';
 import { FileText, Loader2, Search, Trash2, Upload } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
+import {
+  useIsSuperadminBlocked,
+  RedirectToPlatform,
+} from '@/lib/role-gate';
 import { ChatSidebar } from '@/features/chat/ChatSidebar';
 import { TopBar } from '@/features/chat/TopBar';
 import { WorkspaceRail } from '@/features/chat/WorkspaceRail';
@@ -19,6 +23,9 @@ const TRANSIENT_STATUSES = new Set([
 ]);
 
 export function PersonalFilesPage() {
+  // Superadmins are platform-tier only — no personal files.
+  const isSuperadminBlocked = useIsSuperadminBlocked();
+
   const [search, setSearch] = useState('');
   const utils = trpc.useUtils();
   const filesQuery = trpc.me.filesList.useQuery(
@@ -89,6 +96,10 @@ export function PersonalFilesPage() {
   }
 
   const files = filesQuery.data ?? [];
+
+  // Post-hooks early return for superadmins (Rules of Hooks: every hook
+  // above this point ran on every render; only the JSX branch differs).
+  if (isSuperadminBlocked) return <RedirectToPlatform />;
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#fafafa] text-foreground">

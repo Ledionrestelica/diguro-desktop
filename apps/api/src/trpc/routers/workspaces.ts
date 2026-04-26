@@ -80,10 +80,14 @@ export const workspacesRouter = router({
           throw new Forbidden('Workspace is in a different organization');
         }
 
-        const isPlatformAdmin =
-          ctx.user.role === 'superadmin' ||
-          ctx.user.role === 'organization_admin';
-        if (!isPlatformAdmin) {
+        // organization_admins can switch into any workspace in their org;
+        // superadmins are blocked entirely from workspace context (they
+        // operate at the platform tier only — see adminPlatform.*).
+        if (ctx.user.role === 'superadmin') {
+          throw new Forbidden('Superadmins do not have workspace access');
+        }
+        const isOrgAdmin = ctx.user.role === 'organization_admin';
+        if (!isOrgAdmin) {
           const memberRows = await ctx.db
             .select({ id: schema.members.id })
             .from(schema.members)

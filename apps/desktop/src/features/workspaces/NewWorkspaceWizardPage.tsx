@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { OrganizationMark } from '@/features/organization/OrganizationMark';
@@ -54,8 +54,11 @@ export function NewWorkspaceWizardPage() {
     [step, draft, setDraft, cancel],
   );
 
-  const canAdmin =
-    me.data?.role === 'superadmin' || me.data?.role === 'organization_admin';
+  // Superadmins don't manage workspaces — they're platform tier only.
+  if (me.data?.role === 'superadmin') {
+    return <Navigate to="/admin/platform" replace />;
+  }
+  const canAdmin = me.data?.role === 'organization_admin';
   if (me.isLoading) {
     return (
       <div className="grid min-h-screen place-items-center bg-[#f9fafb] text-sm text-zinc-500">

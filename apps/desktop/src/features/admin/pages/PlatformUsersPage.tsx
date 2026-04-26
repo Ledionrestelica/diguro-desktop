@@ -1,5 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Search, Users as UsersIcon, ChevronDown } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  Copy,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  Search,
+  UserPlus,
+  Users as UsersIcon,
+  X,
+} from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
 import { AdminPageBody } from '../PlatformAdminLayout';
@@ -19,6 +30,7 @@ export function PlatformUsersPage() {
   const utils = trpc.useUtils();
   const [orgFilter, setOrgFilter] = useState<string | 'all'>('all');
   const [query, setQuery] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
 
   const orgsQuery = trpc.adminPlatform.organizationsList.useQuery();
   const usersQuery = trpc.adminPlatform.usersList.useQuery(
@@ -111,12 +123,18 @@ export function PlatformUsersPage() {
                     {o.name}
                   </option>
                 ))}
-                <option value="__unassigned__" disabled>
-                  ─────
-                </option>
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2 text-zinc-400" />
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="inline-flex items-center gap-2 rounded-[10px] bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+            >
+              <UserPlus className="size-4" />
+              New user
+            </button>
           </div>
         </div>
 
@@ -252,7 +270,296 @@ export function PlatformUsersPage() {
           </tbody>
         </table>
       </section>
+
+      {showCreate && (
+        <CreateUserDialog
+          orgs={orgs}
+          defaultOrgId={orgFilter !== 'all' ? orgFilter : null}
+          onClose={() => setShowCreate(false)}
+          onCreated={() => {
+            setShowCreate(false);
+            void utils.adminPlatform.usersList.invalidate();
+            void utils.adminPlatform.organizationsList.invalidate();
+          }}
+        />
+      )}
     </AdminPageBody>
+  );
+}
+
+/* ─────────────── create user dialog ─────────────── */
+
+function CreateUserDialog({
+  orgs,
+  defaultOrgId,
+  onClose,
+  onCreated,
+}: {
+  orgs: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    primaryColor: string | null;
+    logoUrl: string | null;
+  }>;
+  defaultOrgId: string | null;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const create = trpc.adminPlatform.userCreate.useMutation();
+
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [password, setPassword] = useState(() => generatePassword());
+  const [showPassword, setShowPassword] = useState(false);
+  const [copiedPwd, setCopiedPwd] = useState(false);
+  const [role, setRole] = useState<Role>('user');
+  const [organizationId, setOrganizationId] = useState<string | ''>(
+    defaultOrgId ?? '',
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleCreate() {
+    setError(null);
+    const e = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) {
+      setError('Enter a valid email address');
+      return;
+    }
+    if (!name.trim()) {
+      setError('Name is required');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    try {
+      await create.mutateAsync({
+        email: e,
+        name: name.trim(),
+        password,
+        role,
+        organizationId: organizationId || null,
+      });
+      onCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create user');
+    }
+  }
+
+  async function copyPassword() {
+    await navigator.clipboard.writeText(password);
+    setCopiedPwd(true);
+    window.setTimeout(() => setCopiedPwd(false), 1500);
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-6 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg rounded-[16px] border border-zinc-200 bg-white shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 px-6 pb-2 pt-6">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 place-items-center rounded-[10px] bg-zinc-100 text-zinc-700">
+              <UserPlus className="size-5" />
+            </span>
+            <div>
+              <p className="text-base font-semibold text-zinc-900">New user</p>
+              <p className="mt-0.5 text-sm text-zinc-500">
+                Create an account directly. The user can sign in immediately
+                with the password below — share it through a secure channel.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid size-8 place-items-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+            aria-label="Close"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-4 px-6 pb-6 pt-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Full name">
+              <input
+                autoFocus
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Erika Karlsson"
+                className="w-full rounded-[10px] border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-400"
+              />
+            </Field>
+            <Field label="Email">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="erika@example.com"
+                className="w-full rounded-[10px] border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-400"
+              />
+            </Field>
+          </div>
+
+          <Field
+            label="Temporary password"
+            hint="Share through a secure channel. The user can change it after signing in."
+          >
+            <div className="flex items-stretch gap-2">
+              <div className="flex flex-1 items-stretch overflow-hidden rounded-[10px] border border-zinc-200 bg-white focus-within:border-zinc-400">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3 py-2.5 font-mono text-sm tracking-tight outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="grid w-9 shrink-0 place-items-center border-l border-zinc-200 text-zinc-500 hover:bg-zinc-50"
+                  aria-label={showPassword ? 'Hide' : 'Show'}
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-3.5" />
+                  ) : (
+                    <Eye className="size-3.5" />
+                  )}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPassword(generatePassword())}
+                className="inline-flex items-center gap-1.5 rounded-[10px] border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                title="Regenerate"
+              >
+                <RefreshCw className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void copyPassword()}
+                className="inline-flex items-center gap-1.5 rounded-[10px] border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                title="Copy password"
+              >
+                {copiedPwd ? (
+                  <>
+                    <Check className="size-3.5" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="size-3.5" />
+                    Copy
+                  </>
+                )}
+              </button>
+            </div>
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Role">
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as Role)}
+                className="w-full rounded-[10px] border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-400"
+              >
+                <option value="user">User</option>
+                <option value="organization_admin">Organization Admin</option>
+                <option value="superadmin">Superadmin (platform)</option>
+              </select>
+            </Field>
+            <Field label="Organization">
+              <select
+                value={organizationId}
+                onChange={(e) => setOrganizationId(e.target.value)}
+                className="w-full rounded-[10px] border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-400"
+              >
+                <option value="">— Unassigned —</option>
+                {orgs.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          {role === 'superadmin' && (
+            <div className="rounded-[10px] border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+              Superadmins operate at the platform tier and won't have access
+              to chat or workspace surfaces. The Organization field is just
+              for billing/reporting context — it doesn't grant access.
+            </div>
+          )}
+
+          {error && (
+            <p className="rounded-[10px] bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-zinc-100 px-6 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-[10px] border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleCreate()}
+            disabled={create.isPending}
+            className="rounded-[10px] bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {create.isPending ? 'Creating…' : 'Create user'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────── helpers ─────────────── */
+
+const PWD_ALPHABET =
+  'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/l/I
+
+function generatePassword(): string {
+  const len = 14;
+  const arr = new Uint32Array(len);
+  crypto.getRandomValues(arr);
+  let out = '';
+  for (let i = 0; i < len; i++) {
+    out += PWD_ALPHABET[arr[i]! % PWD_ALPHABET.length];
+  }
+  // Sprinkle a couple of disambiguating symbols so password meets common
+  // policies even if a downstream validator is strict.
+  return out.slice(0, len - 2) + '#' + out.slice(-1);
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-xs font-medium text-zinc-700">{label}</span>
+      {children}
+      {hint && <span className="text-[11px] leading-4 text-zinc-500">{hint}</span>}
+    </label>
   );
 }
 
