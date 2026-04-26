@@ -6,7 +6,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "package": "pnpm build && electron-builder",
     "package:mac": "pnpm build && electron-builder --mac",
     "package:win": "pnpm build && electron-builder --win",
