@@ -412,7 +412,14 @@ export function OrgGlyph({
   logoUrl: string | null;
   size: number;
 }) {
-  if (logoUrl) {
+  // Only render <img> for browser-renderable URLs. The server resolves
+  // `organization://…` to presigned HTTPS on read; if a stale query
+  // result still carries the raw scheme, fall back to initials instead
+  // of letting the browser fail the request (and trip CSP).
+  const isRenderable =
+    typeof logoUrl === 'string' &&
+    /^(https?:|data:|blob:)/.test(logoUrl);
+  if (logoUrl && isRenderable) {
     return (
       <img
         src={logoUrl}

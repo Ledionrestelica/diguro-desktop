@@ -6,6 +6,10 @@ import { mapDomainError } from '../error-mapper.ts';
 import { createOrganization } from '../../services/organizations/create.ts';
 import { getOrganization, listOrganizations } from '../../services/organizations/list.ts';
 import { deleteOrganization, updateOrganization } from '../../services/organizations/update.ts';
+import {
+  resolveOrganizationLogoUrl,
+  ORGANIZATION_URL_SCHEME,
+} from '../../services/organizations/attachments.ts';
 
 const SlugShape = z
   .string()
@@ -14,10 +18,23 @@ const SlugShape = z
   .regex(/^[a-z0-9-]+$/, 'lowercase letters, digits, and dashes only');
 
 export const adminPlatformRouter = router({
-  /** List every organization (tenant). Used on /admin/platform home. */
+  /** List every organization (tenant). Used on /admin/platform home.
+   *  Resolves any `organization://` logo URLs to presigned HTTPS URLs so
+   *  the browser can render them — the in-storage scheme is opaque and
+   *  blocked by CSP if surfaced to the renderer directly. */
   organizationsList: systemAdminProcedure.query(async ({ ctx }) => {
     try {
-      return await listOrganizations({ db: ctx.db });
+      const rows = await listOrganizations({ db: ctx.db });
+      return await Promise.all(
+        rows.map(async (row) => {
+          if (!row.logoUrl?.startsWith(ORGANIZATION_URL_SCHEME)) return row;
+          const resolved = await resolveOrganizationLogoUrl(
+            { objectStore: ctx.objectStore },
+            { organizationId: row.id, url: row.logoUrl },
+          ).catch(() => null);
+          return { ...row, logoUrl: resolved };
+        }),
+      );
     } catch (err) {
       throw mapDomainError(err);
     }
@@ -29,7 +46,12 @@ export const adminPlatformRouter = router({
       try {
         const o = await getOrganization({ db: ctx.db }, input.id);
         if (!o) throw new ResourceNotFound(input.id);
-        return o;
+        if (!o.logoUrl?.startsWith(ORGANIZATION_URL_SCHEME)) return o;
+        const resolved = await resolveOrganizationLogoUrl(
+          { objectStore: ctx.objectStore },
+          { organizationId: o.id, url: o.logoUrl },
+        ).catch(() => null);
+        return { ...o, logoUrl: resolved };
       } catch (err) {
         throw mapDomainError(err);
       }
