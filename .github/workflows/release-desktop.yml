@@ -1,0 +1,76 @@
+name: Release Desktop App
+
+# Triggers on `git tag v*` push, or manual dispatch from the Actions UI.
+# When you push a tag like `v1.2.3`, this builds installers on macOS,
+# Windows, and Linux runners and uploads each platform's artifacts to
+# the matching GitHub Release. The release itself can be created in
+# advance (Draft) or auto-created by electron-builder if missing.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (must already exist as a git tag)'
+        required: true
+        type: string
+
+permissions:
+  contents: write  # required to upload release assets
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            artifact: '**/dist-electron-output/*.{dmg,zip,blockmap}'
+          - os: windows-latest
+            artifact: '**/dist-electron-output/*.{exe,blockmap}'
+          - os: ubuntu-latest
+            artifact: '**/dist-electron-output/*.{AppImage,deb,rpm}'
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile --filter @diguro/desktop...
+
+      - name: Build + publish to GitHub Release
+        working-directory: apps/desktop
+        env:
+          # electron-builder reads GH_TOKEN to upload assets to the
+          # release that matches `v${version}` from package.json.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS code signing (optional — leave empty for unsigned ad-hoc).
+          # Set CSC_LINK + CSC_KEY_PASSWORD as repo secrets if you have an
+          # Apple Developer cert bundle (.p12) and want notarized builds.
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          # Apple notarization (only used when CSC_LINK is set)
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Windows code signing (optional — set for EV certs)
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: pnpm run release

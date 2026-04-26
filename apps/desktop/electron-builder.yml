@@ -1,0 +1,75 @@
+# electron-builder configuration. Used by `pnpm package` and the
+# release.yml CI workflow to produce signed-or-unsigned installers
+# for macOS, Windows, and Linux.
+
+appId: se.diguro.desktop
+productName: Diguro
+copyright: Copyright © Diguro
+
+directories:
+  output: release/${version}
+  buildResources: build
+
+files:
+  - dist
+  - dist-electron
+  - package.json
+
+# Publish target — electron-builder's `--publish always` flag uses this
+# to upload each platform's artifacts to the matching GitHub release.
+# The release tag must match `v${version}` from package.json (the CI
+# workflow handles the tag → release mapping).
+publish:
+  provider: github
+  owner: Ledionrestelica
+  repo: diguro-desktop
+  releaseType: release
+
+# ─── macOS ────────────────────────────────────────────────────────────
+# DMG installer for both Intel + Apple Silicon. Identity is unset → ad-hoc
+# signed locally; users will see "unidentified developer" until you set
+# an Apple Developer certificate (CSC_LINK + CSC_KEY_PASSWORD env vars).
+mac:
+  category: public.app-category.productivity
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  # identity: null → unsigned. Set CSC_LINK + CSC_KEY_PASSWORD in CI to sign.
+
+dmg:
+  writeUpdateInfo: true
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+# ─── Windows ──────────────────────────────────────────────────────────
+# NSIS installer (.exe). Single-file MSI is also possible — leaving it as
+# NSIS for now since it's the de-facto Electron default and supports the
+# auto-updater out of the box.
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+
+# ─── Linux ────────────────────────────────────────────────────────────
+linux:
+  category: Office
+  target:
+    - target: AppImage
+      arch:
+        - x64
