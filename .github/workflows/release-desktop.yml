@@ -61,23 +61,21 @@ jobs:
           # Vite-time vars — baked into the renderer bundle at build.
           # Without these, the downloaded app falls back to the dev
           # default (http://localhost:3000) which obviously doesn't
-          # work on a user's machine. Override per-repo via the
-          # `vars` context if you ever need a different production URL.
+          # work on a user's machine.
           VITE_API_URL: ${{ vars.VITE_API_URL || 'https://api.diguro.se' }}
 
           # electron-builder reads GH_TOKEN to upload assets to the
           # release that matches `v${version}` from package.json.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # macOS code signing (optional — leave empty for unsigned ad-hoc).
-          # Set CSC_LINK + CSC_KEY_PASSWORD as repo secrets if you have an
-          # Apple Developer cert bundle (.p12) and want notarized builds.
-          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
-          # Apple notarization (only used when CSC_LINK is set)
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # Windows code signing (optional — set for EV certs)
-          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+
+          # NOTE: Code-signing env vars are intentionally NOT set here.
+          # GitHub Actions resolves missing secrets to '' (empty string),
+          # and electron-builder interprets a non-undefined CSC_LINK as a
+          # .p12 path → empty string → "not a file" → build fails.
+          #
+          # When you have certs:
+          #   1. Add MAC_CSC_LINK / MAC_CSC_KEY_PASSWORD / APPLE_ID /
+          #      APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID secrets.
+          #   2. Add WIN_CSC_LINK / WIN_CSC_KEY_PASSWORD for Windows.
+          #   3. Restore the env mappings below this comment.
         run: pnpm run release
