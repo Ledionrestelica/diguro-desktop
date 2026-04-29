@@ -15,9 +15,20 @@ export const workspacesRouter = router({
   /**
    * Workspaces the current user is a member of, with per-workspace member
    * count and the caller's own role. Ordered by most-recently-joined.
+   *
+   * Tenant isolation: filters to workspaces in the user's CURRENT org. A
+   * stale member row from a previous org assignment (e.g. after the user
+   * was reassigned via adminPlatform.userAssignOrganization) must NOT
+   * surface here — the rail would otherwise show workspaces the user is
+   * no longer permitted to enter, and setActive would (correctly) refuse
+   * the switch with a confusing error.
    */
   myList: authedProcedure.query(async ({ ctx }) => {
     try {
+      // Users without an org assignment have no workspaces they can
+      // legitimately see. Short-circuit before hitting the DB.
+      if (!ctx.user.organizationId) return [];
+
       const rows = await ctx.db
         .select({
           id: schema.workspaces.id,
@@ -36,7 +47,12 @@ export const workspacesRouter = router({
           schema.workspaces,
           eq(schema.members.workspaceId, schema.workspaces.id),
         )
-        .where(eq(schema.members.userId, ctx.user.id))
+        .where(
+          and(
+            eq(schema.members.userId, ctx.user.id),
+            eq(schema.workspaces.organizationId, ctx.user.organizationId),
+          ),
+        )
         .orderBy(desc(schema.members.createdAt));
 
       return await Promise.all(

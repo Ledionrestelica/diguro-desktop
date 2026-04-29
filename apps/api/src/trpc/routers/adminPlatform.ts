@@ -1,4 +1,4 @@
-import { and, eq, schema } from '@diguro/db';
+import { and, eq, schema, sql } from '@diguro/db';
 import { z } from 'zod';
 import { ResourceNotFound } from '@diguro/shared/errors';
 import { router, systemAdminProcedure } from '../trpc.ts';
@@ -212,7 +212,11 @@ export const adminPlatformRouter = router({
       }
     }),
 
-  /** Assign or unassign a user to an organization. */
+  /** Assign or unassign a user to an organization. Also clears every
+   *  workspace membership the user holds OUTSIDE the new org — those
+   *  memberships would otherwise be orphan rows that surface in the
+   *  workspace rail but fail at setActive (cross-org workspaces are
+   *  forbidden). Done in one transaction so a failure rolls both back. */
   userAssignOrganization: systemAdminProcedure
     .input(
       z.object({
@@ -222,12 +226,32 @@ export const adminPlatformRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        const res = await ctx.db
-          .update(schema.users)
-          .set({ organizationId: input.organizationId, updatedAt: new Date() })
-          .where(eq(schema.users.id, input.userId))
-          .returning({ id: schema.users.id });
-        if (res.length === 0) throw new ResourceNotFound(input.userId);
+        await ctx.db.transaction(async (tx) => {
+          const res = await tx
+            .update(schema.users)
+            .set({
+              organizationId: input.organizationId,
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.users.id, input.userId))
+            .returning({ id: schema.users.id });
+          if (res.length === 0) throw new ResourceNotFound(input.userId);
+
+          // Drop memberships for workspaces NOT in the target org. If
+          // organizationId is null (unassigned), drop every membership.
+          await tx.execute(sql`
+            DELETE FROM ${schema.members}
+            WHERE ${schema.members.userId} = ${input.userId}
+              AND ${schema.members.workspaceId} IN (
+                SELECT w.id FROM ${schema.workspaces} w
+                WHERE ${
+                  input.organizationId === null
+                    ? sql`TRUE`
+                    : sql`w.organization_id != ${input.organizationId}`
+                }
+              )
+          `);
+        });
         return { ok: true as const };
       } catch (err) {
         throw mapDomainError(err);
