@@ -251,6 +251,25 @@ export const adminPlatformRouter = router({
                 }
               )
           `);
+
+          // Clear activeWorkspaceId on every session of this user where
+          // the active workspace lives in the OLD org — otherwise the
+          // user's chat layout would still try to load the old workspace
+          // on next render. Same logic as the membership cleanup above.
+          await tx.execute(sql`
+            UPDATE ${schema.sessions}
+            SET active_workspace_id = NULL
+            WHERE ${schema.sessions.userId} = ${input.userId}
+              AND ${schema.sessions.activeWorkspaceId} IS NOT NULL
+              AND ${schema.sessions.activeWorkspaceId} IN (
+                SELECT w.id FROM ${schema.workspaces} w
+                WHERE ${
+                  input.organizationId === null
+                    ? sql`TRUE`
+                    : sql`w.organization_id != ${input.organizationId}`
+                }
+              )
+          `);
         });
         return { ok: true as const };
       } catch (err) {
