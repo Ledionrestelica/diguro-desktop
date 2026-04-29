@@ -1,4 +1,3 @@
-import { eq, schema } from '@diguro/db';
 import { z } from 'zod';
 import { authedProcedure, router } from '../trpc.ts';
 import { mapDomainError } from '../error-mapper.ts';
@@ -13,23 +12,7 @@ import { ResourceNotFound } from '@diguro/shared/errors';
 export const conversationsRouter = router({
   list: authedProcedure.query(async ({ ctx }) => {
     try {
-      // Read activeWorkspaceId from the session so the chat sidebar
-      // shows ONLY threads belonging to the current scope. Without
-      // this, switching workspaces leaks every conversation across
-      // every workspace into one unified list.
-      const sessionRow = (
-        await ctx.db
-          .select({ activeWorkspaceId: schema.sessions.activeWorkspaceId })
-          .from(schema.sessions)
-          .where(eq(schema.sessions.id, ctx.session.id))
-          .limit(1)
-      )[0];
-      const workspaceId = sessionRow?.activeWorkspaceId ?? null;
-
-      return await listConversations(
-        { db: ctx.db },
-        { userId: ctx.user.id, workspaceId },
-      );
+      return await listConversations({ db: ctx.db }, { userId: ctx.user.id });
     } catch (err) {
       throw mapDomainError(err);
     }
