@@ -139,6 +139,20 @@ export function handleChat(deps: Deps) {
       return c.json({ error: err.message }, 401);
     }
 
+    // Pick up the caller's active workspace from their session so every
+    // conversation, telemetry row, and usage record we persist is tagged
+    // with the right workspace context. Hardcoded null here meant the
+    // chat sidebar's per-workspace filter saw zero rows even when the
+    // user was inside a workspace.
+    const sessionRow = (
+      await deps.db
+        .select({ activeWorkspaceId: schema.sessions.activeWorkspaceId })
+        .from(schema.sessions)
+        .where(eq(schema.sessions.id, session.session.id))
+        .limit(1)
+    )[0];
+    const activeWorkspaceId = sessionRow?.activeWorkspaceId ?? null;
+
     const body: unknown = await c.req.json().catch(() => null);
     const parsed = ChatRequestSchema.safeParse(body);
     if (!parsed.success) {
@@ -182,7 +196,7 @@ export function handleChat(deps: Deps) {
         {
           conversationId,
           userId: session.user.id,
-          workspaceId: null,
+          workspaceId: activeWorkspaceId,
           modelId,
           firstUserText,
           retrievalScope: requestedScope,
@@ -244,7 +258,7 @@ export function handleChat(deps: Deps) {
               scope: toolScope,
               telemetry: {
                 userId: session.user.id,
-                workspaceId: null,
+                workspaceId: activeWorkspaceId,
                 conversationId,
               },
             }),
@@ -283,7 +297,7 @@ export function handleChat(deps: Deps) {
               { db: deps.db, logger: deps.logger },
               {
                 userId: session.user.id,
-                workspaceId: null,
+                workspaceId: activeWorkspaceId,
                 type: 'CHAT',
                 modelId,
                 promptTokens: usage.promptTokens,
