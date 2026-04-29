@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
@@ -35,17 +35,7 @@ const overrideDir = (rel: string) => ({
   replacement: path.resolve(webSrc, rel),
 });
 
-export default defineConfig(({ mode }) => {
-  // loadEnv reads .env, .env.local, .env.[mode], .env.[mode].local
-  // from the cwd. Without prefix '' it returns every var (default
-  // would limit to VITE_-prefixed). We need this so VITE_DEV_API_PROXY_TARGET
-  // in apps/web/.env.local is visible to the dev-server config below.
-  const env = loadEnv(mode, process.cwd(), '');
-  const proxyTarget =
-    env.VITE_DEV_API_PROXY_TARGET ?? 'http://localhost:3000';
-  const proxyIsRemote = /^https:\/\//.test(proxyTarget);
-
-  return {
+export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: [
@@ -71,36 +61,22 @@ export default defineConfig(({ mode }) => {
     port: 5174,
     strictPort: true,
     // Dev proxy so every API call from the browser goes out to the same
-    // origin (localhost:5174), then Vite forwards to the API. This lets
-    // Better-Auth's cookies stay same-site and dodges all the
-    // cross-origin Set-Cookie / SameSite headaches.
-    //
-    // Override the proxy target with VITE_DEV_API_PROXY_TARGET to point
-    // local dev at the deployed API instead of a local one:
-    //
-    //   VITE_DEV_API_PROXY_TARGET=https://api.diguro.se pnpm dev
-    //
-    // Or persist it in apps/web/.env.local. When the target is HTTPS,
-    // we flip changeOrigin + cookieDomainRewrite so Better-Auth's
-    // Secure;SameSite=None cookies survive the localhost rewrite.
+    // origin (localhost:5174), then Vite forwards to the API (3000).
+    // This lets Better-Auth's cookies stay same-site and dodges all the
+    // cross-origin Set-Cookie / SameSite headaches. In prod the web
+    // bundle + API sit on the same domain anyway (app.diguro.se →
+    // rewrite /api/* to api.diguro.se, or subdomain with shared parent).
     proxy: {
       '/api': {
-        target: proxyTarget,
-        changeOrigin: proxyIsRemote,
-        secure: proxyIsRemote,
+        target: 'http://localhost:3000',
+        changeOrigin: false,
         // Chat streams SSE / chunked. Without ws:true the upgrade works
         // fine but we also want long-lived POSTs to stay open.
         ws: true,
-        // When proxying to a remote HTTPS host, rewrite Set-Cookie
-        // domain attribute to localhost so the browser actually
-        // stores the auth cookie under our dev origin.
-        cookieDomainRewrite: proxyIsRemote ? 'localhost' : '',
       },
       '/trpc': {
-        target: proxyTarget,
-        changeOrigin: proxyIsRemote,
-        secure: proxyIsRemote,
-        cookieDomainRewrite: proxyIsRemote ? 'localhost' : '',
+        target: 'http://localhost:3000',
+        changeOrigin: false,
       },
     },
   },
@@ -111,5 +87,4 @@ export default defineConfig(({ mode }) => {
     // local debugging via `vite build --sourcemap` if needed.
     sourcemap: false,
   },
-  };
 });
