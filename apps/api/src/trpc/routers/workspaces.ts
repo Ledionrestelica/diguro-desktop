@@ -29,6 +29,16 @@ export const workspacesRouter = router({
       // legitimately see. Short-circuit before hitting the DB.
       if (!ctx.user.organizationId) return [];
 
+      // Org admins get a view of every workspace in their org — they
+      // have cross-workspace authority within their tenant and shouldn't
+      // need to be explicitly added as a member of each one to see /
+      // enter it. Regular users see only workspaces they're members of.
+      const isOrgAdmin = ctx.user.role === 'organization_admin';
+
+      // LEFT JOIN members so org admins still get a row for workspaces
+      // they're not explicit members of (myRole = null). The shape stays
+      // the same as the member-only path; the rail / picker treat
+      // myRole === null as "implicit access via org_admin".
       const rows = await ctx.db
         .select({
           id: schema.workspaces.id,
@@ -42,18 +52,23 @@ export const workspacesRouter = router({
             WHERE m2.workspace_id = ${schema.workspaces.id}
           )`,
         })
-        .from(schema.members)
-        .innerJoin(
-          schema.workspaces,
-          eq(schema.members.workspaceId, schema.workspaces.id),
+        .from(schema.workspaces)
+        .leftJoin(
+          schema.members,
+          and(
+            eq(schema.members.workspaceId, schema.workspaces.id),
+            eq(schema.members.userId, ctx.user.id),
+          ),
         )
         .where(
           and(
-            eq(schema.members.userId, ctx.user.id),
             eq(schema.workspaces.organizationId, ctx.user.organizationId),
+            // Regular users: must have a member row. Org admins: all
+            // workspaces in their org are visible.
+            isOrgAdmin ? sql`TRUE` : sql`${schema.members.userId} IS NOT NULL`,
           ),
         )
-        .orderBy(desc(schema.members.createdAt));
+        .orderBy(desc(schema.workspaces.createdAt));
 
       return await Promise.all(
         rows.map(async (row) => {
@@ -97,27 +112,26 @@ export const workspacesRouter = router({
         }
 
         // Superadmins live at the platform tier only — see adminPlatform.*.
-        // Everyone else (including organization_admins) needs an explicit
-        // `members` row in the target workspace before they can switch in.
-        // Org admins who want to inspect/manage a workspace they're not in
-        // should add themselves as a member first via the org-level admin
-        // surface — it shouldn't be possible to silently enter a workspace
-        // by virtue of role alone.
+        // Org admins have implicit access to every workspace in their own
+        // org (cross-org is still blocked by the organizationId guard
+        // above). Regular users need an explicit member row.
         if (ctx.user.role === 'superadmin') {
           throw new Forbidden('Superadmins do not have workspace access');
         }
-        const memberRows = await ctx.db
-          .select({ id: schema.members.id })
-          .from(schema.members)
-          .where(
-            and(
-              eq(schema.members.workspaceId, input.workspaceId),
-              eq(schema.members.userId, ctx.user.id),
-            ),
-          )
-          .limit(1);
-        if (!memberRows[0]) {
-          throw new Forbidden('You are not a member of this workspace');
+        if (ctx.user.role !== 'organization_admin') {
+          const memberRows = await ctx.db
+            .select({ id: schema.members.id })
+            .from(schema.members)
+            .where(
+              and(
+                eq(schema.members.workspaceId, input.workspaceId),
+                eq(schema.members.userId, ctx.user.id),
+              ),
+            )
+            .limit(1);
+          if (!memberRows[0]) {
+            throw new Forbidden('You are not a member of this workspace');
+          }
         }
 
         await ctx.db

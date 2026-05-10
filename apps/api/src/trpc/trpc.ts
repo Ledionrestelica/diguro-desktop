@@ -154,13 +154,16 @@ export const workspaceAdminProcedure = authedProcedure.use(async ({ ctx, next })
   if (ctx.user.role === 'superadmin') {
     throw mapDomainError(new Forbidden('Superadmins do not have workspace access'));
   }
-  // Workspace-admin access requires being an OWNER/ADMIN member of THIS
-  // workspace. Organization-level admin role doesn't auto-elevate to
-  // every workspace — org admins use the org-level admin surface for
-  // cross-workspace oversight, and add themselves as a workspace member
-  // when they need to manage one directly.
+  // Workspace-admin access:
+  //   - org admins implicitly admin every workspace in THEIR own org
+  //     (the org-tenant guard above already rejected anything outside
+  //     the caller's org), so no explicit member row required.
+  //   - everyone else needs an OWNER/ADMIN member row in this workspace.
+  const isOrgAdmin = ctx.user.role === 'organization_admin';
   const hasAccess =
-    workspaceMember?.role === 'OWNER' || workspaceMember?.role === 'ADMIN';
+    isOrgAdmin ||
+    workspaceMember?.role === 'OWNER' ||
+    workspaceMember?.role === 'ADMIN';
 
   if (!hasAccess) {
     throw mapDomainError(new Forbidden('Workspace admin access required'));

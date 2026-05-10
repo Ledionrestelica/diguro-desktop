@@ -56,12 +56,12 @@ export function AdminLayout() {
 
   if (!user.activeWorkspaceId) return <Navigate to="/workspaces" replace />;
 
-  // Workspace admin requires being an OWNER/ADMIN member of THIS workspace.
-  // Org-wide admin role no longer auto-elevates — see workspaceAdminProcedure
-  // in trpc.ts for the matching server check. Org admins who need to manage
-  // a workspace they're not in should add themselves as a member first.
+  // Org admins implicitly admin every workspace in their own org — the
+  // server's workspaceAdminProcedure mirrors this. Regular users need an
+  // explicit OWNER/ADMIN member row.
+  const isOrgAdmin = user.role === 'organization_admin';
   const wsRole = wsQuery.data?.myRole;
-  const canAdmin = wsRole === 'OWNER' || wsRole === 'ADMIN';
+  const canAdmin = isOrgAdmin || wsRole === 'OWNER' || wsRole === 'ADMIN';
 
   if (wsQuery.isLoading) {
     return (
