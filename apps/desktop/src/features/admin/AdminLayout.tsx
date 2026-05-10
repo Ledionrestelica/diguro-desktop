@@ -56,19 +56,21 @@ export function AdminLayout() {
 
   if (!user.activeWorkspaceId) return <Navigate to="/workspaces" replace />;
 
-  // organization_admins have cross-workspace escalation in their tenant.
-  const isOrgAdmin = user.role === 'organization_admin';
+  // Workspace admin requires being an OWNER/ADMIN member of THIS workspace.
+  // Org-wide admin role no longer auto-elevates — see workspaceAdminProcedure
+  // in trpc.ts for the matching server check. Org admins who need to manage
+  // a workspace they're not in should add themselves as a member first.
   const wsRole = wsQuery.data?.myRole;
-  const canAdmin = isOrgAdmin || wsRole === 'OWNER' || wsRole === 'ADMIN';
+  const canAdmin = wsRole === 'OWNER' || wsRole === 'ADMIN';
 
-  if (wsQuery.isLoading && !isOrgAdmin) {
+  if (wsQuery.isLoading) {
     return (
       <div className="grid h-screen place-items-center text-sm text-zinc-500">
         Loading…
       </div>
     );
   }
-  if (wsQuery.error || (!wsQuery.isLoading && !canAdmin)) {
+  if (wsQuery.error || !canAdmin) {
     return <Navigate to="/chat" replace />;
   }
 

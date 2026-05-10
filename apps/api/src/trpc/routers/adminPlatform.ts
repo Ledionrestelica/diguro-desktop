@@ -1,6 +1,6 @@
 import { and, eq, schema, sql } from '@diguro/db';
 import { z } from 'zod';
-import { ResourceNotFound } from '@diguro/shared/errors';
+import { Forbidden, ResourceNotFound } from '@diguro/shared/errors';
 import { router, systemAdminProcedure } from '../trpc.ts';
 import { mapDomainError } from '../error-mapper.ts';
 import { createOrganization } from '../../services/organizations/create.ts';
@@ -271,6 +271,31 @@ export const adminPlatformRouter = router({
               )
           `);
         });
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  /**
+   * Permanently delete a user from the platform. Cascades through every
+   * FK that points at users.id (memberships, sessions, conversations,
+   * personal resources, audit rows that reference them, etc.) via the
+   * existing schema-level ON DELETE rules. Refuses self-deletion to
+   * avoid an admin locking themselves out.
+   */
+  userDelete: systemAdminProcedure
+    .input(z.object({ userId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        if (input.userId === ctx.user.id) {
+          throw new Forbidden('You cannot delete your own account');
+        }
+        const res = await ctx.db
+          .delete(schema.users)
+          .where(eq(schema.users.id, input.userId))
+          .returning({ id: schema.users.id });
+        if (res.length === 0) throw new ResourceNotFound(input.userId);
         return { ok: true as const };
       } catch (err) {
         throw mapDomainError(err);

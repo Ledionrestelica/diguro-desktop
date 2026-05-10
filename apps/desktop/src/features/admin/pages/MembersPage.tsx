@@ -27,6 +27,7 @@ export function MembersPage() {
   const [inviteRole, setInviteRole] = useState<'user' | 'organization_admin'>('user');
   const [createdInvite, setCreatedInvite] = useState<{
     token: string;
+    acceptUrl: string;
     email: string;
     emailSent: boolean;
     emailError: string | null;
@@ -48,6 +49,7 @@ export function MembersPage() {
       const res = await inviteCreate.mutateAsync({ email, role: inviteRole });
       setCreatedInvite({
         token: res.token,
+        acceptUrl: res.acceptUrl,
         email,
         emailSent: res.emailSent,
         emailError: res.emailError,
@@ -59,8 +61,7 @@ export function MembersPage() {
     }
   }
 
-  async function copyInviteLink(token: string) {
-    const link = buildInviteLink(token);
+  async function copyInviteLink(token: string, link: string) {
     await navigator.clipboard.writeText(link);
     setCopied(token);
     window.setTimeout(() => setCopied(null), 1500);
@@ -125,7 +126,8 @@ export function MembersPage() {
             </button>
           </div>
 
-          <table className="w-full text-sm">
+          <div className="scrollbar-thin overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
               <tr>
                 <Th>Name</Th>
@@ -193,6 +195,7 @@ export function MembersPage() {
               })}
             </tbody>
           </table>
+          </div>
         </section>
 
         {/* ─── Pending invitations ─── */}
@@ -208,7 +211,8 @@ export function MembersPage() {
                 </p>
               </div>
             </div>
-            <table className="w-full text-sm">
+            <div className="scrollbar-thin overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
               <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
                 <tr>
                   <Th>Email</Th>
@@ -227,7 +231,7 @@ export function MembersPage() {
                       <div className="inline-flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => copyInviteLink(i.token)}
+                          onClick={() => copyInviteLink(i.token, i.acceptUrl)}
                           className="inline-flex items-center gap-1.5 rounded-[8px] border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
                         >
                           {copied === i.token ? (
@@ -257,6 +261,7 @@ export function MembersPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </section>
         )}
       </div>
@@ -381,7 +386,7 @@ export function MembersPage() {
 
                 <div className="mt-5 rounded-[10px] border border-zinc-200 bg-zinc-50 px-3 py-2.5">
                   <p className="break-all font-mono text-xs text-zinc-700">
-                    {buildInviteLink(createdInvite.token)}
+                    {createdInvite.acceptUrl}
                   </p>
                 </div>
 
@@ -398,7 +403,7 @@ export function MembersPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => void copyInviteLink(createdInvite.token)}
+                    onClick={() => void copyInviteLink(createdInvite.token, createdInvite.acceptUrl)}
                     className="flex items-center gap-2 rounded-[10px] bg-black px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
                   >
                     {copied === createdInvite.token ? (
@@ -421,13 +426,6 @@ export function MembersPage() {
       )}
     </AdminPageBody>
   );
-}
-
-function buildInviteLink(token: string): string {
-  // Both dev (Vite dev server) and packaged Electron ship a hash router, so
-  // `#/accept-invite/<token>` resolves in either host. window.location.origin
-  // handles localhost:5173, file://, app://.
-  return `${window.location.origin}/#/accept-invite/${token}`;
 }
 
 function formatRelativeFuture(date: Date): string {

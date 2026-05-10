@@ -8,6 +8,7 @@ import { PlatformAdminLayout } from '@/features/admin/PlatformAdminLayout';
 import { GeneralSettingsPage } from '@/features/admin/pages/GeneralSettingsPage';
 import { OrganizationGeneralSettingsPage } from '@/features/admin/pages/OrganizationGeneralSettingsPage';
 import { OrganizationFilesPage } from '@/features/admin/pages/OrganizationFilesPage';
+import { OrganizationWorkspacesPage } from '@/features/admin/pages/OrganizationWorkspacesPage';
 import { WorkspaceFilesPage } from '@/features/admin/pages/WorkspaceFilesPage';
 import { PersonalFilesPage } from '@/features/files/PersonalFilesPage';
 import { TokenUsagePage } from '@/features/admin/pages/TokenUsagePage';
@@ -91,16 +92,7 @@ export const router = createHashRouter([
       { index: true, element: <Navigate to="/admin/organization/general" replace /> },
       { path: 'general', element: <OrganizationGeneralSettingsPage /> },
       { path: 'members', element: <MembersPage /> },
-      {
-        path: 'workspaces',
-        element: (
-          <StubPage
-            title="Workspaces"
-            description="Workspaces inside this organization. Create, archive, and configure."
-            eta="Next up"
-          />
-        ),
-      },
+      { path: 'workspaces', element: <OrganizationWorkspacesPage /> },
       { path: 'files', element: <OrganizationFilesPage /> },
       { path: 'token-usage', element: <TokenUsagePage /> },
       { path: 'audit-log', element: <AuditLogPage /> },

@@ -96,27 +96,28 @@ export const workspacesRouter = router({
           throw new Forbidden('Workspace is in a different organization');
         }
 
-        // organization_admins can switch into any workspace in their org;
-        // superadmins are blocked entirely from workspace context (they
-        // operate at the platform tier only — see adminPlatform.*).
+        // Superadmins live at the platform tier only — see adminPlatform.*.
+        // Everyone else (including organization_admins) needs an explicit
+        // `members` row in the target workspace before they can switch in.
+        // Org admins who want to inspect/manage a workspace they're not in
+        // should add themselves as a member first via the org-level admin
+        // surface — it shouldn't be possible to silently enter a workspace
+        // by virtue of role alone.
         if (ctx.user.role === 'superadmin') {
           throw new Forbidden('Superadmins do not have workspace access');
         }
-        const isOrgAdmin = ctx.user.role === 'organization_admin';
-        if (!isOrgAdmin) {
-          const memberRows = await ctx.db
-            .select({ id: schema.members.id })
-            .from(schema.members)
-            .where(
-              and(
-                eq(schema.members.workspaceId, input.workspaceId),
-                eq(schema.members.userId, ctx.user.id),
-              ),
-            )
-            .limit(1);
-          if (!memberRows[0]) {
-            throw new Forbidden('You are not a member of this workspace');
-          }
+        const memberRows = await ctx.db
+          .select({ id: schema.members.id })
+          .from(schema.members)
+          .where(
+            and(
+              eq(schema.members.workspaceId, input.workspaceId),
+              eq(schema.members.userId, ctx.user.id),
+            ),
+          )
+          .limit(1);
+        if (!memberRows[0]) {
+          throw new Forbidden('You are not a member of this workspace');
         }
 
         await ctx.db

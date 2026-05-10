@@ -7,6 +7,7 @@ import {
   EyeOff,
   RefreshCw,
   Search,
+  Trash2,
   UserPlus,
   Users as UsersIcon,
   X,
@@ -31,13 +32,37 @@ export function PlatformUsersPage() {
   const [orgFilter, setOrgFilter] = useState<string | 'all'>('all');
   const [query, setQuery] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const me = trpc.health.me.useQuery();
   const orgsQuery = trpc.adminPlatform.organizationsList.useQuery();
   const usersQuery = trpc.adminPlatform.usersList.useQuery(
     orgFilter === 'all' ? undefined : { organizationId: orgFilter },
   );
   const setRole = trpc.adminPlatform.userSetRole.useMutation();
   const assignOrg = trpc.adminPlatform.userAssignOrganization.useMutation();
+  const deleteUser = trpc.adminPlatform.userDelete.useMutation();
+  const myUserId = me.data?.id ?? null;
+
+  function handleDelete(userId: string, label: string) {
+    if (!window.confirm(
+      `Delete ${label}? This permanently removes the account, their personal files, conversations, workspace memberships, and audit history. This cannot be undone.`,
+    )) {
+      return;
+    }
+    setDeleteError(null);
+    deleteUser.mutate(
+      { userId },
+      {
+        onSuccess: () => {
+          void utils.adminPlatform.usersList.invalidate();
+          void utils.adminPlatform.organizationsList.invalidate();
+          void utils.adminPlatform.organizationGet.invalidate();
+        },
+        onError: (err) => setDeleteError(err.message),
+      },
+    );
+  }
 
   const orgs = orgsQuery.data ?? [];
   const orgsById = useMemo(
@@ -145,7 +170,14 @@ export function PlatformUsersPage() {
           </div>
         </div>
 
-        <table className="w-full text-sm">
+        {deleteError && (
+          <div className="border-b border-zinc-100 bg-red-50 px-6 py-2 text-sm text-red-700">
+            {deleteError}
+          </div>
+        )}
+
+        <div className="scrollbar-thin overflow-x-auto">
+        <table className="w-full min-w-[960px] text-sm">
           <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
               <Th>User</Th>
@@ -153,19 +185,20 @@ export function PlatformUsersPage() {
               <Th>Role</Th>
               <Th>Status</Th>
               <Th>Joined</Th>
+              <Th align="right">Actions</Th>
             </tr>
           </thead>
           <tbody>
             {usersQuery.isLoading && (
               <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-sm text-zinc-500">
+                <td colSpan={6} className="px-6 py-10 text-center text-sm text-zinc-500">
                   Loading…
                 </td>
               </tr>
             )}
             {!usersQuery.isLoading && filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center">
+                <td colSpan={6} className="px-6 py-12 text-center">
                   <p className="text-sm font-medium text-zinc-700">
                     {query ? 'No matches' : 'No users yet'}
                   </p>
@@ -271,11 +304,35 @@ export function PlatformUsersPage() {
                       })}
                     </span>
                   </Td>
+                  <Td align="right">
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(u.id, u.name || u.email)}
+                      // Self-delete is blocked server-side too. Hiding the
+                      // button here is just to keep the UI honest — an admin
+                      // can't remove themselves and there's no use case for
+                      // even attempting it from this surface.
+                      disabled={
+                        u.id === myUserId ||
+                        deleteUser.isPending
+                      }
+                      title={
+                        u.id === myUserId
+                          ? 'You cannot delete your own account'
+                          : 'Delete user'
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-[8px] bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-50"
+                    >
+                      <Trash2 className="size-3" />
+                      Delete
+                    </button>
+                  </Td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        </div>
       </section>
 
       {showCreate && (
@@ -575,10 +632,34 @@ function Field({
 
 /* ─────────────── components ─────────────── */
 
-function Th({ children }: { children: React.ReactNode }) {
-  return <th className="px-6 py-3 text-left font-medium">{children}</th>;
+function Th({
+  children,
+  align,
+}: {
+  children: React.ReactNode;
+  align?: 'right';
+}) {
+  return (
+    <th
+      className={`px-6 py-3 ${align === 'right' ? 'text-right' : 'text-left'} font-medium`}
+    >
+      {children}
+    </th>
+  );
 }
 
-function Td({ children }: { children: React.ReactNode }) {
-  return <td className="px-6 py-4 align-middle">{children}</td>;
+function Td({
+  children,
+  align,
+}: {
+  children: React.ReactNode;
+  align?: 'right';
+}) {
+  return (
+    <td
+      className={`px-6 py-4 align-middle ${align === 'right' ? 'text-right' : ''}`}
+    >
+      {children}
+    </td>
+  );
 }

@@ -69,7 +69,8 @@ export function PlatformOrganizationsPage() {
           </div>
         </div>
 
-        <table className="w-full text-sm">
+        <div className="scrollbar-thin overflow-x-auto">
+        <table className="w-full min-w-[820px] text-sm">
           <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
               <Th>Organization</Th>
@@ -178,6 +179,7 @@ export function PlatformOrganizationsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       {showCreate && (

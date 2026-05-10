@@ -156,7 +156,6 @@ function LimitsCard({
   workspace,
 }: {
   workspace: {
-    maxMembers: number;
     maxResources: number;
     memberCount: number;
   };
@@ -170,11 +169,6 @@ function LimitsCard({
         </p>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <LimitTile
-          label="Members"
-          current={workspace.memberCount}
-          cap={workspace.maxMembers}
-        />
         <LimitTile label="Files" current={null} cap={workspace.maxResources} />
       </div>
     </section>

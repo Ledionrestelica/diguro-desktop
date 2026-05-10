@@ -70,11 +70,11 @@ const ConfigSchema = z.object({
    */
   RESEND_API_KEY: z.string().optional(),
   /**
-   * From-address for transactional mail. Must be a verified Resend domain
-   * in prod. Dev default `onboarding@resend.dev` only delivers to the
-   * account owner's email (good enough for local smoke tests).
+   * From-address for transactional mail. Defaults to our verified Resend
+   * domain (`diguro.se`) so deployments don't need to configure it.
+   * Override only in dev / test where the verified sender doesn't exist.
    */
-  INVITE_EMAIL_FROM: z.string().default('Diguro <onboarding@resend.dev>'),
+  INVITE_EMAIL_FROM: z.string().default('Diguro <invites@diguro.se>'),
   /**
    * Public URL of the web-companion app — used as the base for invite
    * links embedded in email. The web app owns the accept-invite flow

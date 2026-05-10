@@ -62,7 +62,8 @@ export function TokenUsagePage() {
               </p>
             </div>
           </div>
-          <table className="w-full text-sm">
+          <div className="scrollbar-thin overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
             <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
               <tr>
                 <Th>Type</Th>
@@ -107,6 +108,7 @@ export function TokenUsagePage() {
               ))}
             </tbody>
           </table>
+          </div>
         </section>
 
         <section className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
@@ -121,7 +123,8 @@ export function TokenUsagePage() {
               </p>
             </div>
           </div>
-          <table className="w-full text-sm">
+          <div className="scrollbar-thin overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
             <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
               <tr>
                 <Th>User</Th>
@@ -179,6 +182,7 @@ export function TokenUsagePage() {
               ))}
             </tbody>
           </table>
+          </div>
         </section>
 
         <section className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
@@ -190,7 +194,8 @@ export function TokenUsagePage() {
               </p>
             </div>
           </div>
-          <table className="w-full text-sm">
+          <div className="scrollbar-thin overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
             <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
               <tr>
                 <Th>When</Th>
@@ -238,6 +243,7 @@ export function TokenUsagePage() {
               ))}
             </tbody>
           </table>
+          </div>
         </section>
       </div>
     </AdminPageBody>

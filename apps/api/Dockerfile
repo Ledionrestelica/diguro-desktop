@@ -49,13 +49,19 @@ COPY --from=build /app/apps/api ./apps/api
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
-RUN chown -R bun:bun /app
+# Make the start script executable inside the image. We chmod here (not
+# in the deps stage) so the file mode survives the COPY into runtime
+# regardless of how the host filesystem represents the bit.
+RUN chmod +x /app/apps/api/scripts/start.sh \
+ && chown -R bun:bun /app
 USER bun
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD curl -fsS http://127.0.0.1:${PORT:-3000}/health || exit 1
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["bun", "run", "apps/api/src/index.ts"]
+# The start script runs `drizzle migrate` then exec's the server. See
+# apps/api/scripts/start.sh for the rationale around concurrent rollouts.
+CMD ["/app/apps/api/scripts/start.sh"]

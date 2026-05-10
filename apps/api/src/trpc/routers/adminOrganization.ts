@@ -259,6 +259,13 @@ export const adminOrganizationRouter = router({
           maxMembers: schema.workspaces.maxMembers,
           maxResources: schema.workspaces.maxResources,
           createdAt: schema.workspaces.createdAt,
+          // Live member count via correlated subquery — cheap on the
+          // small workspaces tables we expect (≤100 per org). Saves a
+          // second round-trip from the admin UI.
+          memberCount: sql<number>`(
+            SELECT COUNT(*)::int FROM members m
+            WHERE m.workspace_id = workspaces.id
+          )`,
         })
         .from(schema.workspaces)
         .where(eq(schema.workspaces.organizationId, ctx.organization.id))
@@ -278,6 +285,228 @@ export const adminOrganizationRouter = router({
       throw mapDomainError(err);
     }
   }),
+
+  /**
+   * List members of a specific workspace. Org-admin scoped — verifies
+   * the workspace belongs to the caller's organization before returning.
+   * Powers the admin's per-workspace member panel.
+   */
+  workspaceMembersList: organizationAdminProcedure
+    .input(z.object({ workspaceId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const wsRows = await ctx.db
+          .select({ id: schema.workspaces.id })
+          .from(schema.workspaces)
+          .where(
+            and(
+              eq(schema.workspaces.id, input.workspaceId),
+              eq(schema.workspaces.organizationId, ctx.organization.id),
+            ),
+          )
+          .limit(1);
+        if (!wsRows[0]) throw new ResourceNotFound(input.workspaceId);
+
+        const rows = await ctx.db
+          .select({
+            memberId: schema.members.id,
+            userId: schema.users.id,
+            email: schema.users.email,
+            name: schema.users.name,
+            role: schema.members.role,
+            joinedAt: schema.members.createdAt,
+          })
+          .from(schema.members)
+          .innerJoin(schema.users, eq(schema.users.id, schema.members.userId))
+          .where(eq(schema.members.workspaceId, input.workspaceId))
+          .orderBy(asc(schema.members.createdAt));
+        return rows;
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  /**
+   * List users in the org who are NOT yet members of the given workspace.
+   * Used by the "Add member" picker. Filters by org membership so we
+   * never surface users from another tenant.
+   */
+  workspaceAddableUsers: organizationAdminProcedure
+    .input(z.object({ workspaceId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const wsRows = await ctx.db
+          .select({ id: schema.workspaces.id })
+          .from(schema.workspaces)
+          .where(
+            and(
+              eq(schema.workspaces.id, input.workspaceId),
+              eq(schema.workspaces.organizationId, ctx.organization.id),
+            ),
+          )
+          .limit(1);
+        if (!wsRows[0]) throw new ResourceNotFound(input.workspaceId);
+
+        const rows = await ctx.db
+          .select({
+            id: schema.users.id,
+            email: schema.users.email,
+            name: schema.users.name,
+            role: schema.users.role,
+          })
+          .from(schema.users)
+          .where(
+            and(
+              eq(schema.users.organizationId, ctx.organization.id),
+              sql`NOT EXISTS (
+                SELECT 1 FROM members m
+                WHERE m.user_id = ${schema.users.id}
+                  AND m.workspace_id = ${input.workspaceId}
+              )`,
+            ),
+          )
+          .orderBy(asc(schema.users.email));
+        return rows;
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  workspaceMemberAdd: organizationAdminProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().min(1),
+        userId: z.string().min(1),
+        role: z.enum(['OWNER', 'ADMIN', 'MEMBER']),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Verify both the workspace and the target user belong to this
+        // org. Without this, an org admin could add foreign-org users to
+        // their workspaces, leaking access across tenants.
+        const wsRows = await ctx.db
+          .select({ id: schema.workspaces.id })
+          .from(schema.workspaces)
+          .where(
+            and(
+              eq(schema.workspaces.id, input.workspaceId),
+              eq(schema.workspaces.organizationId, ctx.organization.id),
+            ),
+          )
+          .limit(1);
+        if (!wsRows[0]) throw new ResourceNotFound(input.workspaceId);
+
+        const userRows = await ctx.db
+          .select({ id: schema.users.id })
+          .from(schema.users)
+          .where(
+            and(
+              eq(schema.users.id, input.userId),
+              eq(schema.users.organizationId, ctx.organization.id),
+            ),
+          )
+          .limit(1);
+        if (!userRows[0]) {
+          throw new Forbidden('User does not belong to this organization');
+        }
+
+        // Unique index on (workspace, user) makes this an upsert via
+        // ON CONFLICT DO NOTHING — re-adding an existing member silently
+        // succeeds. The role is NOT updated on conflict; admins use
+        // workspaceMemberSetRole for that, intentional separate action.
+        await ctx.db
+          .insert(schema.members)
+          .values({
+            id: crypto.randomUUID(),
+            workspaceId: input.workspaceId,
+            userId: input.userId,
+            role: input.role,
+          })
+          .onConflictDoNothing({
+            target: [schema.members.workspaceId, schema.members.userId],
+          });
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  workspaceMemberRemove: organizationAdminProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().min(1),
+        memberId: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const wsRows = await ctx.db
+          .select({ id: schema.workspaces.id })
+          .from(schema.workspaces)
+          .where(
+            and(
+              eq(schema.workspaces.id, input.workspaceId),
+              eq(schema.workspaces.organizationId, ctx.organization.id),
+            ),
+          )
+          .limit(1);
+        if (!wsRows[0]) throw new ResourceNotFound(input.workspaceId);
+
+        const res = await ctx.db
+          .delete(schema.members)
+          .where(
+            and(
+              eq(schema.members.id, input.memberId),
+              eq(schema.members.workspaceId, input.workspaceId),
+            ),
+          )
+          .returning({ id: schema.members.id });
+        if (res.length === 0) throw new ResourceNotFound(input.memberId);
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  workspaceMemberSetRole: organizationAdminProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().min(1),
+        memberId: z.string().min(1),
+        role: z.enum(['OWNER', 'ADMIN', 'MEMBER']),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const wsRows = await ctx.db
+          .select({ id: schema.workspaces.id })
+          .from(schema.workspaces)
+          .where(
+            and(
+              eq(schema.workspaces.id, input.workspaceId),
+              eq(schema.workspaces.organizationId, ctx.organization.id),
+            ),
+          )
+          .limit(1);
+        if (!wsRows[0]) throw new ResourceNotFound(input.workspaceId);
+
+        const res = await ctx.db
+          .update(schema.members)
+          .set({ role: input.role })
+          .where(
+            and(
+              eq(schema.members.id, input.memberId),
+              eq(schema.members.workspaceId, input.workspaceId),
+            ),
+          )
+          .returning({ id: schema.members.id });
+        if (res.length === 0) throw new ResourceNotFound(input.memberId);
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
 
   workspaceCreate: organizationAdminProcedure
     .input(
@@ -671,7 +900,7 @@ export const adminOrganizationRouter = router({
   invitesList: organizationAdminProcedure.query(async ({ ctx }) => {
     try {
       return await listOrgInvitations(
-        { db: ctx.db },
+        { db: ctx.db, appBaseUrl: ctx.config.APP_BASE_URL },
         { organizationId: ctx.organization.id },
       );
     } catch (err) {

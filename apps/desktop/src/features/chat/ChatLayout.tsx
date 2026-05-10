@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { UIMessage } from 'ai';
 import { X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
@@ -52,6 +52,16 @@ export function ChatLayout() {
   // early-return to AFTER every other hook has been called below, so
   // hook count stays stable across the loading → loaded transition.
   const isSuperadminBlocked = useIsSuperadminBlocked();
+
+  // Brand-new users who just signed up have no organization and no
+  // workspace yet. Without this gate they land on /chat with an empty
+  // sidebar + workspace rail, which looks broken — bounce them to
+  // /workspaces, where the EmptyState explains they need an admin to
+  // add them. Same applies to users whose admin removed their org/ws
+  // assignment while they were active.
+  const meQuery = trpc.health.me.useQuery();
+  const meLoaded = !meQuery.isLoading && meQuery.data != null;
+  const hasNoWorkspace = meLoaded && meQuery.data?.activeWorkspaceId == null;
 
   const { chatId: paramChatId } = useParams();
   const navigate = useNavigate();
@@ -192,6 +202,10 @@ export function ChatLayout() {
 
   // Bounce superadmins to the platform tier (post-hooks early return).
   if (isSuperadminBlocked) return <RedirectToPlatform />;
+  // Bounce users with no active workspace to the picker — see comment
+  // up top. We wait for the me query to load so we don't redirect on
+  // the first-render flash before the cached value arrives.
+  if (hasNoWorkspace) return <Navigate to="/workspaces" replace />;
 
   return (
     <div className="relative flex h-screen overflow-hidden bg-[#fafafa] text-foreground">

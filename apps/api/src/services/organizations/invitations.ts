@@ -28,6 +28,11 @@ export interface OrgInvitationRow {
   role: OrgInviteRole;
   status: string;
   token: string;
+  /** Pre-computed accept URL (uses server's APP_BASE_URL). The client
+   *  shouldn't try to build this from `window.location.origin` — that's
+   *  `app://` / `file://` when the admin is on desktop, which can't be
+   *  opened in a browser. */
+  acceptUrl: string;
   expiresAt: Date;
   createdAt: Date;
   acceptedAt: Date | null;
@@ -45,6 +50,12 @@ export interface CreateInviteInput {
 export interface CreateInviteResult {
   id: string;
   token: string;
+  /** Full accept URL the recipient should open. Generated server-side
+   *  from `APP_BASE_URL` (the web app) so the link works regardless of
+   *  whether the admin who created it is using the desktop or the web
+   *  client — `window.location.origin` on desktop is `app://`/`file://`
+   *  which can't be opened in a browser. */
+  acceptUrl: string;
   expiresAt: Date;
   /** True when the invitation email was successfully dispatched. False
    *  means the row is persisted but delivery failed — the admin can still
@@ -162,18 +173,22 @@ export async function createOrgInvitation(
     emailError = 'Email provider not configured (RESEND_API_KEY missing) — copy the invite link manually.';
   }
 
-  return { id, token, expiresAt, emailSent, emailError };
+  return { id, token, acceptUrl: buildAcceptUrl(deps.appBaseUrl, token), expiresAt, emailSent, emailError };
 }
 
 function buildAcceptUrl(appBaseUrl: string, token: string): string {
-  // Hash router path — matches the desktop router. Both the Vite dev
-  // server and packaged Electron resolve `#/accept-invite/<token>`.
+  // Browser-router path. The web app uses createBrowserRouter so a
+  // `/#/accept-invite/...` URL ends up matching `/` (the hash is
+  // discarded) which redirects to /workspaces — invitee gets stuck.
+  // The desktop's HashRouter still handles `/accept-invite/<token>`
+  // correctly because it interprets the URL fragment, but invite
+  // links are always opened in a browser anyway, so we target web.
   const trimmed = appBaseUrl.replace(/\/+$/, '');
-  return `${trimmed}/#/accept-invite/${token}`;
+  return `${trimmed}/accept-invite/${token}`;
 }
 
 export async function listOrgInvitations(
-  deps: { db: Db },
+  deps: { db: Db; appBaseUrl: string },
   input: { organizationId: string },
 ): Promise<OrgInvitationRow[]> {
   const rows = await deps.db
@@ -219,6 +234,7 @@ export async function listOrgInvitations(
     ...r,
     role: r.role as OrgInviteRole,
     status: staleIds.includes(r.id) ? 'expired' : r.status,
+    acceptUrl: buildAcceptUrl(deps.appBaseUrl, r.token),
   }));
 }
 

@@ -39,7 +39,8 @@ export function AuditLogPage() {
           </select>
         </div>
 
-        <table className="w-full text-sm">
+        <div className="scrollbar-thin overflow-x-auto">
+        <table className="w-full min-w-[820px] text-sm">
           <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
               <Th>When</Th>
@@ -83,6 +84,7 @@ export function AuditLogPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
     </AdminPageBody>
   );
