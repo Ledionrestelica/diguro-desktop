@@ -258,7 +258,7 @@ export const adminPlatformRouter = router({
           // on next render. Same logic as the membership cleanup above.
           await tx.execute(sql`
             UPDATE ${schema.sessions}
-            SET active_workspace_id = NULL
+            SET active_organization_id = NULL
             WHERE ${schema.sessions.userId} = ${input.userId}
               AND ${schema.sessions.activeWorkspaceId} IS NOT NULL
               AND ${schema.sessions.activeWorkspaceId} IN (

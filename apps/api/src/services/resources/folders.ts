@@ -202,3 +202,207 @@ async function assertNoCycle(
     cursor = byId.get(cursor)?.parentId ?? null;
   }
 }
+
+/* ============================================================
+ * Workspace-scoped folder operations.
+ *
+ * Mirrors the organization variants above but scoped by `workspaceId`.
+ * The `fileFolders` table already supports polymorphic scope (organization
+ * / workspace / user) via a CHECK constraint that enforces exactly one is
+ * set, so the same schema rows are used — only the WHERE clauses differ.
+ * ============================================================ */
+
+export interface WorkspaceFolderRow {
+  id: string;
+  name: string;
+  parentId: string | null;
+  createdAt: Date;
+}
+
+export async function listWorkspaceFolders(
+  deps: { db: Db },
+  input: { workspaceId: string },
+): Promise<WorkspaceFolderRow[]> {
+  return deps.db
+    .select({
+      id: schema.fileFolders.id,
+      name: schema.fileFolders.name,
+      parentId: schema.fileFolders.parentId,
+      createdAt: schema.fileFolders.createdAt,
+    })
+    .from(schema.fileFolders)
+    .where(eq(schema.fileFolders.workspaceId, input.workspaceId))
+    .orderBy(asc(schema.fileFolders.name));
+}
+
+export async function createWorkspaceFolder(
+  deps: { db: Db },
+  input: { workspaceId: string; name: string; parentId: string | null },
+): Promise<{ id: string }> {
+  if (input.parentId) {
+    await assertFolderInWorkspace(deps, {
+      workspaceId: input.workspaceId,
+      folderId: input.parentId,
+    });
+  }
+  const id = crypto.randomUUID();
+  await deps.db.insert(schema.fileFolders).values({
+    id,
+    workspaceId: input.workspaceId,
+    name: input.name.trim(),
+    parentId: input.parentId,
+  });
+  return { id };
+}
+
+export async function renameWorkspaceFolder(
+  deps: { db: Db },
+  input: { workspaceId: string; folderId: string; name: string },
+): Promise<void> {
+  const res = await deps.db
+    .update(schema.fileFolders)
+    .set({ name: input.name.trim() })
+    .where(
+      and(
+        eq(schema.fileFolders.id, input.folderId),
+        eq(schema.fileFolders.workspaceId, input.workspaceId),
+      ),
+    )
+    .returning({ id: schema.fileFolders.id });
+  if (res.length === 0) throw new ResourceNotFound(input.folderId);
+}
+
+export async function moveWorkspaceFolder(
+  deps: { db: Db },
+  input: { workspaceId: string; folderId: string; parentId: string | null },
+): Promise<void> {
+  if (input.parentId === input.folderId) {
+    throw new Forbidden('A folder cannot be its own parent');
+  }
+  await assertFolderInWorkspace(deps, {
+    workspaceId: input.workspaceId,
+    folderId: input.folderId,
+  });
+  if (input.parentId) {
+    await assertFolderInWorkspace(deps, {
+      workspaceId: input.workspaceId,
+      folderId: input.parentId,
+    });
+    await assertNoWorkspaceCycle(deps, {
+      workspaceId: input.workspaceId,
+      folderId: input.folderId,
+      newParentId: input.parentId,
+    });
+  }
+  await deps.db
+    .update(schema.fileFolders)
+    .set({ parentId: input.parentId })
+    .where(
+      and(
+        eq(schema.fileFolders.id, input.folderId),
+        eq(schema.fileFolders.workspaceId, input.workspaceId),
+      ),
+    );
+}
+
+export async function deleteWorkspaceFolder(
+  deps: { db: Db },
+  input: { workspaceId: string; folderId: string },
+): Promise<void> {
+  const folder = await assertFolderInWorkspace(deps, {
+    workspaceId: input.workspaceId,
+    folderId: input.folderId,
+  });
+  await deps.db.transaction(async (tx) => {
+    await tx
+      .update(schema.resources)
+      .set({ folderId: folder.parentId })
+      .where(
+        and(
+          eq(schema.resources.workspaceId, input.workspaceId),
+          eq(schema.resources.folderId, input.folderId),
+        ),
+      );
+    await tx
+      .update(schema.fileFolders)
+      .set({ parentId: folder.parentId })
+      .where(
+        and(
+          eq(schema.fileFolders.workspaceId, input.workspaceId),
+          eq(schema.fileFolders.parentId, input.folderId),
+        ),
+      );
+    await tx
+      .delete(schema.fileFolders)
+      .where(
+        and(
+          eq(schema.fileFolders.id, input.folderId),
+          eq(schema.fileFolders.workspaceId, input.workspaceId),
+        ),
+      );
+  });
+}
+
+export async function ensureWorkspaceFolder(
+  deps: { db: Db },
+  input: { workspaceId: string; name: string; parentId: string | null },
+): Promise<{ id: string }> {
+  const trimmed = input.name.trim();
+  const existing = await deps.db
+    .select({ id: schema.fileFolders.id })
+    .from(schema.fileFolders)
+    .where(
+      and(
+        eq(schema.fileFolders.workspaceId, input.workspaceId),
+        eq(schema.fileFolders.name, trimmed),
+        input.parentId
+          ? eq(schema.fileFolders.parentId, input.parentId)
+          : isNull(schema.fileFolders.parentId),
+      ),
+    )
+    .limit(1);
+  const hit = existing[0];
+  if (hit) return { id: hit.id };
+  return createWorkspaceFolder(deps, {
+    workspaceId: input.workspaceId,
+    name: trimmed,
+    parentId: input.parentId,
+  });
+}
+
+async function assertFolderInWorkspace(
+  deps: { db: Db },
+  input: { workspaceId: string; folderId: string },
+): Promise<{ id: string; parentId: string | null }> {
+  const rows = await deps.db
+    .select({ id: schema.fileFolders.id, parentId: schema.fileFolders.parentId })
+    .from(schema.fileFolders)
+    .where(
+      and(
+        eq(schema.fileFolders.id, input.folderId),
+        eq(schema.fileFolders.workspaceId, input.workspaceId),
+      ),
+    )
+    .limit(1);
+  const row = rows[0];
+  if (!row) throw new ResourceNotFound(input.folderId);
+  return row;
+}
+
+async function assertNoWorkspaceCycle(
+  deps: { db: Db },
+  input: { workspaceId: string; folderId: string; newParentId: string },
+): Promise<void> {
+  const all = await listWorkspaceFolders(deps, { workspaceId: input.workspaceId });
+  const byId = new Map(all.map((f) => [f.id, f]));
+  let cursor: string | null | undefined = input.newParentId;
+  const seen = new Set<string>();
+  while (cursor) {
+    if (cursor === input.folderId) {
+      throw new Forbidden('Cannot move a folder into its own descendant');
+    }
+    if (seen.has(cursor)) return;
+    seen.add(cursor);
+    cursor = byId.get(cursor)?.parentId ?? null;
+  }
+}

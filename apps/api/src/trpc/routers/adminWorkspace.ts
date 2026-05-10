@@ -9,6 +9,24 @@ import {
   presignWorkspaceLogo,
   resolveWorkspaceLogoUrl,
 } from '../../services/workspaces/attachments.ts';
+import { MAX_RESOURCE_BYTES } from '../../services/resources/organizationFiles.ts';
+import {
+  confirmWorkspaceResourceReplace,
+  confirmWorkspaceResourceUpload,
+  initiateWorkspaceResourceReplace,
+  initiateWorkspaceResourceUpload,
+  listWorkspaceResources,
+  moveWorkspaceResource,
+  removeWorkspaceResource,
+} from '../../services/resources/workspaceFiles.ts';
+import {
+  createWorkspaceFolder,
+  deleteWorkspaceFolder,
+  ensureWorkspaceFolder,
+  listWorkspaceFolders,
+  moveWorkspaceFolder,
+  renameWorkspaceFolder,
+} from '../../services/resources/folders.ts';
 
 const LogoUrlShape = z
   .string()
@@ -250,6 +268,283 @@ export const adminWorkspaceRouter = router({
         }
 
         await ctx.db.delete(schema.members).where(eq(schema.members.id, target.id));
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  /* === Workspace files === */
+
+  filesList: workspaceAdminProcedure
+    .input(
+      z
+        .object({
+          search: z.string().max(120).optional(),
+          folderId: z.string().min(1).nullable().optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        return await listWorkspaceResources(
+          { db: ctx.db },
+          {
+            workspaceId: ctx.workspace.id,
+            ...(input?.search ? { search: input.search } : {}),
+            ...(input && 'folderId' in input ? { folderId: input.folderId ?? null } : {}),
+          },
+        );
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  filesInitiateUpload: workspaceAdminProcedure
+    .input(
+      z.object({
+        filename: z.string().min(1).max(255),
+        contentType: z.string().min(1).max(255),
+        contentLength: z.number().int().positive().max(MAX_RESOURCE_BYTES),
+        folderId: z.string().min(1).nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await initiateWorkspaceResourceUpload(
+          { db: ctx.db, objectStore: ctx.objectStore },
+          {
+            workspaceId: ctx.workspace.id,
+            uploaderId: ctx.user.id,
+            filename: input.filename,
+            contentType: input.contentType,
+            contentLength: input.contentLength,
+            folderId: input.folderId ?? null,
+          },
+        );
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  filesConfirmUpload: workspaceAdminProcedure
+    .input(z.object({ versionId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await confirmWorkspaceResourceUpload(
+          { db: ctx.db, queue: ctx.queue, logger: ctx.logger },
+          {
+            workspaceId: ctx.workspace.id,
+            versionId: input.versionId,
+            actorUserId: ctx.user.id,
+          },
+        );
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  filesRemove: workspaceAdminProcedure
+    .input(z.object({ resourceId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await removeWorkspaceResource(
+          { db: ctx.db, objectStore: ctx.objectStore, logger: ctx.logger },
+          {
+            workspaceId: ctx.workspace.id,
+            resourceId: input.resourceId,
+            actorUserId: ctx.user.id,
+          },
+        );
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  filesInitiateReplace: workspaceAdminProcedure
+    .input(
+      z.object({
+        resourceId: z.string().min(1),
+        filename: z.string().min(1).max(255),
+        contentType: z.string().min(1).max(255),
+        contentLength: z.number().int().positive().max(MAX_RESOURCE_BYTES),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await initiateWorkspaceResourceReplace(
+          { db: ctx.db, objectStore: ctx.objectStore },
+          {
+            workspaceId: ctx.workspace.id,
+            uploaderId: ctx.user.id,
+            resourceId: input.resourceId,
+            filename: input.filename,
+            contentType: input.contentType,
+            contentLength: input.contentLength,
+          },
+        );
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  filesConfirmReplace: workspaceAdminProcedure
+    .input(z.object({ versionId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await confirmWorkspaceResourceReplace(
+          { db: ctx.db, queue: ctx.queue, logger: ctx.logger },
+          {
+            workspaceId: ctx.workspace.id,
+            versionId: input.versionId,
+            actorUserId: ctx.user.id,
+          },
+        );
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  filesMove: workspaceAdminProcedure
+    .input(
+      z.object({
+        resourceId: z.string().min(1),
+        folderId: z.string().min(1).nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await moveWorkspaceResource(
+          { db: ctx.db },
+          {
+            workspaceId: ctx.workspace.id,
+            resourceId: input.resourceId,
+            folderId: input.folderId,
+          },
+        );
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  /* === Workspace folders === */
+
+  foldersList: workspaceAdminProcedure.query(async ({ ctx }) => {
+    try {
+      return await listWorkspaceFolders(
+        { db: ctx.db },
+        { workspaceId: ctx.workspace.id },
+      );
+    } catch (err) {
+      throw mapDomainError(err);
+    }
+  }),
+
+  folderCreate: workspaceAdminProcedure
+    .input(
+      z.object({
+        name: z.string().min(1).max(120),
+        parentId: z.string().min(1).nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await createWorkspaceFolder(
+          { db: ctx.db },
+          {
+            workspaceId: ctx.workspace.id,
+            name: input.name,
+            parentId: input.parentId ?? null,
+          },
+        );
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  folderEnsure: workspaceAdminProcedure
+    .input(
+      z.object({
+        name: z.string().min(1).max(120),
+        parentId: z.string().min(1).nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await ensureWorkspaceFolder(
+          { db: ctx.db },
+          {
+            workspaceId: ctx.workspace.id,
+            name: input.name,
+            parentId: input.parentId ?? null,
+          },
+        );
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  folderRename: workspaceAdminProcedure
+    .input(
+      z.object({
+        folderId: z.string().min(1),
+        name: z.string().min(1).max(120),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await renameWorkspaceFolder(
+          { db: ctx.db },
+          {
+            workspaceId: ctx.workspace.id,
+            folderId: input.folderId,
+            name: input.name,
+          },
+        );
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  folderMove: workspaceAdminProcedure
+    .input(
+      z.object({
+        folderId: z.string().min(1),
+        parentId: z.string().min(1).nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await moveWorkspaceFolder(
+          { db: ctx.db },
+          {
+            workspaceId: ctx.workspace.id,
+            folderId: input.folderId,
+            parentId: input.parentId,
+          },
+        );
+        return { ok: true as const };
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  folderDelete: workspaceAdminProcedure
+    .input(z.object({ folderId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await deleteWorkspaceFolder(
+          { db: ctx.db },
+          {
+            workspaceId: ctx.workspace.id,
+            folderId: input.folderId,
+          },
+        );
         return { ok: true as const };
       } catch (err) {
         throw mapDomainError(err);

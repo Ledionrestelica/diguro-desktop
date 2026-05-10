@@ -8,6 +8,7 @@ import { PlatformAdminLayout } from '@/features/admin/PlatformAdminLayout';
 import { GeneralSettingsPage } from '@/features/admin/pages/GeneralSettingsPage';
 import { OrganizationGeneralSettingsPage } from '@/features/admin/pages/OrganizationGeneralSettingsPage';
 import { OrganizationFilesPage } from '@/features/admin/pages/OrganizationFilesPage';
+import { WorkspaceFilesPage } from '@/features/admin/pages/WorkspaceFilesPage';
 import { PersonalFilesPage } from '@/features/files/PersonalFilesPage';
 import { TokenUsagePage } from '@/features/admin/pages/TokenUsagePage';
 import { AuditLogPage } from '@/features/admin/pages/AuditLogPage';
@@ -125,6 +126,7 @@ export const router = createHashRouter([
         children: [
           { index: true, element: <Navigate to="/admin/workspace/general" replace /> },
           { path: 'general', element: <GeneralSettingsPage /> },
+          { path: 'files', element: <WorkspaceFilesPage /> },
           {
             path: 'ai-customization',
             element: (

@@ -35,6 +35,10 @@ export type RetrievalToolDeps = {
   rerankProvider: RerankProvider | null;
   logger: Logger;
   scope: SearchScope;
+  /** When set, retrieval is constrained to these resource ids. Drives the
+   *  chat # mention feature — the user picks one file and the model only
+   *  sees chunks from that file. Empty / undefined = unconstrained. */
+  resourceIds?: string[];
   /** Context used for usage-row attribution. */
   telemetry: {
     userId: string;
@@ -55,14 +59,22 @@ export interface RetrievalToolResult {
 }
 
 export function createRetrievalTool(deps: RetrievalToolDeps): Tool {
+  const focused = (deps.resourceIds?.length ?? 0) > 0;
   return tool({
-    description: [
-      'Search the organization knowledge base for information relevant to a query.',
-      'Use whenever the user asks about their uploaded files, contracts,',
-      'policies, meeting minutes, or any org-specific information.',
-      'Cite the chunkId of each passage you reference in your answer using',
-      'the format [cite:chunkId].',
-    ].join(' '),
+    description: focused
+      ? [
+          'Search ONE specific document the user just pinned via a # mention.',
+          'All retrieval results come from that single file — use this tool',
+          'to find the passages relevant to the user\'s question within it.',
+          'Cite the chunkId of each passage you reference using [cite:chunkId].',
+        ].join(' ')
+      : [
+          'Search the organization knowledge base for information relevant to a query.',
+          'Use whenever the user asks about their uploaded files, contracts,',
+          'policies, meeting minutes, or any org-specific information.',
+          'Cite the chunkId of each passage you reference in your answer using',
+          'the format [cite:chunkId].',
+        ].join(' '),
     inputSchema: SearchInput,
     execute: async ({ query }): Promise<RetrievalToolResult> => {
       const results = await searchAndRerank(
@@ -76,6 +88,9 @@ export function createRetrievalTool(deps: RetrievalToolDeps): Tool {
           queryText: query,
           scope: deps.scope,
           topK: 8,
+          ...(deps.resourceIds && deps.resourceIds.length > 0
+            ? { resourceIds: deps.resourceIds }
+            : {}),
           onUsage: (usage, kind) =>
             recordUsage(
               { db: deps.db, logger: deps.logger },

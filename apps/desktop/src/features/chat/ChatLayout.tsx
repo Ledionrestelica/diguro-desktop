@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Outlet, useNavigate, useParams } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { UIMessage } from 'ai';
+import { X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useIsSuperadminBlocked, RedirectToPlatform } from '@/lib/role-gate';
+import { useMediaQuery } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 import { ChatSidebar } from './ChatSidebar';
 import { TopBar } from './TopBar';
 import { WorkspaceRail } from './WorkspaceRail';
@@ -29,7 +32,7 @@ export interface ChatOutletContext {
   /** The scope this conversation's retrieval tool searches. Null for a
    *  brand-new chat with no conversation row yet — composer uses its own
    *  default and the server locks it on first message. */
-  conversationScope: 'organization' | 'user' | null;
+  conversationScope: 'organization' | 'workspace' | 'user' | null;
   /** Server-enforced: once the conversation has any message, scope is
    *  locked. Composer surfaces this with a lock indicator. */
   scopeLocked: boolean;
@@ -97,6 +100,10 @@ export function ChatLayout() {
       // needs to re-fetch to include the just-persisted assistant message
       // for the next visit.
       void utils.conversations.get.invalidate({ id: chatId });
+      // Refresh the spending cap snapshot so the composer's pre-send
+      // banner reflects the cost just incurred. Otherwise the user only
+      // learns they're over-cap on the NEXT send (server returns 4xx).
+      void utils.health.usageSnapshot.invalidate();
 
       // Fallback re-invalidation: AI-generated titles run in parallel with
       // streaming on the server. They usually finish first, but if the
@@ -169,15 +176,62 @@ export function ChatLayout() {
       session.messages.length > 0,
   };
 
+  // Sidebar collapses into a drawer below 700px viewport width. The
+  // workspace rail stays visible because it's narrow (and the only way to
+  // switch workspaces from inside chat).
+  const isNarrow = useMediaQuery('(max-width: 700px)');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  // Auto-close the drawer when the route changes on narrow screens — clicking
+  // a conversation should drop you back to the chat pane, not leave the
+  // overlay covering it.
+  useEffect(() => {
+    if (isNarrow) setSidebarOpen(false);
+  }, [location.pathname, isNarrow]);
+
   // Bounce superadmins to the platform tier (post-hooks early return).
   if (isSuperadminBlocked) return <RedirectToPlatform />;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#fafafa] text-foreground">
+    <div className="relative flex h-screen overflow-hidden bg-[#fafafa] text-foreground">
       <WorkspaceRail />
-      <ChatSidebar activeChatId={paramChatId ?? null} />
+
+      {isNarrow ? (
+        <>
+          {sidebarOpen && (
+            <button
+              type="button"
+              aria-label="Close sidebar"
+              onClick={() => setSidebarOpen(false)}
+              className="absolute inset-0 z-40 bg-black/30"
+            />
+          )}
+          <div
+            className={cn(
+              'absolute inset-y-0 left-0 z-50 shadow-2xl transition-transform duration-200 ease-out',
+              sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+            )}
+          >
+            <ChatSidebar activeChatId={paramChatId ?? null} />
+            <button
+              type="button"
+              aria-label="Close sidebar"
+              onClick={() => setSidebarOpen(false)}
+              className="absolute right-2 top-2 grid size-8 place-items-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        </>
+      ) : (
+        <ChatSidebar activeChatId={paramChatId ?? null} />
+      )}
+
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <TopBar />
+        <TopBar
+          {...(isNarrow ? { onMenuClick: () => setSidebarOpen((v) => !v) } : {})}
+        />
         <div className="min-h-0 flex-1 overflow-hidden">
           <Outlet context={outletContext} />
         </div>

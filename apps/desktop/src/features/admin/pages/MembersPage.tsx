@@ -12,8 +12,10 @@ import { AdminPageBody } from '../AdminLayout';
  */
 export function MembersPage() {
   const utils = trpc.useUtils();
+  const meQuery = trpc.health.me.useQuery();
   const usersQuery = trpc.adminOrganization.usersList.useQuery();
   const invitesQuery = trpc.adminOrganization.invitesList.useQuery();
+  const myUserId = meQuery.data?.id ?? null;
 
   const inviteCreate = trpc.adminOrganization.inviteCreate.useMutation();
   const inviteRevoke = trpc.adminOrganization.inviteRevoke.useMutation();
@@ -147,41 +149,48 @@ export function MembersPage() {
                   </td>
                 </tr>
               )}
-              {users.map((u) => (
-                <tr key={u.id} className="border-t border-zinc-100">
-                  <Td bold>{u.name}</Td>
-                  <Td>{u.email}</Td>
-                  <Td>
-                    <select
-                      value={u.role}
-                      disabled={
-                        u.role === 'superadmin' || setRole.isPending
-                      }
-                      onChange={(e) =>
-                        handleChangeRole(u.id, e.target.value as 'user' | 'organization_admin')
-                      }
-                      className="rounded-[8px] border border-zinc-200 bg-white px-2 py-1 text-xs outline-none disabled:opacity-60"
-                    >
-                      <option value="user">User</option>
-                      <option value="organization_admin">Organization Admin</option>
-                      {u.role === 'superadmin' && (
-                        <option value="superadmin">Superadmin</option>
+              {users.map((u) => {
+                const isSelf = u.id === myUserId;
+                const locked = isSelf || u.role === 'superadmin';
+                return (
+                  <tr key={u.id} className="border-t border-zinc-100">
+                    <Td bold>
+                      {u.name}
+                      {isSelf && (
+                        <span className="ml-2 text-xs font-normal text-zinc-500">(you)</span>
                       )}
-                    </select>
-                  </Td>
-                  <Td align="right">
-                    <button
-                      type="button"
-                      disabled={removeUser.isPending || u.role === 'superadmin'}
-                      onClick={() => handleRemove(u.id)}
-                      className="inline-flex items-center gap-1.5 rounded-[8px] bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <Trash2 className="size-3" />
-                      Remove
-                    </button>
-                  </Td>
-                </tr>
-              ))}
+                    </Td>
+                    <Td>{u.email}</Td>
+                    <Td>
+                      <select
+                        value={u.role}
+                        disabled={locked || setRole.isPending}
+                        onChange={(e) =>
+                          handleChangeRole(u.id, e.target.value as 'user' | 'organization_admin')
+                        }
+                        className="rounded-[8px] border border-zinc-200 bg-white px-2 py-1 text-xs outline-none disabled:opacity-60"
+                      >
+                        <option value="user">User</option>
+                        <option value="organization_admin">Organization Admin</option>
+                        {u.role === 'superadmin' && (
+                          <option value="superadmin">Superadmin</option>
+                        )}
+                      </select>
+                    </Td>
+                    <Td align="right">
+                      <button
+                        type="button"
+                        disabled={locked || removeUser.isPending}
+                        onClick={() => handleRemove(u.id)}
+                        className="inline-flex items-center gap-1.5 rounded-[8px] bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Trash2 className="size-3" />
+                        Remove
+                      </button>
+                    </Td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </section>

@@ -46,13 +46,16 @@ export function Message({
   const sources = extractSources(parts);
   const searchState = extractSearchState(parts);
   const userFiles = role === 'user' ? extractFiles(parts) : [];
-  const userText = role === 'user' ? extractText(parts) : '';
+  const rawUserText = role === 'user' ? extractText(parts) : '';
+  const { pinName, body: userText } =
+    role === 'user' ? extractPinnedFile(rawUserText) : { pinName: null, body: '' };
 
   if (role === 'user') {
     return (
       <div className="flex justify-end">
         <div className="flex max-w-[520px] flex-col items-end gap-2">
           {userFiles.length > 0 && <AttachmentGrid files={userFiles} align="end" />}
+          {pinName && <PinnedFileChip name={pinName} />}
           {userText && (
             <div className="whitespace-pre-wrap rounded-[20px] bg-zinc-100 px-[18px] py-2.5 text-base leading-6 text-black">
               {userText}
@@ -591,6 +594,18 @@ function safeHostname(url: string): string {
 
 /* ---------------------- Attachments (user + assistant) ---------------------- */
 
+function PinnedFileChip({ name }: { name: string }) {
+  return (
+    <div
+      className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700"
+      title={`This message was scoped to ${name}`}
+    >
+      <FileText className="size-3.5" />
+      <span className="max-w-60 truncate">{name}</span>
+    </div>
+  );
+}
+
 function AttachmentGrid({ files, align }: { files: FileLikePart[]; align: 'start' | 'end' }) {
   return (
     <div
@@ -677,6 +692,24 @@ interface SourceLikePart {
 
 function extractText(parts: UIMessage['parts']): string {
   return parts.map((part) => (part.type === 'text' ? part.text : '')).join('');
+}
+
+/**
+ * The Composer prefixes user text with `Pinned: <filename>` when the
+ * user pinned a file via # mention. We pull that line back out at render
+ * time so the file shows as a chip element above the text bubble — same
+ * shape as attachments — instead of leaking into the message body.
+ *
+ * Format produced by the Composer:
+ *   "Pinned: <name>\n\n<body>"   (when both text + pin)
+ *   "Pinned: <name>"             (pin only)
+ */
+const PINNED_PREFIX_RE = /^Pinned: ([^\n]+)(?:\n\n([\s\S]*))?$/;
+
+function extractPinnedFile(text: string): { pinName: string | null; body: string } {
+  const m = text.match(PINNED_PREFIX_RE);
+  if (!m) return { pinName: null, body: text };
+  return { pinName: (m[1] ?? '').trim(), body: (m[2] ?? '').trim() };
 }
 
 function extractFiles(parts: UIMessage['parts']): FileLikePart[] {

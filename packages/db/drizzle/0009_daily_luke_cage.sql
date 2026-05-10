@@ -1,0 +1,1 @@
+ALTER TYPE "public"."retrieval_scope" ADD VALUE 'workspace' BEFORE 'user';

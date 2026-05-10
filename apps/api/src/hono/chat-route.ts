@@ -40,7 +40,13 @@ const ChatRequestSchema = z.object({
    * first-create and then locked for the lifetime of the conversation.
    * Subsequent messages in the same chat reuse the stored value.
    */
-  retrievalScope: z.enum(['organization', 'user']).optional(),
+  retrievalScope: z.enum(['organization', 'workspace', 'user']).optional(),
+  /**
+   * # mention: per-turn list of resource ids the model's retrieval should
+   * be constrained to. v1 UI only ever sends 0 or 1, but the wire format
+   * accepts an array so multi-mention is a UI-only change later.
+   */
+  mentionedResourceIds: z.array(z.string().min(1)).max(5).optional(),
 });
 
 /**
@@ -50,6 +56,17 @@ const ChatRequestSchema = z.object({
  */
 const CHAT_SYSTEM_PROMPT_BASE = [
   'You are Diguro, a helpful assistant. Be concise.',
+  '',
+  '# Stay within your actual capabilities',
+  'Never offer to do things you cannot actually do. Do not say "if you want, I can email this", "I can set a reminder", "I can schedule a meeting", "I can save this to a file", "I can run this code for you", "I can monitor this for changes", "I can notify you when…", "I can update the document", "I can call this API", or any similar offer for actions outside your toolset.',
+  '',
+  'Your real capabilities in this app are:',
+  '- Read and answer from the user\'s uploaded documents (via the `search_documents` tool, when available).',
+  '- Look up live information on the public web (via `web_search`, when available — sparingly, see rules below).',
+  '- Render structured results inline using the generative UI tools listed below.',
+  '- Reason about, summarize, compare, translate, and rewrite text the user provides or that retrieval surfaces.',
+  '',
+  'You CANNOT: send messages or emails, schedule, set reminders or alerts, watch for changes, take actions in third-party systems, write or modify files in the user\'s storage, execute code, control the desktop, or do anything that requires acting outside this conversation. If a user asks for such a thing, say plainly that you can\'t do it in this app and suggest the closest thing you CAN do (e.g. "I can draft the email text for you to send" instead of "I\'ll email it"). Never end a turn with a suggestion that implies you\'ll do an unsupported action next.',
   '',
   '# Web search',
   'Web search (`web_search`) is available but expensive. Use it ONLY when:',
@@ -112,6 +129,12 @@ const RETRIEVAL_SYSTEM_PROMPT_ADDITION = [
   '- Do NOT pad with generic industry guidance when the user asked about THEIR docs and retrieval came up empty. Say you couldn\'t find it.',
 ].join('\n');
 
+const FOCUSED_FILE_PROMPT_ADDITION = [
+  '',
+  '# Focused on a single file',
+  'The user has pinned ONE specific document for this turn (via a # mention). Treat their question as being about that file. Always call `search_documents` first — retrieval is automatically restricted to chunks from the pinned file, so you cannot accidentally pull from elsewhere. If the file does not contain the answer, say so plainly rather than guessing.',
+].join('\n');
+
 interface Deps {
   auth: Auth;
   registry: ModelRegistry;
@@ -164,7 +187,11 @@ export function handleChat(deps: Deps) {
 
     const conversationId = parsed.data.id;
     const modelId = parsed.data.modelId ?? DEFAULT_CHAT_MODEL;
-    const requestedScope = parsed.data.retrievalScope ?? 'organization';
+    // Default for new conversations: workspace if the caller has one
+    // active, else organization. Mirrors the desktop's default — the
+    // server fallback only matters when the client omits the field.
+    const requestedScope =
+      parsed.data.retrievalScope ?? (activeWorkspaceId ? 'workspace' : 'organization');
     const messages = parsed.data.messages as UIMessage[];
 
     try {
@@ -233,21 +260,35 @@ export function handleChat(deps: Deps) {
       const uiTools = createUITools();
 
       // Retrieval tool is scope-bound per request. We close over the
-      // caller's org/user id so the model physically cannot query a
-      // different scope's files. `effectiveScope` comes from the
+      // caller's org/workspace/user id so the model physically cannot
+      // query a different scope's files. `effectiveScope` comes from the
       // conversation row — locked in on create, respected on every reply.
       const organizationId =
         (session.user as { organizationId?: string | null }).organizationId ?? null;
       const toolScope:
         | { kind: 'organization'; organizationId: string }
+        | { kind: 'workspace'; workspaceId: string; organizationId: string | null }
         | { kind: 'user'; userId: string }
         | null =
         effectiveScope === 'user'
           ? { kind: 'user', userId: session.user.id }
-          : organizationId
-            ? { kind: 'organization', organizationId }
-            : null;
+          : effectiveScope === 'workspace'
+            ? activeWorkspaceId
+              ? {
+                  kind: 'workspace',
+                  workspaceId: activeWorkspaceId,
+                  // Workspace scope rolls up org-wide files too, so the
+                  // model sees universal docs (HR, brand) alongside the
+                  // workspace's own. organizationId can be null for
+                  // legacy/edge cases — the SQL handles that.
+                  organizationId,
+                }
+              : null
+            : organizationId
+              ? { kind: 'organization', organizationId }
+              : null;
 
+      const mentionedResourceIds = parsed.data.mentionedResourceIds ?? [];
       const retrievalTools = toolScope
         ? {
             search_documents: createRetrievalTool({
@@ -256,6 +297,9 @@ export function handleChat(deps: Deps) {
               rerankProvider: deps.rerankProvider,
               logger: deps.logger,
               scope: toolScope,
+              ...(mentionedResourceIds.length > 0
+                ? { resourceIds: mentionedResourceIds }
+                : {}),
               telemetry: {
                 userId: session.user.id,
                 workspaceId: activeWorkspaceId,
@@ -269,9 +313,13 @@ export function handleChat(deps: Deps) {
 
       // Compose the system prompt. The retrieval addition only ships when
       // a retrieval tool is actually attached — mentioning it without one
-      // would confuse the model into claiming it can search.
+      // would confuse the model into claiming it can search. When the user
+      // has pinned a single file via #-mention, we add a stronger nudge so
+      // the model treats that file as the topic of the message.
       const systemPrompt = toolScope
-        ? CHAT_SYSTEM_PROMPT_BASE + RETRIEVAL_SYSTEM_PROMPT_ADDITION
+        ? CHAT_SYSTEM_PROMPT_BASE +
+          RETRIEVAL_SYSTEM_PROMPT_ADDITION +
+          (mentionedResourceIds.length > 0 ? FOCUSED_FILE_PROMPT_ADDITION : '')
         : CHAT_SYSTEM_PROMPT_BASE;
 
       deps.logger.info('chat request tools', {

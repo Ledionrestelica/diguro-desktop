@@ -64,6 +64,13 @@
       "when": 1776980810381,
       "tag": "0008_blue_jubilee",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1778339048616,
+      "tag": "0009_daily_luke_cage",
+      "breakpoints": true
     }
   ]
 }

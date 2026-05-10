@@ -15,7 +15,12 @@ import { sql, type Db } from '@diguro/db';
 
 export type SearchScope =
   | { kind: 'organization'; organizationId: string }
-  | { kind: 'workspace'; workspaceId: string }
+  /** Workspace scope is a UNION of the workspace's own files + the parent
+   *  organization's files. Lets a workspace chat surface org-wide docs
+   *  (HR policies, brand guidelines, common templates) alongside its own,
+   *  without having to switch the scope toggle. The organizationId is
+   *  required because no FK lookup happens in the SQL — caller resolves it. */
+  | { kind: 'workspace'; workspaceId: string; organizationId: string | null }
   | { kind: 'user'; userId: string };
 
 export interface HybridSearchInput {
@@ -26,6 +31,10 @@ export interface HybridSearchInput {
   scope: SearchScope;
   /** Candidates per modality before RRF merge. Default 50. */
   candidatesPerModality?: number;
+  /** Restrict retrieval to these resource ids (in addition to the scope
+   *  filter). Used by the chat # mention feature so the model only sees
+   *  chunks from the file the user picked. Empty array = no filter. */
+  resourceIds?: string[];
 }
 
 export interface HybridCandidate {
@@ -82,6 +91,7 @@ async function vectorSearch(
   const limit = input.candidatesPerModality ?? 50;
   const vecLiteral = toPgVectorLiteral(input.queryEmbedding);
   const scopeClause = scopeFilter(input.scope);
+  const resourceClause = resourceIdsFilter(input.resourceIds);
 
   const result = await db.execute<VectorRow>(sql`
     SELECT c.id AS chunk_id,
@@ -97,6 +107,7 @@ async function vectorSearch(
     JOIN resource_versions rv ON rv.id = c.resource_version_id
     JOIN resources r ON r.id = rv.resource_id
     WHERE ${scopeClause}
+      AND ${resourceClause}
       AND rv.id = r.current_version_id
       AND rv.ingest_status = 'DONE'
     ORDER BY e.vector <=> ${vecLiteral}::vector
@@ -124,6 +135,7 @@ async function keywordSearch(
 ): Promise<KeywordRow[]> {
   const limit = input.candidatesPerModality ?? 50;
   const scopeClause = scopeFilter(input.scope);
+  const resourceClause = resourceIdsFilter(input.resourceIds);
 
   const result = await db.execute<KeywordRow>(sql`
     SELECT c.id AS chunk_id,
@@ -141,6 +153,7 @@ async function keywordSearch(
     JOIN resource_versions rv ON rv.id = c.resource_version_id
     JOIN resources r ON r.id = rv.resource_id
     WHERE ${scopeClause}
+      AND ${resourceClause}
       AND rv.id = r.current_version_id
       AND rv.ingest_status = 'DONE'
       AND to_tsvector('english', c.text) @@ plainto_tsquery('english', ${input.queryText})
@@ -211,8 +224,24 @@ function scopeFilter(scope: SearchScope) {
     case 'organization':
       return sql`r.organization_id = ${scope.organizationId}`;
     case 'workspace':
-      return sql`r.workspace_id = ${scope.workspaceId}`;
+      // Union of workspace files + parent-org files. When the workspace
+      // has no parent org (shouldn't happen in v1, but defensive) fall
+      // back to workspace-only.
+      return scope.organizationId
+        ? sql`(r.workspace_id = ${scope.workspaceId} OR r.organization_id = ${scope.organizationId})`
+        : sql`r.workspace_id = ${scope.workspaceId}`;
     case 'user':
       return sql`r.user_id = ${scope.userId}`;
   }
+}
+
+function resourceIdsFilter(ids: string[] | undefined) {
+  if (!ids || ids.length === 0) return sql`TRUE`;
+  // Build `r.id IN ($1, $2, ...)` with each id as its own bound parameter.
+  // We avoided `= ANY(${ids})` because postgres-js doesn't reliably wrap a
+  // JS array as a Postgres array parameter when used through Drizzle's
+  // sql template — a single-element array unwraps to a bare scalar and
+  // Postgres errors with "malformed array literal".
+  const params = ids.map((id) => sql`${id}`);
+  return sql`r.id IN (${sql.join(params, sql`, `)})`;
 }

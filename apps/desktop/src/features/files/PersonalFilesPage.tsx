@@ -284,7 +284,11 @@ function statusConfig(status: string | null): {
     case 'CHUNKING':
     case 'EMBEDDING':
       return {
-        label: statusLabel(status),
+        // Internal pipeline stages aren't meaningful to users — collapse
+        // to a single "Processing" label (still spinning so it's visibly
+        // active). Differentiation between extracting/chunking/embedding
+        // belongs in admin/diagnostic surfaces, not the user UI.
+        label: 'Processing',
         className: 'border-amber-200 bg-amber-50 text-amber-700',
         spinner: true,
       };
@@ -300,21 +304,6 @@ function statusConfig(status: string | null): {
         className: 'border-zinc-200 bg-zinc-50 text-zinc-600',
         spinner: false,
       };
-  }
-}
-
-function statusLabel(status: string): string {
-  switch (status) {
-    case 'PENDING':
-      return 'Queued';
-    case 'EXTRACTING':
-      return 'Extracting text';
-    case 'CHUNKING':
-      return 'Chunking';
-    case 'EMBEDDING':
-      return 'Indexing';
-    default:
-      return status;
   }
 }
 

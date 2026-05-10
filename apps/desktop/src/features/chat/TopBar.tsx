@@ -1,4 +1,4 @@
-import { Building2, LogOut, LucideRotate3d, MessageCircleDashed, Shield } from 'lucide-react';
+import { Building2, LogOut, LucideRotate3d, Menu, MessageCircleDashed, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiAuth } from '@/lib/api-auth';
 import { useAuth } from '@/app/auth-context';
@@ -13,7 +13,13 @@ import {
 import { OrganizationMark } from '@/features/organization/OrganizationMark';
 import { mockOrg } from './mock-data';
 
-export function TopBar() {
+interface TopBarProps {
+  /** When provided, renders a hamburger button in the left slot. Used by
+   *  ChatLayout's narrow-viewport drawer mode. */
+  onMenuClick?: () => void;
+}
+
+export function TopBar({ onMenuClick }: TopBarProps = {}) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const me = trpc.health.me.useQuery();
@@ -40,7 +46,18 @@ export function TopBar() {
 
   return (
     <header className="relative flex h-[70px] items-center justify-between px-6">
-      <div className="w-20" />
+      <div className="flex w-20 items-center">
+        {onMenuClick && (
+          <button
+            type="button"
+            aria-label="Open chat sidebar"
+            onClick={onMenuClick}
+            className="grid size-[42px] place-items-center rounded-full border border-zinc-100 bg-white text-zinc-700 shadow-xs transition-colors hover:bg-zinc-50"
+          >
+            <Menu className="size-4" />
+          </button>
+        )}
+      </div>
 
       <button
         type="button"

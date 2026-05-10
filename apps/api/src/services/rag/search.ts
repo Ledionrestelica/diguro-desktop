@@ -30,6 +30,9 @@ export interface SearchInput {
   topK?: number;
   /** Candidates pulled from each modality before RRF/rerank. Default 50. */
   candidatesPerModality?: number;
+  /** Restrict retrieval to these resource ids. Used by chat # mention to
+   *  focus the model on a single file the user picked. */
+  resourceIds?: string[];
   /** Called for each billable provider call. Errors are swallowed so
    *  telemetry issues never break retrieval. */
   onUsage?: (usage: CallUsage, kind: 'EMBED' | 'RERANK') => void | Promise<void>;
@@ -65,6 +68,9 @@ export async function searchAndRerank(
     scope: input.scope,
     ...(input.candidatesPerModality
       ? { candidatesPerModality: input.candidatesPerModality }
+      : {}),
+    ...(input.resourceIds && input.resourceIds.length > 0
+      ? { resourceIds: input.resourceIds }
       : {}),
   });
   const tHybrid = Date.now() - tHybridStart;

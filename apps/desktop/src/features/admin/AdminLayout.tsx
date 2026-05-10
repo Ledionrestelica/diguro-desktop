@@ -136,6 +136,11 @@ function deriveCrumb(pathname: string): Crumb {
       title: 'Workspace Information',
       description: 'Name, description, logo, and branding for this workspace.',
     };
+  if (pathname.startsWith('/admin/workspace/files'))
+    return {
+      title: 'Workspace Files',
+      description: 'Files visible only to members of this workspace.',
+    };
   if (pathname.startsWith('/admin/workspace/ai-customization'))
     return {
       title: 'AI Customization',

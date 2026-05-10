@@ -52,12 +52,14 @@ export const usageType = pgEnum('usage_type', [
 ]);
 
 /**
- * Which corpus a conversation's retrieval tool searches. `organization` =
- * every org-scoped resource the user's org has uploaded. `user` = only the
- * user's personal library. Switchable per-conversation via the composer
- * toggle. Retrieval never crosses scopes (CLAUDE.md invariant).
+ * Which corpus a conversation's retrieval tool searches.
+ *   - `organization` — every org-scoped resource the user's org has uploaded.
+ *   - `workspace`    — only files uploaded INSIDE the active workspace.
+ *   - `user`         — only the user's personal library.
+ * Switchable per-conversation via the composer toggle. Retrieval never
+ * crosses scopes (CLAUDE.md invariant).
  */
-export const retrievalScope = pgEnum('retrieval_scope', ['organization', 'user']);
+export const retrievalScope = pgEnum('retrieval_scope', ['organization', 'workspace', 'user']);
 
 export const reconciliationFinding = pgEnum('reconciliation_finding', [
   'ORPHAN_S3_OBJECT',

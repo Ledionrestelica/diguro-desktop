@@ -5,7 +5,7 @@ import { MessagePart, MessageParts, type MessagePart as PersistablePart } from '
 const TITLE_MAX_LENGTH = 60;
 const TITLE_FALLBACK = 'New chat';
 
-export type ConversationRetrievalScope = 'organization' | 'user';
+export type ConversationRetrievalScope = 'organization' | 'workspace' | 'user';
 
 export interface UpsertConversationInput {
   conversationId: string;

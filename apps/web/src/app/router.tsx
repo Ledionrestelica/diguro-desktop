@@ -15,6 +15,7 @@ import { AcceptInvitePage } from '@/features/invitations/AcceptInvitePage';
 import { OrganizationAdminLayout } from '@/features/admin/OrganizationAdminLayout';
 import { OrganizationGeneralSettingsPage } from '@/features/admin/pages/OrganizationGeneralSettingsPage';
 import { OrganizationFilesPage } from '@/features/admin/pages/OrganizationFilesPage';
+import { WorkspaceFilesPage } from '@/features/admin/pages/WorkspaceFilesPage';
 import { TokenUsagePage } from '@/features/admin/pages/TokenUsagePage';
 import { AuditLogPage } from '@/features/admin/pages/AuditLogPage';
 import { MembersPage } from '@/features/admin/pages/MembersPage';
@@ -162,6 +163,7 @@ export const router = createBrowserRouter([
                 element: <Navigate to="/admin/workspace/general" replace />,
               },
               { path: 'general', element: <GeneralSettingsPage /> },
+              { path: 'files', element: <WorkspaceFilesPage /> },
               {
                 path: 'ai-customization',
                 element: (

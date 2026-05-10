@@ -3,6 +3,7 @@ import {
   Bell,
   ChevronLeft,
   Coins,
+  FileText,
   GitMerge,
   Key,
   Settings,
@@ -22,6 +23,7 @@ interface NavItem {
 
 const WORKSPACE_ITEMS: NavItem[] = [
   { label: 'General', to: '/admin/workspace/general', icon: Settings2 },
+  { label: 'Files', to: '/admin/workspace/files', icon: FileText },
   { label: 'AI Customization', to: '/admin/workspace/ai-customization', icon: Sparkles },
   { label: 'Users', to: '/admin/workspace/users', icon: Users },
   { label: 'Token Usage', to: '/admin/workspace/token-usage', icon: Coins },

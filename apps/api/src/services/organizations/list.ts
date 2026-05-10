@@ -27,10 +27,10 @@ export async function listOrganizations(deps: { db: Db }): Promise<OrganizationS
       suspended: schema.organizations.suspended,
       createdAt: schema.organizations.createdAt,
       userCount: sql<number>`(
-        SELECT COUNT(*)::int FROM ${schema.users} WHERE ${schema.users.organizationId} = ${schema.organizations.id}
+        SELECT COUNT(*)::int FROM users WHERE users.organization_id = organizations.id
       )`,
       workspaceCount: sql<number>`(
-        SELECT COUNT(*)::int FROM ${schema.workspaces} WHERE ${schema.workspaces.organizationId} = ${schema.organizations.id}
+        SELECT COUNT(*)::int FROM workspaces WHERE workspaces.organization_id = organizations.id
       )`,
     })
     .from(schema.organizations)
@@ -64,10 +64,10 @@ export async function getOrganization(
       createdAt: schema.organizations.createdAt,
       updatedAt: schema.organizations.updatedAt,
       userCount: sql<number>`(
-        SELECT COUNT(*)::int FROM ${schema.users} WHERE ${schema.users.organizationId} = ${schema.organizations.id}
+        SELECT COUNT(*)::int FROM users WHERE users.organization_id = organizations.id
       )`,
       workspaceCount: sql<number>`(
-        SELECT COUNT(*)::int FROM ${schema.workspaces} WHERE ${schema.workspaces.organizationId} = ${schema.organizations.id}
+        SELECT COUNT(*)::int FROM workspaces WHERE workspaces.organization_id = organizations.id
       )`,
     })
     .from(schema.organizations)

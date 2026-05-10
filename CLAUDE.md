@@ -4,22 +4,23 @@ Context for Claude Code sessions. This file captures the architectural decisions
 
 ## What this repo is
 
-A from-scratch rewrite of a multi-organization **and** multi-user-personal RAG application, split into two deployables:
+A from-scratch rewrite of a multi-organization **and** multi-user-personal RAG application. Three deployables in this monorepo:
 
-- **`apps/api`** — the single source of truth backend (Bun + Hono + tRPC + Better-Auth + Drizzle + Postgres + S3 + Inngest).
-- **`apps/desktop`** — an Electron + Vite + React thin client that talks to the API.
+- **`apps/api`** — single source of truth backend (Bun + Hono + tRPC + Better-Auth + Drizzle + Postgres + S3 + Inngest).
+- **`apps/desktop`** — Electron + Vite + React thin client. **Shipped as v1.0.1** with signed installers via GitHub releases.
+- **`apps/web`** — Vite + React thin client sharing a source tree with desktop via platform shims. Deployed via Coolify behind a Caddyfile. Less feature-complete than desktop; catching up.
 
-The existing Next.js app lives at `/Users/ledionrestelica/ai-chat` (sibling working directory). It is **reference only** — the schema and features are "inspired by" it, not ported. A fresh Postgres database is used; a one-time data migration is planned for later.
+The existing Next.js app at `/Users/ledionrestelica/ai-chat` is **reference only** — schema and features were inspired by it, not ported. A fresh Postgres database is used; a one-time data migration is planned for later.
 
 ## Phased plan
 
-1. **Phase 1 (this repo):** Ship the API backend and the Electron desktop app.
-2. **Phase 2 (separate repo, later):** Rewrite the existing Next.js web app as a Vite + React client pointing at the same API. End state = one backend, two thin clients (desktop + web).
+1. **Phase 1 — DONE.** API + Electron desktop app shipped as v1.0.1 (commit `ae74018`). Full v1 feature set live.
+2. **Phase 2 — IN PROGRESS.** Web client lives in this same monorepo (not a separate repo as originally planned), built on a shared source tree with desktop using platform shims (`80e8765`, `6c11829`). End state remains: one backend, two thin clients.
 
-**Day-1 backend decisions that matter for phase 2** (designed for both clients from the start, even though only desktop consumes in phase 1):
+**Backend decisions that enabled both clients from day 1:**
 
-- Dual auth: Better-Auth configured with both **cookie sessions** (future web) and **bearer tokens** (desktop, via the `bearer` plugin). Same server, same session model, different transport.
-- CORS allowlist (no wildcards). Include the future web origin and Electron's `app://` / `file://` origins.
+- Dual auth: Better-Auth with both **cookie sessions** (web) and **bearer tokens** (desktop, via the `bearer` plugin). Same server, same session model, different transport.
+- CORS allowlist (no wildcards). Includes the web origin and Electron's `app://` / `file://` origins.
 - Every tRPC procedure is client-agnostic. Desktop-only concerns (local file paths, OS integration) live in the Electron main process, not in the API.
 
 ## Locked stack decisions
@@ -31,11 +32,11 @@ The existing Next.js app lives at `/Users/ledionrestelica/ai-chat` (sibling work
 | Runtime | **Bun** | Fastest JS API runtime; Drizzle + Better-Auth + AI-SDK all supported. Near-zero cold starts. |
 | ORM | **Drizzle** | Typed `vector()` column (no `$queryRaw` for retrieval), composable SQL-ish query builder, CHECK constraints + partial indexes in the schema file, readable generated migrations. Chosen over Prisma because hybrid search + pgvector is the hot path here. |
 | Database | **Neon Postgres** | Serverless pooler, pgvector built-in, branching for dev, generous tier. |
-| Auth | Better-Auth | Plugins enabled: `organization`, `admin`, `bearer`. Cookie sessions for future web, bearer tokens for desktop. |
+| Auth | Better-Auth | Plugins enabled: `organization`, `admin`, `bearer`. Cookie sessions for web, bearer tokens for desktop. |
 | LLM providers (chat) | Anthropic + OpenAI + Google Gemini | Multi-provider from day 1 via AI-SDK registry. Add more by registering providers. |
 | Embeddings | **Voyage-3-large** | Current SOTA for English retrieval. 1024 dim. **Locked** — changing = re-embed everything. |
 | Reranker | **Cohere Rerank 3** | One API call, massive quality delta vs. word-overlap reranking. |
-| OCR (v1) | GPT-5 Vision via AI-SDK | Simple, reuses LLM budget. Upgrade path: self-hosted OCR later. |
+| OCR (v1) | **Mistral OCR** (per-page billed) | Better quality + cheaper than vision LLMs. GPT-5 Vision kept as a fallback path in the port docstring. Self-hosted (Olmocr / Docling) later. |
 | Job queue | **Inngest** | Typed multi-step workflows, retries per step, generous free tier. |
 | Redis | Upstash | Rate limiting (sliding window) + hot caches. |
 | File storage | AWS S3 (source of truth for bytes) | Per-org prefix, versioned paths, presigned PUT uploads, SHA-256 checksum for dedup/integrity. See "File storage" section. |
@@ -81,33 +82,32 @@ Every document-like entity in the system is **polymorphically scoped**: it belon
 
 Enforced with nullable `organizationId` + `userId` columns plus a DB-level `CHECK` constraint (`(organization_id IS NOT NULL) <> (user_id IS NOT NULL)` or similar depending on the table). Drizzle's `check()` helper expresses these directly in the schema file — no separate migration-only SQL step needed.
 
-Every scoped entity's company is derivable: org-scoped → org.companyId; user-scoped → user.companyId. We don't duplicate `companyId` on every child row.
-
 **Retrieval never crosses scopes.** A user-scoped conversation only searches that user's personal files. An org-scoped conversation only searches that org's files. "Share a personal file to my org" is a v2 feature (would require a file-share table and an authorization rethink).
 
-### Authorization middleware chain
+> **Naming reconciliation:** earlier planning notes used a four-tier model (Platform → Company → Organization → Workspace). What got built collapses to **three** tiers: Platform → Organization → Workspace. The "company" concept never landed; `Organization` plays the tenant role. Caps and admin tooling all live on the organization row.
+
+### Authorization middleware chain (as built)
+
+Defined in [apps/api/src/trpc/trpc.ts](apps/api/src/trpc/trpc.ts):
 
 ```
 publicProcedure
-  → authedProcedure              valid session; attaches ctx.user + ctx.session
-    → systemAdminProcedure       ctx.user.role === 'superadmin'
-    → activeCompanyProcedure     loads ctx.company from ctx.user.companyId; rejects suspended companies
-      → companyAdminProcedure    role in ('superadmin', 'company_admin')
-      → orgProcedure             (planned) verifies org membership + org.companyId === ctx.company.id
-        → orgAdminProcedure      (planned) members.role in (OWNER, ADMIN)
+  → authedProcedure                  valid session; attaches ctx.user + ctx.session
+    → systemAdminProcedure           ctx.user.role === 'superadmin' (platform tier)
+    → activeOrganizationProcedure    loads ctx.organization from ctx.user.organizationId
+      → organizationAdminProcedure   role in ('superadmin', 'organization_admin')
+    → workspaceAdminProcedure        verifies workspace membership + role in (OWNER, ADMIN)
 ```
 
-Superadmins acting on a SPECIFIC company (not their own) use `systemAdminProcedure` + accept an explicit `companyId` in the input — they don't flow through `activeCompanyProcedure`.
+Superadmins acting on a SPECIFIC organization (not their own) use `systemAdminProcedure` + accept an explicit `organizationId` in the input — they don't flow through `activeOrganizationProcedure`, which is scoped to the caller's own org.
 
-### Per-company caps (stored on `companies` row)
+### Per-organization caps (stored on `organizations` row)
 
-- `maxUsers` — seat cap
-- `maxOrganizations` — org count cap
-- `maxResourcesPerOrganization` — file cap per org
-- `maxMonthlySpendMicrodollars` — LLM spend ceiling
-- `suspended` — null = active; non-null string = freeze with reason
+- `maxMembers` — seat cap
+- `maxResources` — file cap
+- (workspace count, monthly spend, suspension flag — additive when needed)
 
-Company admins cannot raise their own caps. Superadmin sets them on creation.
+Organization admins cannot raise their own caps. Superadmin sets them on creation.
 
 ## File storage: S3 as source of truth
 
@@ -231,7 +231,7 @@ Diagnosis of why the existing app's RAG is unreliable:
 4. **Agentic retrieval loop.** Main chat model runs with tools [`search`, `viewDocument`]. `stepCountIs(5–8)` allows multi-step retrieval when needed. Tools take optional filter args (`folderId`, `resourceIds`, `dateRange`).
 5. **Parent-document retrieval.** Index small chunks (~400 tokens) for matching, return surrounding section (~1500 tokens) for context. Preserves precision + usable context.
 6. **Contextual retrieval (Anthropic technique).** Each chunk is embedded with a 1–2 sentence LLM-generated contextual prefix describing how it relates to the overall document. ~35% retrieval-failure reduction. Cost at ingest, free at query.
-7. **OCR for image PDFs.** GPT-5 Vision pass during ingestion (later: self-hosted).
+7. **OCR for image PDFs.** Mistral OCR pass during ingestion (later: self-hosted Olmocr / Docling).
 
 **v2+ ideas (do NOT build yet, but schema is shaped for them):**
 
@@ -569,35 +569,32 @@ Trust nothing from outside the API. Validate at these lines:
 Every tRPC procedure composes from a middleware chain. No ad-hoc auth checks inside procedures.
 
 ```
-publicProcedure          // unauthenticated (sign-in, sign-up only)
-authedProcedure          // valid session; attaches ctx.user + ctx.session
+publicProcedure              // unauthenticated (sign-in, sign-up only)
+authedProcedure              // valid session; attaches ctx.user + ctx.session
 
-systemAdminProcedure     // authed + ctx.user.role === 'superadmin'
-                         //   used for /admin/platform — create companies,
-                         //   promote users across companies, impersonate.
+systemAdminProcedure         // authed + ctx.user.role === 'superadmin'
+                             //   /admin/platform — create orgs, create users
+                             //   anywhere, reassign across orgs, etc.
 
-activeCompanyProcedure   // authed + loads ctx.company from ctx.user.companyId
-                         //   fails on unassigned users + suspended companies.
+activeOrganizationProcedure  // authed + loads ctx.organization from ctx.user.organizationId
+                             //   fails on unassigned users.
 
-companyAdminProcedure    // activeCompany + role in ('superadmin','company_admin')
-                         //   used for /admin/company — list + invite members,
-                         //   create orgs, configure within caps.
+organizationAdminProcedure   // activeOrganization + role in ('superadmin','organization_admin')
+                             //   /admin/organization — invite members, manage workspaces.
 
-orgProcedure             // (planned) companyProcedure + verifies membership
-                         //   in input orgId + that org.companyId matches ctx.company.
-                         //   attaches { org, member } to ctx.
-orgAdminProcedure        // orgProcedure + member.role in (OWNER, ADMIN)
-orgOwnerProcedure        // orgProcedure + member.role == OWNER
+workspaceAdminProcedure      // authed + verifies workspace membership in input
+                             //   workspaceId + member.role in (OWNER, ADMIN).
+                             //   attaches { workspace, member } to ctx.
 
-scopedProcedure          // (planned) authed + input carries a Scope discriminator
-                         //   (org → verifies membership; user → verifies scope.userId === ctx.user.id)
-                         //   attaches { scope } to ctx — services accept Scope, never raw ids
-resourceProcedure        // (planned) scopedProcedure + loads Resource + asserts scope match
+scopedProcedure              // (planned) authed + input carries a Scope discriminator
+                             //   (workspace → verifies membership; user → verifies scope.userId === ctx.user.id)
+                             //   attaches { scope } to ctx — services accept Scope, never raw ids
+resourceProcedure            // (planned) scopedProcedure + loads Resource + asserts scope match
 ```
 
-All data access is scoped through `ctx.scope` (planned) — either `{ kind: "org", org, member }` or `{ kind: "user", user }`. No service function accepts a raw orgId or userId parameter; the `Scope` value object comes from middleware and carries the authorization proof with it. Scope isolation is an invariant, not a convention.
+All data access is scoped through `ctx.scope` (planned) — either `{ kind: "workspace", workspace, member }` or `{ kind: "user", user }`. No service function should accept a raw workspaceId or userId parameter; the `Scope` value object comes from middleware and carries the authorization proof with it. Scope isolation is an invariant, not a convention. (Today many services still take raw ids — this is an outstanding cleanup.)
 
-**Superadmin-on-another-company pattern:** a superadmin acting on a company that isn't their own passes `systemAdminProcedure` and accepts `companyId` as an explicit input — they don't flow through `activeCompanyProcedure`, which is scoped to `ctx.user.companyId`. This keeps the two paths orthogonal: "admin of my own company" vs "platform superadmin acting on another company" never share code paths.
+**Superadmin-on-another-organization pattern:** a superadmin acting on an organization that isn't their own passes `systemAdminProcedure` and accepts `organizationId` as an explicit input — they don't flow through `activeOrganizationProcedure`, which is scoped to `ctx.user.organizationId`. This keeps the two paths orthogonal: "admin of my own org" vs "platform superadmin acting on another org" never share code paths.
 
 ### Errors
 
@@ -645,54 +642,46 @@ diguro-desktop/
 │   │   │   ├── services/        use cases — orchestrate domain + ports
 │   │   │   │   ├── resources/   uploadInitiate, confirmUpload, replace, delete, list
 │   │   │   │   ├── chat/        send, list, loadHistory
-│   │   │   │   ├── ingestion/   extract, chunk, contextualize, embed, summarize, extractEntities
+│   │   │   │   ├── chunking/    sentence-aware chunking + parent-section grouping
+│   │   │   │   ├── extraction/  text/PDF/DOCX/XLSX extraction orchestration
 │   │   │   │   ├── rag/         rewriteQuery, hybridSearch, rerank, retrieve
-│   │   │   │   ├── usage/       track, checkLimits
-│   │   │   │   └── recon/       reconcileOrg
+│   │   │   │   ├── conversations/, organizations/, workspaces/, audit/, email/, usage/
+│   │   │   │   └── (recon — planned, not yet implemented)
 │   │   │   │
 │   │   │   ├── ports/           interfaces (no implementations)
-│   │   │   │   ├── objectStore.ts
-│   │   │   │   ├── chatProvider.ts
-│   │   │   │   ├── embedProvider.ts
-│   │   │   │   ├── rerankProvider.ts
-│   │   │   │   ├── ocrProvider.ts
-│   │   │   │   └── queue.ts
+│   │   │   │   objectStore, embedProvider, rerankProvider, ocrProvider,
+│   │   │   │   chunker, contextualizer, extractor, emailProvider, queue, usage
 │   │   │   │
 │   │   │   ├── adapters/        port implementations
-│   │   │   │   ├── s3/
-│   │   │   │   ├── providers/   anthropic, openai, google, voyage, cohere
-│   │   │   │   ├── inngest/
-│   │   │   │   └── drizzle/     specialized queries (hybrid search, RRF, parent-doc retrieval)
+│   │   │   │   anthropic, openai, voyage, cohere, mistral (OCR), resend (email),
+│   │   │   │   s3, inngest, drizzle (specialized queries: hybrid search, RRF, parent-doc retrieval)
 │   │   │   │
-│   │   │   ├── auth/
-│   │   │   │   ├── config.ts    Better-Auth setup (org + admin + bearer plugins)
-│   │   │   │   └── middleware.ts tRPC procedure builders (authed/org/orgAdmin/…)
+│   │   │   ├── auth/config.ts   Better-Auth setup (organization + admin + bearer plugins)
 │   │   │   │
 │   │   │   ├── trpc/            delivery layer (thin)
-│   │   │   │   ├── root.ts
-│   │   │   │   ├── error-mapper.ts
-│   │   │   │   └── routers/     resources, chat, org, user, admin
+│   │   │   │   ├── trpc.ts      procedure builders (public/authed/systemAdmin/activeOrganization/organizationAdmin/workspaceAdmin)
+│   │   │   │   └── routers/     adminPlatform, adminOrganization, adminWorkspace,
+│   │   │   │                    workspaces, conversations, chatAttachments,
+│   │   │   │                    invitations, me, health
 │   │   │   │
-│   │   │   ├── inngest/         delivery for async events
-│   │   │   │   └── functions/   resource-uploaded, reconcile-s3, …
-│   │   │   │
+│   │   │   ├── inngest/functions/  resource-uploaded (ingestion pipeline)
+│   │   │   ├── ai/              AI-SDK provider registry + model resolution
+│   │   │   ├── hono/            HTTP server bootstrap, CORS, Better-Auth handler mounting
 │   │   │   └── lib/             cross-cutting: logger, config, crypto
 │   │   └── package.json
 │   │
-│   └── desktop/                 Electron + Vite + React
-│       ├── electron/            main process: auth keychain, safeStorage, updater, IPC
-│       ├── src/
-│       │   ├── app/             shell (router, providers)
-│       │   ├── features/        feature folders (chat, resources, auth, settings)
-│       │   ├── components/      shared primitives only (not feature-specific)
-│       │   ├── lib/             tRPC client, API base URL resolver
-│       │   └── hooks/           truly cross-feature hooks only
-│       └── package.json
+│   ├── desktop/                 Electron + Vite + React (v1.0.1, signed installers)
+│   │   ├── electron/main.ts     auth keychain via safeStorage, updater, IPC
+│   │   └── src/features/        admin, auth, chat, dashboard, files, invitations, organization, workspaces
+│   │
+│   └── web/                     Vite + React (no Electron). Coolify + Caddyfile deploy.
+│       └── src/                 platform shims pull most code from desktop's source tree
 │
 ├── packages/
 │   ├── db/                      Drizzle schema (split by concern), drizzle-kit config, migrations, typed query helpers
-│   ├── trpc/                    router type export for the client
-│   └── shared/                  Zod schemas, branded IDs, error codes (consumed by api + desktop)
+│   │   └── src/schema/          auth, organization, workspace, resource, chunk, chat, usage, invite, recon, enums
+│   ├── trpc/                    router type export for clients
+│   └── shared/                  Zod schemas, branded IDs, error codes (consumed by api + desktop + web)
 │
 ├── pnpm-workspace.yaml
 ├── turbo.json
@@ -710,7 +699,7 @@ event: "resource.uploaded" { versionId }
   1. load ResourceVersion + parent Resource + download bytes from S3 (streamed)
   2. ingestStatus = EXTRACTING
      extract text:
-       - PDF  → pdf-parse (text layer present) OR GPT-5 Vision (if image-heavy/OCR needed)
+       - PDF  → pdf-parse (text layer present) OR Mistral OCR (if image-heavy/OCR needed)
        - DOCX → mammoth
        - XLSX/XLS/CSV → xlsx lib, CSV → markdown table
        - HTML/MD/TXT/JSON → plain / cheerio
@@ -778,38 +767,42 @@ event: "recon.run" { scope: { kind: "org", organizationId } | { kind: "user", us
 
 First-token target: ~1.2s.
 
-## v1 feature scope (locked)
+## v1 feature scope (status)
 
-**Ship:**
-- Two scopes from day 1: **organization-scoped files + chats** and **user-scoped personal files + chats**
-- Upload files (PDF/DOCX/XLSX/TXT/MD/CSV; OCR via GPT-5 Vision for image PDFs)
-- Client-side SHA-256 + checksum-verified S3 upload flow (active-file dedup within scope)
-- Replace flow with **full `ResourceVersion` history from day 1** — old chunks/embeddings retained, only current version indexed for retrieval, citations resolve to the exact version they were made against
-- Ingest pipeline (contextual chunking, embedding, doc summary, entity extraction) — runs per version
-- Chat with agentic RAG (query rewrite → hybrid search → Cohere rerank → multi-step tool calls → cited answer). Retrieval is scope-isolated: org chat searches org files, personal chat searches user files. No cross-scope retrieval in v1.
-- File folders + metadata filtering in search (per scope)
-- Model picker (org default, org-allowed list, user override; for personal scope only user override applies)
-- Usage tracking + spending limits (per org and per user)
-- Audit log
-- Daily reconciliation job per scope (Postgres ↔ S3 drift detection)
-- Retention cleanup job for old non-current versions (tombstones + S3 delete past retention window)
-- Desktop-native PDF viewer with citation highlights (including "cited from v1 — document has since been updated")
-- Multi-org, Better-Auth admin + organization plugins
+Locked at planning time, now mostly shipped. Status against the original list:
 
-**Punt to v1.1:**
+**Shipped (live in v1.0.1 desktop):**
+- ✅ Two scopes — org-scoped + user-scoped files/chats, with `ScopeToggle` in the composer
+- ✅ Upload flow — PDF/DOCX/XLSX/TXT/MD/CSV with **Mistral OCR** for image PDFs (GPT-5 Vision is a fallback path on the OCR port, not the default)
+- ✅ Client-side SHA-256 + checksum-verified S3 upload, active-file dedup within scope
+- ✅ Replace flow with full `ResourceVersion` history; old chunks/embeddings retained; only current version indexed
+- ✅ Ingest pipeline (contextual chunking, embedding, summary) on Inngest — see [resource-uploaded.ts](apps/api/src/inngest/functions/resource-uploaded.ts)
+- ✅ Agentic RAG end-to-end — query rewrite → hybrid search → Cohere rerank → multi-step tools → cited answer (commit `a69c196`)
+- ✅ File folders + DOCX/XLSX support (commit `25d814c`)
+- ✅ Model picker (org default + allowed list + user override)
+- ✅ Usage tracking + per-org caps (`maxMembers`, `maxResources` on `organizations`)
+- ✅ Invitations system
+- ✅ Audit log scaffolding (services/audit)
+- ✅ Multi-tenancy via Better-Auth `organization` + `admin` + `bearer` plugins
+- ✅ **Bonus, beyond original v1:** platform-admin tier (superadmin) — create users anywhere, reassign across orgs, delete orgs (`5dcdd9a`, `e86446d`)
+
+**Built but partial:**
+- ⚠️ Reconciliation job — schema (`reconciliationReports`) + ports defined; the daily Inngest job itself is not yet wired up
+- ⚠️ Retention cleanup of old non-current versions — not yet wired
+- ⚠️ Entity extraction — port + ingest hooks exist; not running by default
+- ⚠️ Spending limits enforcement — caps tracked per org but not blocking on overage yet
+- ⚠️ Desktop PDF viewer with citation highlights — citation rows are first-class, click-through to source needs polish
+- ⚠️ "Cited from v1 — document has since been updated" UI — backend resolves to exact version; the UI badge isn't implemented yet
+
+**Punt to v1.1 (unchanged from original plan):**
 - Document comparison tool (dedicated tool that loads two docs in full, structured diff via `generateObject`)
 - Structured extraction templates (define a schema, run across N docs, get a table)
 - Conversation folders
-- **Cross-scope sharing** — "promote this personal file to my org" or "let teammate view this personal file". Requires a file-share table and an authorization rethink.
+- Cross-scope sharing — "promote this personal file to my org" or "let teammate view this personal file"
 
-**Punt to v2:**
-- Annotations, timelines, contradiction detection
-- Tables as first-class structured queryable data
-- Self-hosted OCR
-- Semantic chunking, ColBERT multi-vector retrieval, GraphRAG
+**Punt to v2:** annotations, timelines, contradiction detection; tables as first-class queryable data; self-hosted OCR; semantic chunking; ColBERT multi-vector; GraphRAG.
 
-**Explicitly dropped from scope:**
-- Web crawling (present in the existing app; not ported)
+**Explicitly dropped from scope:** web crawling (present in the existing app; not ported).
 
 ## Containerization & deployment
 
@@ -900,7 +893,7 @@ Audited at `/Users/ledionrestelica/ai-chat`. Avoid these patterns:
 - Fire-and-forget message persistence during streaming — we finalize in `onFinish` in a single transaction.
 - Web crawling via SSE from a single POST handler — dropped entirely.
 - Jaccard word-overlap reranking — replaced with Cohere Rerank 3.
-- Image-PDF rejection — replaced with GPT-5 Vision OCR branch.
+- Image-PDF rejection — replaced with Mistral OCR branch (GPT-5 Vision retained as a fallback).
 
 ## What IS worth replicating
 
@@ -911,20 +904,16 @@ Audited at `/Users/ledionrestelica/ai-chat`. Avoid these patterns:
 - Upstash sliding-window rate limiting.
 - Per-org customization (systemPrompt, tone, branding).
 
-## Scaffolding order
+## Scaffolding order — completed
 
-When we pick up scaffolding:
+Recorded for posterity. The original 8-step scaffolding plan (monorepo → shared → db → api skeleton → auth middleware → ports/S3 adapter → desktop skeleton → end-to-end smoke test) is **all done**. Migrations are at `packages/db/drizzle/0008_*` as of writing. Subsequent feature verticals (upload+ingest, RAG, model picker, admin tiers, web client, releases) all built on top.
 
-1. **Monorepo init** — pnpm workspaces + Turborepo, strict `tsconfig.base.json`, shared ESLint + Prettier configs.
-2. **`packages/shared`** — branded ID types, Zod schemas for message parts / citations / tool calls / Inngest events, error codes.
-3. **`packages/db`** — Drizzle schema files (split by concern) + drizzle-kit config + Neon/Postgres connection + first migration (enables `pgvector` + `pg_trgm` extensions, creates all tables, HNSW vector index, GIN tsvector index).
-4. **`apps/api` skeleton** — Bun + Hono + tRPC + Better-Auth bootstrapped; layered folder structure created but mostly empty; one smoke-test procedure (`health.ping`). Verify strict TS, error mapper, context builder all work.
-5. **Auth middleware chain** — `publicProcedure` / `authedProcedure` / `orgProcedure` / `orgAdminProcedure` / `resourceProcedure` implemented and covered by tests.
-6. **Ports defined, first adapter written** — `ObjectStore` port + `S3ObjectStore` adapter with presigned URL generation. No services using it yet.
-7. **`apps/desktop` skeleton** — Electron + Vite + React + tRPC client + bearer token flow via `safeStorage`. Sign-up and sign-in pages.
-8. **End-to-end smoke test** — sign up on desktop → create org → call an org-scoped tRPC procedure → see result. This validates the full auth + org scoping pipeline before any feature work.
+## Where things stand right now (snapshot — keep updated)
 
-Only after #8 works: implement the first real feature vertical (upload + ingest + list).
+- **v1.0.1 desktop is shipped** with signed installers via GitHub releases.
+- **Web client** is scaffolded and deploying (Coolify + Caddy) but trails desktop in feature parity.
+- **Recent focus** has been multi-workspace correctness — workspace-scoped conversation persistence + filtering (`4affbb6`), stale-membership cleanup on org reassignment (`2f788d9`), `myList` scoped to current org (`514c001`).
+- **Outstanding from v1 plan:** reconciliation Inngest job, retention cleanup of old non-current versions, citation-version-mismatch UI badge in PDF viewer, spending-limit enforcement (caps tracked, not enforced), entity extraction in default ingest path.
 
 ## Environment & accounts the user will need
 

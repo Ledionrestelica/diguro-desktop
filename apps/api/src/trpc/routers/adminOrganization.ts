@@ -204,6 +204,9 @@ export const adminOrganizationRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        if (input.userId === ctx.user.id) {
+          throw new Forbidden('Cannot change your own role');
+        }
         const res = await ctx.db
           .update(schema.users)
           .set({ role: input.role, updatedAt: new Date() })

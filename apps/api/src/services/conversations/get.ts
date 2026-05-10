@@ -9,7 +9,7 @@ export interface ConversationDetail {
   /** Which corpus this conversation's retrieval tool searches. Locked on
    *  first-create; client uses this to render the (disabled) scope pill
    *  when opening an existing chat. */
-  retrievalScope: 'organization' | 'user';
+  retrievalScope: 'organization' | 'workspace' | 'user';
   createdAt: Date;
   messages: PersistedMessage[];
 }

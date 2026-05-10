@@ -16,10 +16,14 @@ import { cn } from '@/lib/utils';
 import { AdminPageBody } from '../AdminLayout';
 
 /**
- * Organization-scoped file library — documents uploaded here are available
- * to every workspace in the organization for RAG. The library is organized
- * in folders (nestable). Drag-and-drop supports both loose files and entire
- * directory trees; directories are mirrored into folders on upload.
+ * Workspace-scoped file library. Files added here are visible to members
+ * of this workspace only — separate from organization-wide files. Mirrors
+ * OrganizationFilesPage's UI feature-for-feature: folders (nested + drag-
+ * drop directory uploads), replace with version history, search, remove.
+ *
+ * Same lazy-rebuild pattern as the org page: when adminOrganization gets
+ * new file features, this page should track them via the parallel
+ * adminWorkspace endpoints.
  */
 const TRANSIENT_STATUSES = new Set([
   'PENDING',
@@ -35,22 +39,20 @@ interface FolderRow {
   createdAt: Date;
 }
 
-export function OrganizationFilesPage() {
+export function WorkspaceFilesPage() {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const utils = trpc.useUtils();
 
-  const foldersQuery = trpc.adminOrganization.foldersList.useQuery();
+  const foldersQuery = trpc.adminWorkspace.foldersList.useQuery();
 
-  // When searching, scan all folders by omitting folderId entirely.
-  // Otherwise restrict to the current folder (null = root).
   const filesQueryInput = useMemo(() => {
     const trimmed = search.trim();
     if (trimmed) return { search: trimmed };
     return { folderId: currentFolderId };
   }, [search, currentFolderId]);
 
-  const filesQuery = trpc.adminOrganization.filesList.useQuery(filesQueryInput, {
+  const filesQuery = trpc.adminWorkspace.filesList.useQuery(filesQueryInput, {
     refetchInterval: (query) => {
       const data = query.state.data;
       if (!data || data.length === 0) return false;
@@ -61,14 +63,14 @@ export function OrganizationFilesPage() {
     },
   });
 
-  const initiate = trpc.adminOrganization.filesInitiateUpload.useMutation();
-  const confirm = trpc.adminOrganization.filesConfirmUpload.useMutation();
-  const initiateReplace = trpc.adminOrganization.filesInitiateReplace.useMutation();
-  const confirmReplace = trpc.adminOrganization.filesConfirmReplace.useMutation();
-  const remove = trpc.adminOrganization.filesRemove.useMutation();
-  const folderCreate = trpc.adminOrganization.folderCreate.useMutation();
-  const folderEnsure = trpc.adminOrganization.folderEnsure.useMutation();
-  const folderDelete = trpc.adminOrganization.folderDelete.useMutation();
+  const initiate = trpc.adminWorkspace.filesInitiateUpload.useMutation();
+  const confirm = trpc.adminWorkspace.filesConfirmUpload.useMutation();
+  const initiateReplace = trpc.adminWorkspace.filesInitiateReplace.useMutation();
+  const confirmReplace = trpc.adminWorkspace.filesConfirmReplace.useMutation();
+  const remove = trpc.adminWorkspace.filesRemove.useMutation();
+  const folderCreate = trpc.adminWorkspace.folderCreate.useMutation();
+  const folderEnsure = trpc.adminWorkspace.folderEnsure.useMutation();
+  const folderDelete = trpc.adminWorkspace.folderDelete.useMutation();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dirInputRef = useRef<HTMLInputElement>(null);
@@ -77,9 +79,6 @@ export function OrganizationFilesPage() {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
-  // Per-row replace state: resourceId of whichever file is mid-replace so
-  // its row can show a spinner + disable the buttons. Only one replace
-  // runs at a time — simpler UX than parallel replaces across rows.
   const [replacingResourceId, setReplacingResourceId] = useState<string | null>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const pendingReplaceResourceId = useRef<string | null>(null);
@@ -136,17 +135,12 @@ export function OrganizationFilesPage() {
 
   async function handleLooseFiles(list: FileList | File[] | null) {
     if (!list) return;
-    const files = Array.from(list as FileList);
-    if (files.length === 0) return;
-    await Promise.all(files.map((f) => uploadOne(f, currentFolderId)));
-    await utils.adminOrganization.filesList.invalidate();
+    const items = Array.from(list as FileList);
+    if (items.length === 0) return;
+    await Promise.all(items.map((f) => uploadOne(f, currentFolderId)));
+    await utils.adminWorkspace.filesList.invalidate();
   }
 
-  /**
-   * Upload files that carry a relative path (directory picker / drag-drop).
-   * We walk each file's path segments, ensuring a folder per segment under
-   * the current folder, then upload the file into its matching leaf folder.
-   */
   async function handlePathedFiles(items: Array<{ file: File; path: string[] }>) {
     if (items.length === 0) return;
     setUploadError(null);
@@ -183,8 +177,8 @@ export function OrganizationFilesPage() {
       );
     } finally {
       await Promise.all([
-        utils.adminOrganization.filesList.invalidate(),
-        utils.adminOrganization.foldersList.invalidate(),
+        utils.adminWorkspace.filesList.invalidate(),
+        utils.adminWorkspace.foldersList.invalidate(),
       ]);
     }
   }
@@ -226,7 +220,7 @@ export function OrganizationFilesPage() {
       { resourceId },
       {
         onSuccess: () => {
-          void utils.adminOrganization.filesList.invalidate();
+          void utils.adminWorkspace.filesList.invalidate();
         },
       },
     );
@@ -255,7 +249,7 @@ export function OrganizationFilesPage() {
       });
       if (!putRes.ok) throw new Error(`Upload failed (${putRes.status})`);
       await confirmReplace.mutateAsync({ versionId: presigned.versionId });
-      await utils.adminOrganization.filesList.invalidate();
+      await utils.adminWorkspace.filesList.invalidate();
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Replace failed');
     } finally {
@@ -269,7 +263,7 @@ export function OrganizationFilesPage() {
     await folderCreate.mutateAsync({ name, parentId: currentFolderId });
     setNewFolderName('');
     setNewFolderOpen(false);
-    await utils.adminOrganization.foldersList.invalidate();
+    await utils.adminWorkspace.foldersList.invalidate();
   }
 
   function handleFolderDelete(folderId: string) {
@@ -278,8 +272,8 @@ export function OrganizationFilesPage() {
       {
         onSuccess: async () => {
           await Promise.all([
-            utils.adminOrganization.foldersList.invalidate(),
-            utils.adminOrganization.filesList.invalidate(),
+            utils.adminWorkspace.foldersList.invalidate(),
+            utils.adminWorkspace.filesList.invalidate(),
           ]);
         },
       },
@@ -305,10 +299,10 @@ export function OrganizationFilesPage() {
         >
           <div className="flex items-center justify-between gap-4 border-b border-zinc-100 p-6">
             <div>
-              <p className="text-sm font-medium leading-5 text-black">Uploaded files</p>
+              <p className="text-sm font-medium leading-5 text-black">Workspace files</p>
               <p className="mt-1 text-sm font-medium leading-5 text-zinc-600">
-                PDF, DOCX, MD, TXT, CSV — up to 100 MB each. Drop folders to
-                preserve your directory structure.
+                PDF, DOCX, MD, TXT, CSV — up to 100 MB each. Visible only inside
+                this workspace. Drop folders to preserve your directory structure.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -669,8 +663,6 @@ function statusConfig(status: string | null): {
     case 'CHUNKING':
     case 'EMBEDDING':
       return {
-        // Internal pipeline stages aren't meaningful to users — collapse
-        // to a single "Processing" label.
         label: 'Processing',
         className: 'border-amber-200 bg-amber-50 text-amber-700',
         spinner: true,
@@ -697,11 +689,6 @@ function formatSize(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/**
- * Recursively walk a dropped FileSystemEntry, collecting (file, pathSegments)
- * tuples. Directories turn into path segments so our caller can mirror them
- * into folders during upload.
- */
 async function walkEntry(
   entry: FileSystemEntry,
   parentPath: string[],
