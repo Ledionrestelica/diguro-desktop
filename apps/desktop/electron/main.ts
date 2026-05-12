@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, safeStorage, session } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
@@ -67,6 +67,19 @@ void app.whenReady().then(() => {
     writeToken(token);
     return true;
   });
+
+  // Rewrite Origin header for packaged builds (file:// sends Origin: null).
+  // Sets a consistent app://diguro origin so the API can allowlist it.
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['https://*.diguro.se/*'] },
+    (details, callback) => {
+      const headers = { ...details.requestHeaders };
+      if (!headers['Origin'] || headers['Origin'] === 'null') {
+        headers['Origin'] = 'app://diguro';
+      }
+      callback({ requestHeaders: headers });
+    }
+  );
 
   createWindow();
 
