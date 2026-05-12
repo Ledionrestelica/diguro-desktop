@@ -1,7 +1,9 @@
-import { app, BrowserWindow, ipcMain, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, safeStorage, session } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
+
+const DESKTOP_ORIGIN = 'app://diguro';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -61,7 +63,31 @@ function createWindow() {
   }
 }
 
+// Packaged builds load the renderer with `loadFile`, which produces a
+// `file://` document. Chromium serializes that as an opaque origin and
+// sends `Origin: null` on outbound `fetch` calls — Better-Auth's
+// `trustedOrigins` check then rejects every auth request with
+// MISSING_OR_NULL_ORIGIN. We rewrite Origin to a stable scheme that the
+// API allowlists, so the renderer behaves like a "real" web origin
+// regardless of how it was loaded. The dev server already provides a
+// proper http://localhost origin, so we only rewrite when the header
+// is missing, `null`, or a `file://` URL.
+//
+// API side: add `app://diguro` to ALLOWED_ORIGINS.
+function installOriginRewrite() {
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    const headers = { ...details.requestHeaders };
+    const origin = headers['Origin'] ?? headers['origin'];
+    if (!origin || origin === 'null' || origin.startsWith('file://')) {
+      headers['Origin'] = DESKTOP_ORIGIN;
+    }
+    callback({ requestHeaders: headers });
+  });
+}
+
 void app.whenReady().then(() => {
+  installOriginRewrite();
+
   ipcMain.handle('auth:get-token', () => readToken());
   ipcMain.handle('auth:set-token', (_e, token: string | null) => {
     writeToken(token);
