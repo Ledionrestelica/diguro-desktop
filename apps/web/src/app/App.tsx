@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { trpc } from '@/lib/trpc';
 import { createTrpcClient } from '@/lib/trpc-client';
 import { router } from './router';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 /**
  * Web-companion shell. Mirrors the desktop App.tsx — QueryClient + tRPC
@@ -18,7 +19,9 @@ export function App() {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <ErrorBoundary>
+          <RouterProvider router={router} />
+        </ErrorBoundary>
       </QueryClientProvider>
     </trpc.Provider>
   );
