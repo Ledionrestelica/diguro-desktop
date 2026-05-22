@@ -85,8 +85,8 @@ export function Message({
   return (
     <div className="flex flex-col gap-4">
       {searchState && <SearchIndicator state={searchState} />}
-      {blocks.map((block, i) => (
-        <BlockRender key={i} block={block} citationRanks={citationRanks} />
+      {blocks.map((block) => (
+        <BlockRender key={block.key} block={block} citationRanks={citationRanks} />
       ))}
       {thinkingLabel && (
         <p className="thinking-gradient-text w-fit animate-bounce text-base font-medium leading-6">
@@ -134,8 +134,8 @@ interface RetrievalResult {
 }
 
 type Block =
-  | { kind: 'text'; text: string }
-  | { kind: 'tool'; part: unknown }
+  | { kind: 'text'; text: string; key: string }
+  | { kind: 'tool'; part: unknown; key: string }
   | {
       kind: 'retrieval';
       state: ToolState;
@@ -143,41 +143,52 @@ type Block =
       matched: number | null;
       sources: string[];
       errorText: string | null;
+      key: string;
     }
-  | { kind: 'files'; parts: FileLikePart[] };
+  | { kind: 'files'; parts: FileLikePart[]; key: string };
 
 function buildBlocks(parts: UIMessage['parts']): Block[] {
   const out: Block[] = [];
   let textBuf = '';
+  let textStartIdx = 0;
   let fileBuf: FileLikePart[] = [];
+  let fileStartIdx = 0;
+  let partIdx = 0;
 
   const flushText = () => {
     if (textBuf.length > 0) {
-      out.push({ kind: 'text', text: textBuf });
+      out.push({ kind: 'text', text: textBuf, key: `text-${textStartIdx}` });
       textBuf = '';
     }
   };
   const flushFiles = () => {
     if (fileBuf.length > 0) {
-      out.push({ kind: 'files', parts: fileBuf });
+      out.push({ kind: 'files', parts: fileBuf, key: `files-${fileStartIdx}` });
       fileBuf = [];
     }
   };
 
   for (const part of parts) {
     const type = (part as { type?: unknown }).type;
-    if (typeof type !== 'string') continue;
+    if (typeof type !== 'string') {
+      partIdx++;
+      continue;
+    }
 
     if (type === 'text') {
       flushFiles();
+      if (textBuf.length === 0) textStartIdx = partIdx;
       const text = (part as { text?: unknown }).text;
       if (typeof text === 'string') textBuf += text;
+      partIdx++;
       continue;
     }
 
     if (isFilePart(part)) {
       flushText();
+      if (fileBuf.length === 0) fileStartIdx = partIdx;
       fileBuf.push(part);
+      partIdx++;
       continue;
     }
 
@@ -186,17 +197,23 @@ function buildBlocks(parts: UIMessage['parts']): Block[] {
       if (name === RETRIEVAL_TOOL_NAME) {
         flushText();
         flushFiles();
-        out.push(toRetrievalBlock(part));
+        out.push(toRetrievalBlock(part, partIdx));
+        partIdx++;
         continue;
       }
       // Provider-native tools (web_search) have a dedicated inline indicator
       // + source footer — don't render them as a generic block.
-      if (!isGenerativeUIToolName(name)) continue;
+      if (!isGenerativeUIToolName(name)) {
+        partIdx++;
+        continue;
+      }
       flushText();
       flushFiles();
-      out.push({ kind: 'tool', part });
+      out.push({ kind: 'tool', part, key: `tool-${partIdx}` });
+      partIdx++;
       continue;
     }
+    partIdx++;
   }
   flushText();
   flushFiles();
@@ -205,6 +222,7 @@ function buildBlocks(parts: UIMessage['parts']): Block[] {
 
 function toRetrievalBlock(
   part: unknown,
+  partIdx: number,
 ): Extract<Block, { kind: 'retrieval' }> {
   const state = ((part as { state?: unknown }).state ?? 'input-streaming') as ToolState;
   const input = (part as { input?: unknown }).input as { query?: unknown } | undefined;
@@ -234,6 +252,7 @@ function toRetrievalBlock(
     matched,
     sources,
     errorText: typeof errorText === 'string' ? errorText : null,
+    key: `retrieval-${partIdx}`,
   };
 }
 
