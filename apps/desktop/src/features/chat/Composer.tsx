@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ChangeEvent,
@@ -128,6 +129,17 @@ export function Composer({
   const [modelId, setModelId] = useState<string | null>(initialModelId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-grow the textarea up to a cap. Resetting to `auto` first lets it
+  // shrink on backspace; capping at MAX_HEIGHT switches to internal scroll
+  // so the composer doesn't take over the viewport on long pastes.
+  useLayoutEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const MAX_HEIGHT = 240;
+    ta.style.height = 'auto';
+    ta.style.height = `${Math.min(ta.scrollHeight, MAX_HEIGHT)}px`;
+  }, [value]);
 
   // File mention state. `picker` drives the dropdown — `typeahead` mode is
   // anchored to a # token in the textarea (selection strips the token);
@@ -493,7 +505,7 @@ export function Composer({
           }}
           disabled={disabled}
           placeholder="Chat with AI — type # to focus on one file"
-          className="flex-1 resize-none bg-transparent text-base leading-6 text-zinc-800 outline-none placeholder:text-zinc-400 disabled:opacity-50"
+          className="max-h-60 w-full resize-none overflow-y-auto bg-transparent text-base leading-6 text-zinc-800 outline-none placeholder:text-zinc-400 disabled:opacity-50"
         />
 
         {pickerOpen && (
@@ -521,7 +533,7 @@ export function Composer({
 
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
 
-        <div className="flex items-center justify-between pt-4">
+        <div className="mt-auto flex items-center justify-between pt-4">
           <div className="flex items-center gap-2">
             <input
               ref={fileInputRef}
