@@ -74,7 +74,11 @@ void app.whenReady().then(() => {
     { urls: ['https://*.diguro.se/*'] },
     (details, callback) => {
       const headers = { ...details.requestHeaders };
-      if (!headers['Origin'] || headers['Origin'] === 'null') {
+      const originKey = Object.keys(headers).find(k => k.toLowerCase() === 'origin');
+      const originValue = originKey ? headers[originKey] : null;
+
+      if (!originValue || originValue === 'null') {
+        if (originKey) delete headers[originKey];
         headers['Origin'] = 'app://diguro';
       }
       callback({ requestHeaders: headers });
