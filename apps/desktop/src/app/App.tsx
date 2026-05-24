@@ -5,6 +5,7 @@ import { trpc } from '@/lib/trpc';
 import { createTrpcClient } from '@/lib/trpc-client';
 import { AuthGate } from './AuthGate';
 import { router } from './router';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export function App() {
   const [qc] = useState(() => new QueryClient());
@@ -13,9 +14,11 @@ export function App() {
   return (
     <trpc.Provider client={trpcClient} queryClient={qc}>
       <QueryClientProvider client={qc}>
-        <AuthGate>
-          <RouterProvider router={router} />
-        </AuthGate>
+        <ErrorBoundary>
+          <AuthGate>
+            <RouterProvider router={router} />
+          </AuthGate>
+        </ErrorBoundary>
       </QueryClientProvider>
     </trpc.Provider>
   );
