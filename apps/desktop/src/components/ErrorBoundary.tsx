@@ -1,5 +1,17 @@
 import { Component, type ReactNode } from 'react';
 
+// Browser extensions (Google Translate, ad blockers, screen recorders, password
+// managers) mutate the DOM out from under React. When React then tries to
+// commit a reconciliation, the DOM node it expected to find as a sibling /
+// child is gone or relocated — surfacing as `NotFoundError` on `removeChild`
+// or `insertBefore`. These are not bugs in the app; the only sane response is
+// to swallow them and let React re-render.
+export function isExtensionDomError(error: Error): boolean {
+  if (error.name !== 'NotFoundError') return false;
+  const msg = error.message;
+  return msg.includes('removeChild') || msg.includes('insertBefore');
+}
+
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
@@ -21,9 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack?: string | null }) {
-    // Ignore removeChild errors — usually caused by browser extensions
-    // (screen recorders, ad blockers, translation tools) manipulating the DOM
-    if (error.name === 'NotFoundError' && error.message.includes('removeChild')) {
+    if (isExtensionDomError(error)) {
       console.warn('[ErrorBoundary] Ignored DOM manipulation error (likely browser extension):', error.message);
       this.setState({ hasError: false, error: null });
       return;

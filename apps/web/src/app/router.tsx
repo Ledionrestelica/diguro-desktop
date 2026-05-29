@@ -1,6 +1,8 @@
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet, useRouteError } from 'react-router-dom';
+import { useEffect } from 'react';
 import { trpc } from '@/lib/trpc';
 import { AuthGate } from './AuthGate';
+import { isExtensionDomError } from '@/components/ErrorBoundary';
 
 // Shared features from desktop — imported via the `@` alias fallthrough in
 // vite.config.ts. Internal `@/lib/*` imports inside these files resolve
@@ -65,6 +67,49 @@ function NotFoundRedirect() {
 }
 
 /**
+ * Route-level error fallback. Without this, errors thrown inside a route
+ * component bubble into React Router's built-in error UI (a localized
+ * "Hej utvecklare 👋…" page) before the outer ErrorBoundary in App.tsx
+ * can see them. We mirror the boundary's logic here: ignore the
+ * browser-extension DOM errors (forces a soft re-render via reload),
+ * show a real fallback for anything else.
+ */
+function RouteErrorBoundary() {
+  const error = useRouteError();
+  const ignorable = error instanceof Error && isExtensionDomError(error);
+
+  useEffect(() => {
+    if (ignorable) {
+      console.warn(
+        '[RouteErrorBoundary] Ignored DOM manipulation error (likely browser extension):',
+        (error as Error).message,
+      );
+      window.location.reload();
+    }
+  }, [ignorable, error]);
+
+  if (ignorable) return null;
+
+  return (
+    <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center">
+      <p className="text-lg font-medium text-zinc-800">Something went wrong</p>
+      <p className="max-w-md text-sm text-zinc-500">
+        Try refreshing the page. If this keeps happening, check if any browser
+        extensions (translation tools, ad blockers, screen recorders) might be
+        interfering.
+      </p>
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+      >
+        Refresh
+      </button>
+    </div>
+  );
+}
+
+/**
  * Web router — mirrors desktop's route set so the same pages render at the
  * same paths across both clients. Every route is gated by AuthGate; when
  * the user is not signed in, AuthGate shows the desktop SignIn inline
@@ -79,6 +124,7 @@ export const router = createBrowserRouter([
         <Outlet />
       </AuthGate>
     ),
+    errorElement: <RouteErrorBoundary />,
     children: [
       { path: '/', element: <RootRedirect /> },
 
