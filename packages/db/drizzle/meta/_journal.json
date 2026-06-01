@@ -71,6 +71,13 @@
       "when": 1778339048616,
       "tag": "0009_daily_luke_cage",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1780337289288,
+      "tag": "0010_chief_wild_child",
+      "breakpoints": true
     }
   ]
 }

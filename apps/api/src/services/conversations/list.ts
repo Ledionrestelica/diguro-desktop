@@ -4,6 +4,7 @@ export interface ConversationSummary {
   id: string;
   title: string;
   workspaceId: string | null;
+  folderId: string | null;
   modelId: string | null;
   createdAt: Date;
 }
@@ -39,6 +40,7 @@ export async function listConversations(
       id: schema.conversations.id,
       title: schema.conversations.title,
       workspaceId: schema.conversations.workspaceId,
+      folderId: schema.conversations.folderId,
       modelId: schema.conversations.modelId,
       createdAt: schema.conversations.createdAt,
     })

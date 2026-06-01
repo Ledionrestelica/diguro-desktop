@@ -9,4 +9,5 @@ export type {
   ConversationDetail,
   PersistedMessage,
   MessageCitation,
+  ChatFolderRow,
 } from '@diguro/trpc';

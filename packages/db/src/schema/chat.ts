@@ -47,6 +47,8 @@ export const chatFolders = pgTable(
       onDelete: 'cascade',
     }),
     name: text('name').notNull(),
+    /** Optional hex swatch (e.g. "#3b82f6") for the folder icon. Null = default. */
+    color: text('color'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => [

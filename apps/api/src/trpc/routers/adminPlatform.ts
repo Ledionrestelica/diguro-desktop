@@ -10,6 +10,11 @@ import {
   resolveOrganizationLogoUrl,
   ORGANIZATION_URL_SCHEME,
 } from '../../services/organizations/attachments.ts';
+import {
+  getOrganizationUsageSummary,
+  listRecentOrganizationUsage,
+} from '../../services/usage/queries.ts';
+import { listOrganizationPerUserSpend } from '../../services/usage/limits.ts';
 
 const SlugShape = z
   .string()
@@ -284,6 +289,55 @@ export const adminPlatformRouter = router({
    * existing schema-level ON DELETE rules. Refuses self-deletion to
    * avoid an admin locking themselves out.
    */
+  /** Month-to-date AI spend summary for one organization (any tenant).
+   *  Reuses the org-admin usage rollup, but takes an explicit
+   *  organizationId so a superadmin can inspect any tenant. */
+  organizationUsageSummary: systemAdminProcedure
+    .input(z.object({ organizationId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        return await getOrganizationUsageSummary(
+          { db: ctx.db },
+          { organizationId: input.organizationId },
+        );
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  /** Most recent AI calls across an organization. */
+  organizationUsageRecent: systemAdminProcedure
+    .input(
+      z.object({
+        organizationId: z.string().min(1),
+        limit: z.number().int().min(1).max(200).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        return await listRecentOrganizationUsage(
+          { db: ctx.db },
+          { organizationId: input.organizationId, limit: input.limit ?? 50 },
+        );
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
+  /** Per-seat MTD spend vs. budget for an organization. */
+  organizationUsagePerUser: systemAdminProcedure
+    .input(z.object({ organizationId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        return await listOrganizationPerUserSpend(
+          { db: ctx.db },
+          { organizationId: input.organizationId },
+        );
+      } catch (err) {
+        throw mapDomainError(err);
+      }
+    }),
+
   userDelete: systemAdminProcedure
     .input(z.object({ userId: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {

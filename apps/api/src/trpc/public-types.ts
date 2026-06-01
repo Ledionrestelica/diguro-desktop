@@ -7,6 +7,8 @@ export type {
   ConversationSummary,
 } from '../services/conversations/list.ts';
 
+export type { ChatFolderRow } from '../services/conversations/folders.ts';
+
 export type {
   ConversationDetail,
   PersistedMessage,

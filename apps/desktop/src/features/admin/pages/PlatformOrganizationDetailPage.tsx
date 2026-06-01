@@ -311,11 +311,363 @@ export function PlatformOrganizationDetailPage() {
           </div>
         </SettingsSection>
 
+        {/* AI usage */}
+        <UsageSection organizationId={org.id} />
+
         {/* Danger zone */}
         <DangerZone org={org} />
       </div>
     </AdminPageBody>
   );
+}
+
+/* ─────────────── AI usage ─────────────── */
+
+function UsageSection({ organizationId }: { organizationId: string }) {
+  const summaryQuery = trpc.adminPlatform.organizationUsageSummary.useQuery({
+    organizationId,
+  });
+  const perUserQuery = trpc.adminPlatform.organizationUsagePerUser.useQuery({
+    organizationId,
+  });
+  const recentQuery = trpc.adminPlatform.organizationUsageRecent.useQuery({
+    organizationId,
+    limit: 25,
+  });
+
+  const summary = summaryQuery.data;
+  const perUser = perUserQuery.data ?? [];
+  const recent = recentQuery.data ?? [];
+
+  const monthLabel = useMemo(
+    () =>
+      new Date().toLocaleDateString('en-US', {
+        month: 'long',
+        year: 'numeric',
+      }),
+    [],
+  );
+
+  return (
+    <section className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
+      <div className="border-b border-zinc-100 px-6 py-4">
+        <p className="text-sm font-medium text-black">AI usage</p>
+        <p className="mt-0.5 text-xs text-zinc-500">
+          Month-to-date spend across every user in this organization.{' '}
+          {monthLabel} · UTC.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 p-6 md:grid-cols-4">
+        <UsageStat
+          label="Total cost"
+          value={formatUsd(summary?.totalCostMicrodollars ?? 0)}
+          highlight
+        />
+        <UsageStat
+          label="Calls"
+          value={(summary?.totalCalls ?? 0).toLocaleString()}
+        />
+        <UsageStat
+          label="Input tokens"
+          value={(summary?.totalPromptTokens ?? 0).toLocaleString()}
+        />
+        <UsageStat
+          label="Output tokens"
+          value={(summary?.totalCompletionTokens ?? 0).toLocaleString()}
+        />
+      </div>
+
+      {/* Breakdown by model */}
+      <div className="border-t border-zinc-100">
+        <p className="px-6 pt-5 text-xs font-medium uppercase tracking-wide text-zinc-500">
+          By model
+        </p>
+        <div className="scrollbar-thin overflow-x-auto px-6 pb-2">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead className="text-xs uppercase tracking-wide text-zinc-500">
+              <tr>
+                <UTh>Type</UTh>
+                <UTh>Model</UTh>
+                <UTh align="right">Calls</UTh>
+                <UTh align="right">Input</UTh>
+                <UTh align="right">Output</UTh>
+                <UTh align="right">Cost</UTh>
+              </tr>
+            </thead>
+            <tbody>
+              {summaryQuery.isLoading && (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-zinc-500">
+                    Loading…
+                  </td>
+                </tr>
+              )}
+              {!summaryQuery.isLoading && summary?.breakdown.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-zinc-500">
+                    No usage yet this month.
+                  </td>
+                </tr>
+              )}
+              {summary?.breakdown.map((row, i) => (
+                <tr
+                  key={`${row.type}-${row.provider}-${row.model}-${i}`}
+                  className="border-t border-zinc-100"
+                >
+                  <UTd>
+                    <UsageTypeBadge type={row.type} />
+                  </UTd>
+                  <UTd mono>
+                    {row.provider}/{row.model}
+                  </UTd>
+                  <UTd align="right">{row.calls.toLocaleString()}</UTd>
+                  <UTd align="right">{row.promptTokens.toLocaleString()}</UTd>
+                  <UTd align="right">
+                    {row.completionTokens.toLocaleString()}
+                  </UTd>
+                  <UTd align="right" bold>
+                    {formatUsd(row.costMicrodollars)}
+                  </UTd>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Per-seat spend */}
+      <div className="border-t border-zinc-100">
+        <p className="px-6 pt-5 text-xs font-medium uppercase tracking-wide text-zinc-500">
+          Per seat
+        </p>
+        <div className="scrollbar-thin overflow-x-auto px-6 pb-2">
+          <table className="w-full min-w-[560px] text-sm">
+            <thead className="text-xs uppercase tracking-wide text-zinc-500">
+              <tr>
+                <UTh>User</UTh>
+                <UTh align="right">Used</UTh>
+                <UTh align="right">Cap</UTh>
+                <UTh align="right">Remaining</UTh>
+              </tr>
+            </thead>
+            <tbody>
+              {perUserQuery.isLoading && (
+                <tr>
+                  <td colSpan={4} className="py-6 text-center text-zinc-500">
+                    Loading…
+                  </td>
+                </tr>
+              )}
+              {!perUserQuery.isLoading && perUser.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-zinc-500">
+                    No members yet.
+                  </td>
+                </tr>
+              )}
+              {perUser.map((u) => (
+                <tr key={u.userId} className="border-t border-zinc-100">
+                  <UTd>
+                    <div className="flex flex-col">
+                      <span className="font-medium text-zinc-900">
+                        {u.userName ?? u.userEmail ?? '—'}
+                      </span>
+                      {u.userName && u.userEmail && (
+                        <span className="text-xs text-zinc-500">
+                          {u.userEmail}
+                        </span>
+                      )}
+                    </div>
+                  </UTd>
+                  <UTd align="right" bold>
+                    {formatUsd(u.usedMicrodollars)}
+                  </UTd>
+                  <UTd align="right">{formatUsd(u.capMicrodollars)}</UTd>
+                  <UTd align="right">
+                    {formatUsd(
+                      Math.max(0, u.capMicrodollars - u.usedMicrodollars),
+                    )}
+                  </UTd>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Recent activity */}
+      <div className="border-t border-zinc-100">
+        <p className="px-6 pt-5 text-xs font-medium uppercase tracking-wide text-zinc-500">
+          Recent activity
+        </p>
+        <div className="scrollbar-thin overflow-x-auto px-6 pb-6">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead className="text-xs uppercase tracking-wide text-zinc-500">
+              <tr>
+                <UTh>When</UTh>
+                <UTh>User</UTh>
+                <UTh>Type</UTh>
+                <UTh>Model</UTh>
+                <UTh align="right">Cost</UTh>
+              </tr>
+            </thead>
+            <tbody>
+              {recentQuery.isLoading && (
+                <tr>
+                  <td colSpan={5} className="py-6 text-center text-zinc-500">
+                    Loading…
+                  </td>
+                </tr>
+              )}
+              {!recentQuery.isLoading && recent.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-zinc-500">
+                    No recent activity.
+                  </td>
+                </tr>
+              )}
+              {recent.map((row) => (
+                <tr key={row.id} className="border-t border-zinc-100">
+                  <UTd>{formatRelativeTime(new Date(row.createdAt))}</UTd>
+                  <UTd>{row.userName ?? row.userEmail ?? '—'}</UTd>
+                  <UTd>
+                    <UsageTypeBadge type={row.type} />
+                  </UTd>
+                  <UTd mono>
+                    {row.provider}/{row.model}
+                  </UTd>
+                  <UTd align="right" bold>
+                    {formatUsd(row.costMicrodollars)}
+                  </UTd>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function UsageStat({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'rounded-[10px] border p-4',
+        highlight ? 'border-black/10 bg-zinc-50' : 'border-zinc-200',
+      )}
+    >
+      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+        {label}
+      </p>
+      <p className="mt-1.5 text-xl font-semibold tabular-nums text-zinc-900">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function UTh({
+  children,
+  align,
+}: {
+  children: React.ReactNode;
+  align?: 'right';
+}) {
+  return (
+    <th
+      className={cn(
+        'py-2.5 pr-4 font-medium',
+        align === 'right' ? 'text-right' : 'text-left',
+      )}
+    >
+      {children}
+    </th>
+  );
+}
+
+function UTd({
+  children,
+  align,
+  mono,
+  bold,
+}: {
+  children: React.ReactNode;
+  align?: 'right';
+  mono?: boolean;
+  bold?: boolean;
+}) {
+  return (
+    <td
+      className={cn(
+        'py-2.5 pr-4 text-zinc-700',
+        align === 'right' && 'text-right tabular-nums',
+        mono && 'font-mono text-[13px]',
+        bold && 'font-semibold text-zinc-900',
+      )}
+    >
+      {children}
+    </td>
+  );
+}
+
+function UsageTypeBadge({ type }: { type: string }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium',
+        usageTypeColor(type),
+      )}
+    >
+      {type}
+    </span>
+  );
+}
+
+function usageTypeColor(type: string): string {
+  switch (type) {
+    case 'CHAT':
+      return 'border-violet-200 bg-violet-50 text-violet-700';
+    case 'EMBED':
+      return 'border-sky-200 bg-sky-50 text-sky-700';
+    case 'RERANK':
+      return 'border-amber-200 bg-amber-50 text-amber-700';
+    case 'OCR':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    case 'CONTEXTUALIZE':
+      return 'border-indigo-200 bg-indigo-50 text-indigo-700';
+    case 'TITLE':
+      return 'border-zinc-200 bg-zinc-50 text-zinc-600';
+    default:
+      return 'border-zinc-200 bg-zinc-50 text-zinc-600';
+  }
+}
+
+function formatUsd(microdollars: number): string {
+  const usd = microdollars / 1_000_000;
+  if (usd === 0) return '$0.00';
+  if (usd < 0.01) return '<$0.01';
+  if (usd < 1) return `$${usd.toFixed(3)}`;
+  if (usd < 100) return `$${usd.toFixed(2)}`;
+  return `$${usd.toFixed(0)}`;
+}
+
+function formatRelativeTime(date: Date): string {
+  const delta = (Date.now() - date.getTime()) / 1000;
+  if (delta < 60) return `${Math.floor(delta)}s ago`;
+  if (delta < 3600) return `${Math.floor(delta / 60)}m ago`;
+  if (delta < 86400) return `${Math.floor(delta / 3600)}h ago`;
+  if (delta < 7 * 86400) return `${Math.floor(delta / 86400)}d ago`;
+  return date.toLocaleDateString();
 }
 
 /* ─────────────── danger zone ─────────────── */
