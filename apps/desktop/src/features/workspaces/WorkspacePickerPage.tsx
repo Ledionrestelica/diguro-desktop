@@ -1,6 +1,8 @@
 import { Navigate, useNavigate } from 'react-router-dom';
-import { ArrowRight, Plus, Settings } from 'lucide-react';
+import { ArrowRight, LogOut, Plus, Settings } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { apiAuth } from '@/lib/api-auth';
+import { useAuth } from '@/app/auth-context';
 import { WorkspaceGlyph } from './WorkspaceGlyph';
 
 /**
@@ -15,6 +17,7 @@ import { WorkspaceGlyph } from './WorkspaceGlyph';
  */
 export function WorkspacePickerPage() {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
   const me = trpc.health.me.useQuery();
   const workspacesQuery = trpc.workspaces.myList.useQuery();
   const utils = trpc.useUtils();
@@ -32,6 +35,11 @@ export function WorkspacePickerPage() {
     await setActive.mutateAsync({ workspaceId });
     await utils.health.me.invalidate();
     void navigate('/chat');
+  }
+
+  async function handleSignOut() {
+    await apiAuth.signOut();
+    signOut();
   }
 
   const organizationName = me.data?.organization?.name;
@@ -98,6 +106,17 @@ export function WorkspacePickerPage() {
             {(setActive.error as { message: string }).message}
           </p>
         )}
+
+        <div className="mt-10 flex justify-center">
+          <button
+            type="button"
+            onClick={() => void handleSignOut()}
+            className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+          >
+            <LogOut className="size-4" />
+            Sign out
+          </button>
+        </div>
       </div>
     </div>
   );
