@@ -43,8 +43,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         signOut: () => {
-          void apiAuth.signOut().then(() => {
-            void utils.health.me.invalidate();
+          void apiAuth.signOut().finally(() => {
+            // reset (not invalidate): React Query retains `data` through an
+            // errored refetch, so an invalidate would refetch → 401 yet leave
+            // the stale user in cache, keeping AuthGate on the app. Resetting
+            // clears the cache so `!me.data` flips and SignIn renders.
+            utils.health.me.reset();
           });
         },
       }}
