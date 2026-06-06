@@ -32,13 +32,14 @@ import type { EmailProvider } from './ports/emailProvider.ts';
 const config = loadConfig();
 const logger = createLogger(config.LOG_LEVEL);
 const db = createDb(config.DATABASE_URL);
-const auth = createAuth(db, config);
 const modelRegistry = createModelRegistry(config);
 const objectStore = createS3ObjectStore(config);
 
 // Resend is optional in dev — without RESEND_API_KEY the invitation flow
 // still creates invites (admin copies the link manually from the Members
 // page). With it configured, invites auto-send via the verified sender.
+// Built before `createAuth` because Better-Auth's sendResetPassword hook
+// needs the provider to dispatch reset emails.
 const emailProvider: EmailProvider | null = config.RESEND_API_KEY
   ? createResendEmailProvider({
       apiKey: config.RESEND_API_KEY,
@@ -47,8 +48,10 @@ const emailProvider: EmailProvider | null = config.RESEND_API_KEY
     })
   : null;
 if (!emailProvider) {
-  logger.info('email provider not configured — invitations will fall back to copy-link UX');
+  logger.info('email provider not configured — invitations & password reset will fall back to copy-link / no-op');
 }
+
+const auth = createAuth(db, config, { emailProvider, logger });
 
 // OCR is optional in dev (scanned PDFs won't extract but text-layer PDFs
 // and MD/TXT still work). Throw in prod if missing — Phase 10 config

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Download, FileSpreadsheet, FileText, Table2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -7,7 +8,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ToolCard, ToolError, ToolSkeleton, type ToolState } from './shared';
+import { exportTable, type ExportFormat } from './tableExport';
 
 const TableColumn = z.object({
   key: z.string(),
@@ -25,8 +33,8 @@ const TableInput = z.object({
   rows: z.array(z.record(z.string(), TableCellValue)).max(200),
 });
 
-type TableData = z.infer<typeof TableInput>;
-type TableColumnT = z.infer<typeof TableColumn>;
+export type TableData = z.infer<typeof TableInput>;
+export type TableColumnT = z.infer<typeof TableColumn>;
 
 export function TableTool({ input, state }: { input: unknown; state: ToolState }) {
   if (state === 'input-streaming' || state === 'input-available') {
@@ -45,6 +53,7 @@ function RenderedTable({ data }: { data: TableData }) {
       eyebrow="Table"
       {...(data.title ? { title: data.title } : {})}
       {...(data.description ? { description: data.description } : {})}
+      actions={data.rows.length > 0 ? <ExportMenu data={data} /> : undefined}
       padded={false}
     >
       <div className="scrollbar-thin max-h-[480px] overflow-auto">
@@ -78,6 +87,41 @@ function RenderedTable({ data }: { data: TableData }) {
   );
 }
 
+const EXPORT_OPTIONS: { format: ExportFormat; label: string; icon: typeof FileText }[] = [
+  { format: 'xlsx', label: 'Export to Excel (.xlsx)', icon: FileSpreadsheet },
+  { format: 'docx', label: 'Export to Word (.docx)', icon: FileText },
+  { format: 'csv', label: 'Export to CSV (.csv)', icon: Table2 },
+];
+
+function ExportMenu({ data }: { data: TableData }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="flex items-center gap-1.5 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
+        aria-label="Export table"
+      >
+        <Download className="size-3.5" />
+        Export
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        {EXPORT_OPTIONS.map(({ format, label, icon: Icon }) => (
+          <DropdownMenuItem
+            key={format}
+            onSelect={() => {
+              void exportTable(data, format).catch((err) => {
+                console.error(`Table export (${format}) failed`, err);
+              });
+            }}
+          >
+            <Icon className="size-4 text-zinc-500" />
+            {label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function alignClass(col: TableColumnT, kind: 'header' | 'cell'): string {
   const align =
     col.align ??
@@ -91,7 +135,7 @@ function alignClass(col: TableColumnT, kind: 'header' | 'cell'): string {
   return `${base} text-left`;
 }
 
-function formatCell(value: unknown, col: TableColumnT): string {
+export function formatCell(value: unknown, col: TableColumnT): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'number') {
     if (col.format === 'currency') return formatCurrency(value);

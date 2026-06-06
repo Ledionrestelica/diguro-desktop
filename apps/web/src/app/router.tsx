@@ -14,6 +14,7 @@ import { WorkspacePickerPage } from '@/features/workspaces/WorkspacePickerPage';
 import { NewWorkspaceWizardPage } from '@/features/workspaces/NewWorkspaceWizardPage';
 import { PersonalFilesPage } from '@/features/files/PersonalFilesPage';
 import { AcceptInvitePage } from '@/features/invitations/AcceptInvitePage';
+import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage';
 import { OrganizationAdminLayout } from '@/features/admin/OrganizationAdminLayout';
 import { OrganizationGeneralSettingsPage } from '@/features/admin/pages/OrganizationGeneralSettingsPage';
 import { OrganizationFilesPage } from '@/features/admin/pages/OrganizationFilesPage';
@@ -118,6 +119,9 @@ function RouteErrorBoundary() {
  * exactly where they clicked from.
  */
 export const router = createBrowserRouter([
+  // Public — must sit OUTSIDE AuthGate: a user resetting their password is
+  // logged out by definition, so it can't be gated behind sign-in.
+  { path: '/reset-password', element: <ResetPasswordPage /> },
   {
     element: (
       <AuthGate>

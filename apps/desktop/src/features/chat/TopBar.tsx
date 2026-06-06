@@ -1,8 +1,11 @@
-import { Building2, LogOut, LucideRotate3d, Menu, MessageCircleDashed, Shield } from 'lucide-react';
+import { useState } from 'react';
+import { Building2, LogOut, LucideRotate3d, Menu, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiAuth } from '@/lib/api-auth';
 import { useAuth } from '@/app/auth-context';
 import { trpc } from '@/lib/trpc';
+import { CustomInstructionsButton } from './CustomInstructionsButton';
+import { SettingsDialog } from '@/features/settings/SettingsDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +26,7 @@ export function TopBar({ onMenuClick }: TopBarProps = {}) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const me = trpc.health.me.useQuery();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   async function handleSignOut() {
     await apiAuth.signOut();
@@ -42,9 +46,11 @@ export function TopBar({ onMenuClick }: TopBarProps = {}) {
   const activeWs = me.data?.activeWorkspace;
   const orgName = org?.name ?? mockOrg.shortName;
   const wsName = activeWs?.name;
-  const avatarInitials = initials(me.data?.email);
+  const avatarImage = me.data?.image ?? null;
+  const avatarInitials = initials(me.data?.name || me.data?.email);
 
   return (
+    <>
     <header className="relative flex h-[70px] items-center justify-between px-6">
       <div className="flex w-20 items-center">
         {onMenuClick && (
@@ -88,22 +94,20 @@ export function TopBar({ onMenuClick }: TopBarProps = {}) {
       </button>
 
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          aria-label="Chat info"
-          className="grid size-[42px] place-items-center rounded-full border border-zinc-100 bg-white text-zinc-700 shadow-xs transition-colors hover:bg-zinc-50"
-        >
-          <MessageCircleDashed className="size-4" />
-        </button>
+        <CustomInstructionsButton />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
               aria-label="User menu"
-              className="grid size-[42px] place-items-center rounded-full border border-zinc-300 bg-zinc-100 text-[13px] font-medium text-zinc-800 shadow-xs transition-colors hover:bg-zinc-200"
+              className="grid size-[42px] place-items-center overflow-hidden rounded-full border border-zinc-300 bg-zinc-100 text-[13px] font-medium text-zinc-800 shadow-xs transition-colors hover:bg-zinc-200"
             >
-              {avatarInitials}
+              {avatarImage ? (
+                <img src={avatarImage} alt="" className="size-full object-cover" />
+              ) : (
+                avatarInitials
+              )}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
@@ -119,12 +123,18 @@ export function TopBar({ onMenuClick }: TopBarProps = {}) {
                 className="cursor-pointer"
                 onSelect={() => void navigate('/admin/workspace/general')}
               >
-                <img src={activeWs?.logoUrl ?? ''} alt={activeWs?.name ?? ''} className="size-4" />
+                <Building2 className="size-4" />
                 Workspace settings
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled>Settings</DropdownMenuItem>
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onSelect={() => setSettingsOpen(true)}
+            >
+              <Settings className="size-4" />
+              Settings
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="cursor-pointer" onSelect={handleSignOut}>
               <LogOut className="size-4" />
@@ -134,6 +144,9 @@ export function TopBar({ onMenuClick }: TopBarProps = {}) {
         </DropdownMenu>
       </div>
     </header>
+
+    <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+    </>
   );
 }
 

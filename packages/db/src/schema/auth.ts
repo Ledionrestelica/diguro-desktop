@@ -9,7 +9,8 @@ import { organizations } from './organization.ts';
  *     Nullable because superadmins may be organizationless (and fresh
  *     signups before invite).
  *   - role: narrowed to our systemRole enum.
- *   - preferredChatModelId / maxPersonalResources: user-scoped preferences.
+ *   - preferredChatModelId / customInstructions / maxPersonalResources:
+ *     user-scoped preferences.
  */
 
 export const users = pgTable(
@@ -32,6 +33,9 @@ export const users = pgTable(
     }),
 
     preferredChatModelId: text('preferred_chat_model_id'),
+    /** Free-text user-authored guidance ("custom instructions") injected
+     *  into the chat system prompt on every turn. Null = no custom guidance. */
+    customInstructions: text('custom_instructions'),
     maxPersonalResources: integer('max_personal_resources').notNull().default(100),
   },
   (t) => [index('users_organization_idx').on(t.organizationId)],

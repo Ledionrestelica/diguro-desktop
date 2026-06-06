@@ -37,4 +37,24 @@ export const apiAuth = {
   signOut: async () => {
     await call<{ success: boolean }>('/sign-out', {}).catch(() => undefined);
   },
+
+  changePassword: (
+    currentPassword: string,
+    newPassword: string,
+    revokeOtherSessions = false,
+  ) =>
+    call<{ user?: { id: string } }>('/change-password', {
+      currentPassword,
+      newPassword,
+      revokeOtherSessions,
+    }),
+
+  requestPasswordReset: (email: string) =>
+    call<{ status?: boolean }>('/request-password-reset', {
+      email,
+      redirectTo: '/reset-password',
+    }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    call<{ status?: boolean }>('/reset-password', { token, newPassword }),
 };

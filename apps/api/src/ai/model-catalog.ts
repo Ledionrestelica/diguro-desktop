@@ -53,20 +53,8 @@ const CATALOG: ChatModelCard[] = [
   },
 
   // ── Anthropic ───────────────────────────────────────────────────────
-  {
-    id: 'anthropic/claude-sonnet-4-6',
-    label: 'Claude Sonnet 4.6',
-    provider: 'anthropic',
-    tier: 'balanced',
-    description: 'Strong across the board, especially long-form writing.',
-  },
-  {
-    id: 'anthropic/claude-haiku-4-5',
-    label: 'Claude Haiku 4.5',
-    provider: 'anthropic',
-    tier: 'fast',
-    description: 'Fastest Claude. Excellent for quick answers.',
-  },
+  // Removed for now — no Anthropic API key configured yet. Re-add the
+  // Claude entries here once ANTHROPIC_API_KEY is set.
 
   // ── Google ──────────────────────────────────────────────────────────
   {

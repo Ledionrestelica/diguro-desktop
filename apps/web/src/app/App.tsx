@@ -5,6 +5,7 @@ import { trpc } from '@/lib/trpc';
 import { createTrpcClient } from '@/lib/trpc-client';
 import { router } from './router';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { Toaster } from '@/components/ui/sonner';
 
 /**
  * Web-companion shell. Mirrors the desktop App.tsx — QueryClient + tRPC
@@ -22,6 +23,7 @@ export function App() {
         <ErrorBoundary>
           <RouterProvider router={router} />
         </ErrorBoundary>
+        <Toaster richColors position="bottom-right" />
       </QueryClientProvider>
     </trpc.Provider>
   );

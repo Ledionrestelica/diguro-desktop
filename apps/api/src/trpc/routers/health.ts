@@ -2,6 +2,10 @@ import { and, eq, schema } from '@diguro/db';
 import { authedProcedure, publicProcedure, router } from '../trpc.ts';
 import { resolveOrganizationLogoUrl } from '../../services/organizations/attachments.ts';
 import { resolveWorkspaceLogoUrl } from '../../services/workspaces/attachments.ts';
+import {
+  AVATAR_URL_SCHEME,
+  resolveUserAvatarUrl,
+} from '../../services/users/attachments.ts';
 import { getUserUsageSnapshot } from '../../services/usage/limits.ts';
 import { mapDomainError } from '../error-mapper.ts';
 
@@ -107,23 +111,40 @@ export const healthRouter = router({
       }
     }
 
-    // Pull the user's sticky model preference at the same time; the
-    // chat composer uses it to pre-select the last-chosen model.
-    const preferredRows = await ctx.db
-      .select({ preferredChatModelId: schema.users.preferredChatModelId })
+    // Pull the user's sticky model preference + custom instructions at the
+    // same time; the chat composer uses the model to pre-select the
+    // last-chosen one, and the top bar editor shows the saved instructions.
+    const prefRows = await ctx.db
+      .select({
+        name: schema.users.name,
+        image: schema.users.image,
+        preferredChatModelId: schema.users.preferredChatModelId,
+        customInstructions: schema.users.customInstructions,
+      })
       .from(schema.users)
       .where(eq(schema.users.id, ctx.user.id))
       .limit(1);
 
+    let image = prefRows[0]?.image ?? null;
+    if (image?.startsWith(AVATAR_URL_SCHEME)) {
+      image = await resolveUserAvatarUrl(
+        { objectStore: ctx.objectStore },
+        { userId: ctx.user.id, url: image },
+      ).catch(() => null);
+    }
+
     return {
       id: ctx.user.id,
       email: ctx.user.email,
+      name: prefRows[0]?.name ?? '',
+      image,
       role: ctx.user.role,
       sessionId: ctx.session.id,
       organization,
       activeWorkspaceId,
       activeWorkspace,
-      preferredChatModelId: preferredRows[0]?.preferredChatModelId ?? null,
+      preferredChatModelId: prefRows[0]?.preferredChatModelId ?? null,
+      customInstructions: prefRows[0]?.customInstructions ?? null,
     };
   }),
 

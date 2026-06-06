@@ -6,6 +6,7 @@ import { createTrpcClient } from '@/lib/trpc-client';
 import { AuthGate } from './AuthGate';
 import { router } from './router';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { Toaster } from '@/components/ui/sonner';
 
 export function App() {
   const [qc] = useState(() => new QueryClient());
@@ -19,6 +20,7 @@ export function App() {
             <RouterProvider router={router} />
           </AuthGate>
         </ErrorBoundary>
+        <Toaster richColors position="bottom-right" />
       </QueryClientProvider>
     </trpc.Provider>
   );

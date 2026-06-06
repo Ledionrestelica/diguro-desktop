@@ -19,6 +19,7 @@ export function ToolCard({
   description,
   eyebrow,
   children,
+  actions,
   padded = true,
   className,
 }: {
@@ -27,6 +28,8 @@ export function ToolCard({
   /** Small uppercase label above the title (e.g. "Chart", "Table"). */
   eyebrow?: string;
   children: ReactNode;
+  /** Optional controls rendered at the top-right of the header (e.g. export). */
+  actions?: ReactNode;
   padded?: boolean;
   className?: string;
 }) {
@@ -37,7 +40,7 @@ export function ToolCard({
         className,
       )}
     >
-      {(eyebrow ?? title ?? description) !== undefined && (
+      {(eyebrow ?? title ?? description ?? actions) !== undefined && (
         <div className="flex items-start gap-3 border-b border-zinc-100 px-5 py-4">
           <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-500">
             <Sparkles className="size-4" />
@@ -57,6 +60,7 @@ export function ToolCard({
               <p className="mt-1 text-xs leading-5 text-zinc-500">{description}</p>
             )}
           </div>
+          {actions && <div className="shrink-0">{actions}</div>}
         </div>
       )}
       <div className={cn(padded && 'px-5 py-4')}>{children}</div>

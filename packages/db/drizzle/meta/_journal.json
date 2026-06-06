@@ -78,6 +78,13 @@
       "when": 1780337289288,
       "tag": "0010_chief_wild_child",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1780337289289,
+      "tag": "0011_silent_instructions",
+      "breakpoints": true
     }
   ]
 }

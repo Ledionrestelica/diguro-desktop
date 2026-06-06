@@ -119,8 +119,12 @@ export function ChatLayout() {
       // streaming on the server. They usually finish first, but if the
       // assistant is very fast, the title may still be writing when the
       // first invalidate above fires. Re-invalidating 2s later picks it up.
+      // Also re-fetch the conversation detail so citations persisted just
+      // after the assistant message land even if the first refetch above
+      // raced ahead of citation persistence.
       setTimeout(() => {
         void utils.conversations.list.invalidate();
+        void utils.conversations.get.invalidate({ id: chatId });
       }, 2000);
     },
   });

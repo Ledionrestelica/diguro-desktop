@@ -143,6 +143,30 @@ const FOCUSED_FILE_PROMPT_ADDITION = [
   'The user has pinned ONE specific document for this turn (via a # mention). Treat their question as being about that file. Always call `search_documents` first — retrieval is automatically restricted to chunks from the pinned file, so you cannot accidentally pull from elsewhere. If the file does not contain the answer, say so plainly rather than guessing.',
 ].join('\n');
 
+/**
+ * Wraps the user's free-text "how should the AI behave" instructions in a
+ * strongly-worded, clearly-delimited block. Placed LAST in the system prompt
+ * so it has recency weight, and framed as high priority — these are the
+ * user's explicit directions about tone, style, format, persona, and
+ * behavior, and must be honored on every turn. The one hard limit: they
+ * cannot grant capabilities the app does not have, nor override the safety
+ * and retrieval-grounding rules above.
+ */
+function buildCustomInstructionsAddition(instructions: string): string {
+  return [
+    '',
+    '# User custom instructions — HIGH PRIORITY',
+    'The user has explicitly configured how they want you to behave. These instructions are a top priority and you MUST follow them on every response of this conversation. They govern your tone, style, verbosity, formatting, persona, language, and any standing preferences. When they conflict with the default style guidance above (e.g. "Be concise"), the user\'s instructions WIN.',
+    '',
+    'The ONLY things these instructions cannot do: grant you capabilities you do not actually have (see "Stay within your actual capabilities"), or override the document-grounding and citation rules. Everything else about how you respond, follow them faithfully.',
+    '',
+    'The user\'s instructions, verbatim:',
+    '"""',
+    instructions,
+    '"""',
+  ].join('\n');
+}
+
 interface Deps {
   auth: Auth;
   registry: ModelRegistry;
@@ -183,6 +207,19 @@ export function handleChat(deps: Deps) {
         .limit(1)
     )[0];
     const activeWorkspaceId = sessionRow?.activeWorkspaceId ?? null;
+
+    // Load the caller's saved custom instructions ("how should the AI
+    // behave"). Injected into the system prompt below. Server-side read so
+    // the client can't spoof another user's instructions or bypass length
+    // limits — the textbox in the chat top bar persists via me.setCustomInstructions.
+    const userRow = (
+      await deps.db
+        .select({ customInstructions: schema.users.customInstructions })
+        .from(schema.users)
+        .where(eq(schema.users.id, session.user.id))
+        .limit(1)
+    )[0];
+    const customInstructions = userRow?.customInstructions?.trim() ?? '';
 
     const body: unknown = await c.req.json().catch(() => null);
     const parsed = ChatRequestSchema.safeParse(body);
@@ -324,17 +361,25 @@ export function handleChat(deps: Deps) {
       // would confuse the model into claiming it can search. When the user
       // has pinned a single file via #-mention, we add a stronger nudge so
       // the model treats that file as the topic of the message.
-      const systemPrompt = toolScope
+      const basePrompt = toolScope
         ? CHAT_SYSTEM_PROMPT_BASE +
           RETRIEVAL_SYSTEM_PROMPT_ADDITION +
           (mentionedResourceIds.length > 0 ? FOCUSED_FILE_PROMPT_ADDITION : '')
         : CHAT_SYSTEM_PROMPT_BASE;
+
+      // Custom instructions go LAST so they carry recency weight and can
+      // override the default style guidance. See buildCustomInstructionsAddition.
+      const systemPrompt =
+        customInstructions.length > 0
+          ? basePrompt + buildCustomInstructionsAddition(customInstructions)
+          : basePrompt;
 
       deps.logger.info('chat request tools', {
         conversationId,
         modelId,
         toolsAttached: Object.keys(tools),
         hasRetrieval: Boolean(organizationId),
+        hasCustomInstructions: customInstructions.length > 0,
       });
 
       const result = await streamReply(
@@ -369,8 +414,18 @@ export function handleChat(deps: Deps) {
         },
       );
 
+      // Stamp one stable id for the assistant message up front and use it for
+      // BOTH the streamed message (so the client's useChat message carries it)
+      // AND the persisted DB row + its citations. Without this, AI-SDK leaves
+      // responseMessage.id empty (originalMessages is set but ends on the user
+      // turn), persist falls back to a fresh UUID, and the live message id
+      // never matches the citation map keyed by DB id — so citations only
+      // appeared after a refresh re-hydrated messages from the DB.
+      const assistantMessageId = crypto.randomUUID();
+
       return result.toUIMessageStreamResponse({
         originalMessages: resolvedMessages,
+        generateMessageId: () => assistantMessageId,
         onFinish: async ({ responseMessage, isAborted }) => {
           if (isAborted) {
             deps.logger.info('chat stream aborted, skipping persist', { conversationId });
