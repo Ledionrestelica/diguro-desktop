@@ -11,6 +11,10 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "dev:api": "pnpm --filter @diguro/api dev",
+    "dev:web": "pnpm --filter @diguro/web dev",
+    "dev:desktop": "pnpm --filter @diguro/desktop dev",
+    "dev:inngest": "pnpm --filter @diguro/api dev:inngest",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "turbo run test",

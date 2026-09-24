@@ -14,6 +14,7 @@
     "db:push": "tsx --env-file=../../apps/api/.env.local ./node_modules/drizzle-kit/bin.cjs push",
     "db:studio": "tsx --env-file=../../apps/api/.env.local ./node_modules/drizzle-kit/bin.cjs studio",
     "db:seed": "tsx --env-file=../../apps/api/.env.local src/seed.ts",
+    "db:promote": "tsx --env-file=../../apps/api/.env.local src/promote.ts",
     "db:reset": "tsx --env-file=../../apps/api/.env.local src/reset.ts",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
