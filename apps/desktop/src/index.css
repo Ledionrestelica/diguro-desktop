@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import './colors.css';
+@import './typography.css';
 /* Re-enable when `highlight.js` lands with chat markdown rendering.
 @import 'highlight.js/styles/github.css' screen and (prefers-color-scheme: light);
 @import 'highlight.js/styles/github-dark.css' screen and (prefers-color-scheme: dark);
