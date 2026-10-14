@@ -1,0 +1,157 @@
+/* Color tokens — mirror of the "Iserana" Paper file (Core Redesign).
+ * Scales are Radix Colors v3, light (@radix-ui/colors 3.0.0).
+ * Role tokens alias the scales; use them in components instead of raw steps.
+ * Accent roles always map to steps 3 subtle · 6 border · 9 solid · 10 hover · 11 text.
+ * The border, primary and primary-foreground roles live on shadcn's
+ * --border / --primary / --primary-foreground in index.css. */
+
+@theme static {
+  --color-white: #ffffff;
+
+  --color-gray-1: #fcfcfc;
+  --color-gray-2: #f9f9f9;
+  --color-gray-3: #f0f0f0;
+  --color-gray-4: #e8e8e8;
+  --color-gray-5: #e0e0e0;
+  --color-gray-6: #d9d9d9;
+  --color-gray-7: #cecece;
+  --color-gray-8: #bbbbbb;
+  --color-gray-9: #8d8d8d;
+  --color-gray-10: #838383;
+  --color-gray-11: #646464;
+  --color-gray-12: #202020;
+
+  --color-gray-a1: #00000003;
+  --color-gray-a2: #00000006;
+  --color-gray-a3: #0000000f;
+  --color-gray-a4: #00000017;
+  --color-gray-a5: #0000001f;
+  --color-gray-a6: #00000026;
+  --color-gray-a7: #00000031;
+  --color-gray-a8: #00000044;
+  --color-gray-a9: #00000072;
+  --color-gray-a10: #0000007c;
+  --color-gray-a11: #0000009b;
+  --color-gray-a12: #000000df;
+
+  --color-iris-1: #fdfdff;
+  --color-iris-2: #f8f8ff;
+  --color-iris-3: #f0f1fe;
+  --color-iris-4: #e6e7ff;
+  --color-iris-5: #dadcff;
+  --color-iris-6: #cbcdff;
+  --color-iris-7: #b8baf8;
+  --color-iris-8: #9b9ef0;
+  --color-iris-9: #5b5bd6;
+  --color-iris-10: #5151cd;
+  --color-iris-11: #5753c6;
+  --color-iris-12: #272962;
+
+  --color-blue-1: #fbfdff;
+  --color-blue-2: #f4faff;
+  --color-blue-3: #e6f4fe;
+  --color-blue-4: #d5efff;
+  --color-blue-5: #c2e5ff;
+  --color-blue-6: #acd8fc;
+  --color-blue-7: #8ec8f6;
+  --color-blue-8: #5eb1ef;
+  --color-blue-9: #0090ff;
+  --color-blue-10: #0588f0;
+  --color-blue-11: #0d74ce;
+  --color-blue-12: #113264;
+
+  --color-green-1: #fbfefc;
+  --color-green-2: #f4fbf6;
+  --color-green-3: #e6f6eb;
+  --color-green-4: #d6f1df;
+  --color-green-5: #c4e8d1;
+  --color-green-6: #adddc0;
+  --color-green-7: #8eceaa;
+  --color-green-8: #5bb98b;
+  --color-green-9: #30a46c;
+  --color-green-10: #2b9a66;
+  --color-green-11: #218358;
+  --color-green-12: #193b2d;
+
+  --color-amber-1: #fefdfb;
+  --color-amber-2: #fefbe9;
+  --color-amber-3: #fff7c2;
+  --color-amber-4: #ffee9c;
+  --color-amber-5: #fbe577;
+  --color-amber-6: #f3d673;
+  --color-amber-7: #e9c162;
+  --color-amber-8: #e2a336;
+  --color-amber-9: #ffc53d;
+  --color-amber-10: #ffba18;
+  --color-amber-11: #ab6400;
+  --color-amber-12: #4f3422;
+
+  --color-tomato-1: #fffcfc;
+  --color-tomato-2: #fff8f7;
+  --color-tomato-3: #feebe7;
+  --color-tomato-4: #ffdcd3;
+  --color-tomato-5: #ffcdc2;
+  --color-tomato-6: #fdbdaf;
+  --color-tomato-7: #f5a898;
+  --color-tomato-8: #ec8e7b;
+  --color-tomato-9: #e54d2e;
+  --color-tomato-10: #dd4425;
+  --color-tomato-11: #d13415;
+  --color-tomato-12: #5c271f;
+
+  /* Roles */
+  --color-bg-app: var(--color-gray-2);
+  --color-bg-panel: var(--color-white);
+  --color-bg-raised: var(--color-gray-1);
+  --color-bg-subtle: var(--color-gray-3);
+  --color-bg-subtle-hover: var(--color-gray-4);
+  --color-bg-subtle-active: var(--color-gray-5);
+
+  --color-text: var(--color-gray-12);
+  --color-text-secondary: var(--color-gray-11);
+  --color-text-placeholder: var(--color-gray-9);
+  --color-text-link: var(--color-blue-11);
+  --color-text-on-solid: var(--color-white);
+
+  --color-border-input: var(--color-gray-a7);
+  --color-border-hover: var(--color-gray-a8);
+  --color-focus-ring: var(--color-iris-8);
+
+  --color-hover: var(--color-gray-a3);
+  --color-selected: var(--color-gray-a4);
+  --color-pressed: var(--color-gray-a5);
+  --color-selection: var(--color-iris-3);
+
+  --color-primary-disabled: var(--color-gray-4);
+
+  --color-ai: var(--color-iris-9);
+  --color-ai-hover: var(--color-iris-10);
+  --color-ai-subtle: var(--color-iris-3);
+  --color-ai-border: var(--color-iris-6);
+  --color-ai-text: var(--color-iris-11);
+  --color-ai-sparkle: var(--color-iris-8);
+
+  --color-info: var(--color-blue-9);
+  --color-info-hover: var(--color-blue-10);
+  --color-info-subtle: var(--color-blue-3);
+  --color-info-border: var(--color-blue-6);
+  --color-info-text: var(--color-blue-11);
+
+  --color-success: var(--color-green-9);
+  --color-success-hover: var(--color-green-10);
+  --color-success-subtle: var(--color-green-3);
+  --color-success-border: var(--color-green-6);
+  --color-success-text: var(--color-green-11);
+
+  --color-warning: var(--color-amber-9);
+  --color-warning-hover: var(--color-amber-10);
+  --color-warning-subtle: var(--color-amber-3);
+  --color-warning-border: var(--color-amber-6);
+  --color-warning-text: var(--color-amber-11);
+
+  --color-danger: var(--color-tomato-9);
+  --color-danger-hover: var(--color-tomato-10);
+  --color-danger-subtle: var(--color-tomato-3);
+  --color-danger-border: var(--color-tomato-6);
+  --color-danger-text: var(--color-tomato-11);
+}
