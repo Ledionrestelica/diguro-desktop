@@ -18,6 +18,17 @@ const RESET_TOKEN_EXPIRES_IN_SEC = 60 * 60;
 
 const VERIFICATION_CODE_EXPIRES_IN_SEC = 10 * 60;
 
+/** Fixed sign-up code for local UI work, so the flow can be clicked through
+ *  without email. Only when running in development against a localhost API —
+ *  NODE_ENV alone isn't enough because it defaults to "development". */
+const DEV_VERIFICATION_CODE = '000000';
+
+function usesDevVerificationCode(config: Config): boolean {
+  if (config.NODE_ENV !== 'development') return false;
+  const host = new URL(config.BETTER_AUTH_URL).hostname;
+  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+}
+
 /** Endpoints that set a user-chosen password, and the body field holding it. */
 const PASSWORD_FIELDS: Record<string, 'password' | 'newPassword'> = {
   '/sign-up/email': 'password',
@@ -46,6 +57,11 @@ export function createAuth(
   config: Config,
   deps: { emailProvider: EmailProvider | null; logger: Logger },
 ) {
+  const devVerificationCode = usesDevVerificationCode(config);
+  if (devVerificationCode) {
+    deps.logger.warn(`email verification codes are fixed to ${DEV_VERIFICATION_CODE} (local dev)`);
+  }
+
   return betterAuth({
     secret: config.BETTER_AUTH_SECRET,
     baseURL: config.BETTER_AUTH_URL,
@@ -182,13 +198,9 @@ export function createAuth(
         expiresIn: VERIFICATION_CODE_EXPIRES_IN_SEC,
         sendVerificationOnSignUp: true,
         overrideDefaultEmailVerification: true,
+        ...(devVerificationCode ? { generateOTP: () => DEV_VERIFICATION_CODE } : {}),
         sendVerificationOTP: async ({ email, otp, type }) => {
           if (type !== 'email-verification') return;
-          // Local dev convenience: lets you finish sign-up without Resend.
-          // Never logged outside development.
-          if (config.NODE_ENV === 'development') {
-            deps.logger.info('email verification code (dev only)', { email, code: otp });
-          }
           if (!deps.emailProvider) {
             deps.logger.warn('verification code requested but email not configured', {
               email,
