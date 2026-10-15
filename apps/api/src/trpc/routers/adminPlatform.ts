@@ -180,12 +180,14 @@ export const adminPlatformRouter = router({
 
         // Belt-and-braces: explicitly set role + organizationId via DB,
         // since `additionalFields.input: false` on `organizationId` means
-        // the auth API path won't write it for us.
+        // the auth API path won't write it for us. Accounts a superadmin
+        // creates are vouched for, so they skip the emailed sign-up code.
         await ctx.db
           .update(schema.users)
           .set({
             role: input.role,
             organizationId: input.organizationId ?? null,
+            emailVerified: true,
             updatedAt: new Date(),
           })
           .where(eq(schema.users.id, newUserId));

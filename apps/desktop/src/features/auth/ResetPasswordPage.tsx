@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { isStrongPassword, PASSWORD_RULE_MESSAGE } from '@diguro/shared/password';
 import { apiAuth } from '@/lib/api-auth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-
-const MIN_PASSWORD_LEN = 8;
+import { TextField } from '@/components/ui/text-field';
+import { ActionButton } from '@/components/ui/action-button';
+import { AuthCenteredLayout, AuthLink } from './AuthCenteredLayout';
 
 /**
  * Public reset-password page. Reached from the link in the password-reset
@@ -21,21 +20,18 @@ export function ResetPasswordPage() {
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [showErrors, setShowErrors] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  const tooShort = password.length > 0 && password.length < MIN_PASSWORD_LEN;
-  const mismatch = confirm.length > 0 && password !== confirm;
-  const canSubmit =
-    !!token &&
-    password.length >= MIN_PASSWORD_LEN &&
-    password === confirm &&
-    !loading;
+  const passwordError = isStrongPassword(password) ? null : PASSWORD_RULE_MESSAGE;
+  const confirmError = password === confirm ? null : 'Passwords don’t match.';
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!canSubmit || !token) return;
+    setShowErrors(true);
+    if (!token || passwordError || confirmError) return;
     setError(null);
     setLoading(true);
     try {
@@ -52,122 +48,67 @@ export function ResetPasswordPage() {
     }
   }
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f9fafb] p-6">
-      <div className="flex w-full max-w-[380px] flex-col items-stretch gap-8">
-        <div className="flex flex-col items-center gap-3.5 text-center">
-          <h1 className="text-2xl font-bold leading-8 tracking-[-0.02em] text-zinc-800">
-            {!token
-              ? 'Invalid reset link'
-              : done
-                ? 'Password updated'
-                : 'Choose a new password'}
-          </h1>
-          {token && !done && (
-            <p className="text-sm leading-4 text-neutral-500">
-              Enter a new password for your Diguro account.
-            </p>
-          )}
-        </div>
-
-        {!token ? (
-          <div className="flex flex-col gap-6">
-            <div className="rounded-xl border border-zinc-100 bg-white p-5 text-sm leading-6 text-zinc-600 shadow-xs">
-              This reset link is invalid or incomplete. Request a new one from
-              the sign-in screen.
-            </div>
-            <button
-              type="button"
-              onClick={() => void navigate('/')}
-              className="text-center text-base font-medium text-zinc-900 hover:underline"
-            >
-              Back to sign in
-            </button>
-          </div>
-        ) : done ? (
-          <div className="flex flex-col gap-6">
-            <div className="rounded-xl border border-zinc-100 bg-white p-5 text-sm leading-6 text-zinc-600 shadow-xs">
-              Your password has been reset. You can now sign in with your new
-              password.
-            </div>
-            <Button
-              type="button"
-              onClick={() => void navigate('/')}
-              className="h-12 rounded-full bg-[#111827] text-base font-medium text-white shadow-xs hover:bg-[#111827]/90"
-            >
-              Go to sign in
-            </Button>
-          </div>
-        ) : (
-          <form onSubmit={submit} className="flex flex-col gap-[30px]">
-            <Field
-              id="new-password"
-              label="New password"
-              value={password}
-              onChange={setPassword}
-              invalid={tooShort}
-              hint={tooShort ? `Must be at least ${MIN_PASSWORD_LEN} characters.` : undefined}
-            />
-            <Field
-              id="confirm-password"
-              label="Confirm new password"
-              value={confirm}
-              onChange={setConfirm}
-              invalid={mismatch}
-              hint={mismatch ? 'Passwords don’t match.' : undefined}
-            />
-
-            {error && (
-              <p role="alert" className="-mt-4 text-sm text-destructive">
-                {error}
-              </p>
-            )}
-
-            <Button
-              type="submit"
-              disabled={!canSubmit}
-              className="h-12 rounded-full bg-[#111827] text-base font-medium text-white shadow-xs hover:bg-[#111827]/90"
-            >
-              {loading ? '…' : 'Reset password'}
-            </Button>
-          </form>
-        )}
-      </div>
-    </div>
+  const backToSignIn = (
+    <p>
+      <AuthLink onClick={() => void navigate('/')}>Back to sign in</AuthLink>
+    </p>
   );
-}
 
-function Field({
-  id,
-  label,
-  value,
-  onChange,
-  invalid,
-  hint,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  invalid?: boolean | undefined;
-  hint?: string | undefined;
-}) {
+  if (!token) {
+    return (
+      <AuthCenteredLayout title="Invalid reset link" footer={backToSignIn}>
+        <p className="text-center text-copy-16 text-text-secondary">
+          This link is invalid or incomplete. Request a new one from the sign-in screen.
+        </p>
+      </AuthCenteredLayout>
+    );
+  }
+
+  if (done) {
+    return (
+      <AuthCenteredLayout title="Password updated">
+        <p className="text-center text-copy-16 text-text-secondary">
+          You can now sign in with your new password.
+        </p>
+        <ActionButton
+          onClick={() => void navigate('/')}
+          className="mt-2 h-12 w-full rounded-[12px]"
+        >
+          Go to sign in
+        </ActionButton>
+      </AuthCenteredLayout>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-2.5">
-      <Label htmlFor={id} className="text-base font-medium text-zinc-800">
-        {label}
-      </Label>
-      <Input
-        id={id}
-        type="password"
-        autoComplete="new-password"
-        placeholder="Enter your new password"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-invalid={invalid}
-        className="h-12 rounded-xl border-zinc-100 bg-white px-5 py-3 text-base shadow-xs placeholder:text-zinc-400 focus-visible:border-zinc-200 focus-visible:ring-zinc-200/50 focus-visible:ring-[3px] md:text-base"
-      />
-      {hint && <p className="text-xs text-destructive">{hint}</p>}
-    </div>
+    <AuthCenteredLayout title="Choose a new password" footer={backToSignIn}>
+      <form onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-4">
+        <TextField
+          label="New password"
+          size="lg"
+          type="password"
+          autoComplete="new-password"
+          placeholder="Enter a new password"
+          autoFocus
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          helper={PASSWORD_RULE_MESSAGE}
+          error={showErrors ? passwordError : null}
+        />
+        <TextField
+          label="Confirm new password"
+          size="lg"
+          type="password"
+          autoComplete="new-password"
+          placeholder="Enter it again"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          error={showErrors ? (confirmError ?? error) : error}
+        />
+        <ActionButton type="submit" loading={loading} className="mt-2 h-12 w-full rounded-[12px]">
+          Reset password
+        </ActionButton>
+      </form>
+    </AuthCenteredLayout>
   );
 }
