@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '@/lib/api-auth';
+import { AuthRequestError } from '@/lib/auth-error';
 import { TextField } from '@/components/ui/text-field';
 import { OnboardingShell } from '@/features/onboarding/OnboardingShell';
 
@@ -36,7 +37,7 @@ export function VerifyEmailStep({ email, onBack, onVerified }: VerifyEmailStepPr
       await apiAuth.verifyEmail(email, code);
       onVerified();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'That code didn’t work. Try again.');
+      setError(codeErrorMessage(err));
       setLoading(false);
     }
   }
@@ -101,4 +102,17 @@ export function VerifyEmailStep({ email, onBack, onVerified }: VerifyEmailStepPr
       </div>
     </OnboardingShell>
   );
+}
+
+/** Better-Auth gives the same answer for "wrong code" and "this email already
+ *  had an account, so no code was sent" (it won't reveal which emails exist),
+ *  so point people at sign-in as well. */
+function codeErrorMessage(err: unknown): string {
+  const code = err instanceof AuthRequestError ? err.code : null;
+  if (code === 'OTP_EXPIRED') return 'That code has expired. Resend a new one.';
+  if (code === 'TOO_MANY_ATTEMPTS') return 'Too many attempts. Resend a new code.';
+  if (code === 'INVALID_OTP') {
+    return 'That code didn’t work. If you already have an account with this email, go back and sign in instead.';
+  }
+  return err instanceof Error ? err.message : 'That code didn’t work. Try again.';
 }
