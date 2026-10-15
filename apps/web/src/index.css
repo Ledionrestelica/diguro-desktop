@@ -91,7 +91,11 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50 font-normal;
+    @apply border-border outline-ring/50;
+    /* Plain property, not `font-normal`: that utility also sets
+       --tw-font-weight on every element, which would override the weight
+       baked into the type tokens (e.g. text-button-14 is Medium). */
+    font-weight: 400;
   }
   body {
     @apply bg-background text-foreground;
