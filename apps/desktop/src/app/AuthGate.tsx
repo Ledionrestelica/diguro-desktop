@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { authStore } from '@/lib/auth-store';
 import { AuthFlow } from '@/features/auth/AuthFlow';
+import { OnboardingGate } from '@/features/onboarding/OnboardingGate';
 import { AuthContext } from './auth-context';
 
 /**
@@ -28,7 +29,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ signOut: () => setAuthed(false) }}>
-      {children}
+      {/* The hash router mounts after onboarding and reads the path from the URL. */}
+      <OnboardingGate openApp={(path) => (window.location.hash = `#${path}`)}>
+        {children}
+      </OnboardingGate>
     </AuthContext.Provider>
   );
 }

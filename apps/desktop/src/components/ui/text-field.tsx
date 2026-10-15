@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 type Size = 'sm' | 'md' | 'lg';
 
+// Label is Label/13 on sm/md and Label/14 on lg, as in the Figma component.
 const controlSize: Record<Size, string> = {
   sm: 'h-8 px-2.5 text-label-14',
   md: 'h-9 px-3 text-label-14',
@@ -16,6 +17,8 @@ const controlSize: Record<Size, string> = {
 
 type TextFieldProps = Omit<ComponentProps<'input'>, 'size'> & {
   label: string;
+  /** Keep the label for screen readers only. */
+  hideLabel?: boolean;
   size?: Size;
   icon?: ReactNode;
   helper?: ReactNode;
@@ -26,6 +29,7 @@ type TextFieldProps = Omit<ComponentProps<'input'>, 'size'> & {
 
 export function TextField({
   label,
+  hideLabel = false,
   size = 'md',
   icon,
   helper,
@@ -43,7 +47,14 @@ export function TextField({
 
   return (
     <div className={cn('flex w-full flex-col gap-1.5', className)}>
-      <label htmlFor={inputId} className="text-label-14 font-medium text-text">
+      <label
+        htmlFor={inputId}
+        className={cn(
+          'font-medium text-text',
+          size === 'lg' ? 'text-label-14' : 'text-label-13',
+          hideLabel && 'sr-only',
+        )}
+      >
         {label}
       </label>
       <div
