@@ -3,7 +3,7 @@
  *
  * Groups:
  *   heading-*  titles; Regular / Medium / Semibold (pick with font-*)
- *   button-*   only inside components that render a button; Semibold baked in
+ *   button-*   only inside components that render a button; Medium baked in
  *   label-*    single-line UI text; tight line height
  *   copy-*     multi-line text; taller line height, tracking −0.5% → −1.4%
  *
@@ -47,15 +47,19 @@
   --text-button-18: 1.125rem;
   --text-button-18--line-height: 1.5rem;
   --text-button-18--letter-spacing: -0.014em;
-  --text-button-18--font-weight: 600;
+  --text-button-18--font-weight: 500;
+  --text-button-16: 1rem;
+  --text-button-16--line-height: 1.25rem;
+  --text-button-16--letter-spacing: -0.011em;
+  --text-button-16--font-weight: 500;
   --text-button-14: 0.875rem;
   --text-button-14--line-height: 1.25rem;
   --text-button-14--letter-spacing: -0.006em;
-  --text-button-14--font-weight: 600;
+  --text-button-14--font-weight: 500;
   --text-button-12: 0.75rem;
   --text-button-12--line-height: 1rem;
   --text-button-12--letter-spacing: 0em;
-  --text-button-12--font-weight: 600;
+  --text-button-12--font-weight: 500;
 
   --text-label-20: 1.25rem;
   --text-label-20--line-height: 1.5rem;
