@@ -184,6 +184,11 @@ export function createAuth(
         overrideDefaultEmailVerification: true,
         sendVerificationOTP: async ({ email, otp, type }) => {
           if (type !== 'email-verification') return;
+          // Local dev convenience: lets you finish sign-up without Resend.
+          // Never logged outside development.
+          if (config.NODE_ENV === 'development') {
+            deps.logger.info('email verification code (dev only)', { email, code: otp });
+          }
           if (!deps.emailProvider) {
             deps.logger.warn('verification code requested but email not configured', {
               email,
