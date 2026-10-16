@@ -2,6 +2,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { IseranaWordmark } from '@/components/brand/IseranaWordmark';
 import { ActionButton } from '@/components/ui/action-button';
 import { PiArrowLeftStroke } from '@/components/icons/pika/PiArrowLeftStroke';
+import { cn } from '@/lib/utils';
 import { SetupProgress } from './SetupProgress';
 
 /**
@@ -16,6 +17,13 @@ type OnboardingShellProps = {
   segment: number;
   title: string;
   subtitle?: ReactNode;
+  /** Pin the content this far below the header (px at 1440×1024) instead of
+   *  centring it. Steps 1–2 are centred; the later frames are top-aligned. */
+  topOffset?: number;
+  /** Wrap the title at 391px like the sign-up frames. */
+  narrowHeading?: boolean;
+  /** Shown above the title (e.g. the success check on "All set"). */
+  badge?: ReactNode;
   children?: ReactNode;
   onBack?: () => void;
   onContinue: () => void;
@@ -29,6 +37,9 @@ export function OnboardingShell({
   segment,
   title,
   subtitle,
+  topOffset,
+  narrowHeading = topOffset === undefined,
+  badge,
   children,
   onBack,
   onContinue,
@@ -55,12 +66,31 @@ export function OnboardingShell({
         </div>
       </header>
 
-      <main className="flex flex-1 items-center justify-center px-4 py-12">
-        <div className="flex w-full max-w-[446px] flex-col gap-8 sm:-translate-y-[25px]">
-          <div className="flex max-w-[391px] flex-col gap-3">
+      <main
+        className={cn(
+          'flex flex-1 justify-center px-4',
+          topOffset === undefined ? 'items-center py-12' : 'items-start pb-12',
+        )}
+        style={topOffset === undefined ? undefined : { paddingTop: `min(${topOffset}px, 16vh)` }}
+      >
+        <div
+          className={cn(
+            'flex w-full max-w-[446px] flex-col gap-8',
+            topOffset === undefined && 'sm:-translate-y-[25px]',
+          )}
+        >
+          {badge}
+          <div className={cn('flex flex-col gap-3', narrowHeading && 'max-w-[391px]')}>
             <h1 className="text-heading-32 font-medium text-text">{title}</h1>
             {subtitle && (
-              <div className="text-copy-18 font-medium text-text-secondary [&_*]:font-medium">
+              <div
+                className={cn(
+                  'text-text-secondary',
+                  topOffset === undefined
+                    ? 'text-copy-18 font-medium [&_*]:font-medium'
+                    : 'text-copy-16',
+                )}
+              >
                 {subtitle}
               </div>
             )}

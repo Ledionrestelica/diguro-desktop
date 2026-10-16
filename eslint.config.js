@@ -130,4 +130,12 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-call': 'off',
     },
   },
+
+  // Plain Node scripts (e.g. scripts/add-pika-icons.mjs) aren't in any
+  // tsconfig project, so lint them without type information.
+  {
+    files: ['scripts/**/*.mjs'],
+    ...tseslint.configs.disableTypeChecked,
+    languageOptions: { ...tseslint.configs.disableTypeChecked.languageOptions, globals: globals.node },
+  },
 );

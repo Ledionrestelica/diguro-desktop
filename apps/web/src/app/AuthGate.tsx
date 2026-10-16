@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import { apiAuth } from '@/lib/api-auth';
 import { AuthFlow } from '@/features/auth/AuthFlow';
+import { OnboardingGate } from '@/features/onboarding/OnboardingGate';
 import { AuthContext } from './auth-context';
 
 /**
@@ -23,6 +25,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [signedOut, setSignedOut] = useState(false);
   const me = trpc.health.me.useQuery(undefined, { retry: false });
   const utils = trpc.useUtils();
+  const navigate = useNavigate();
 
   if (!signedOut && me.isLoading) {
     return (
@@ -54,7 +57,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
         },
       }}
     >
-      {children}
+      <OnboardingGate openApp={(path) => void navigate(path, { replace: true })}>
+        {children}
+      </OnboardingGate>
     </AuthContext.Provider>
   );
 }
