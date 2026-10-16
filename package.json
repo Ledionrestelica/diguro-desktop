@@ -21,6 +21,7 @@
     "typecheck": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "icons:pika": "node scripts/add-pika-icons.mjs",
     "clean": "turbo run clean && rm -rf node_modules .turbo"
   },
   "devDependencies": {
