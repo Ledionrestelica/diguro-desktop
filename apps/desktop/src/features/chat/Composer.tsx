@@ -452,7 +452,7 @@ export function Composer({
         aria-hidden
         className="pointer-events-none absolute inset-0 overflow-hidden rounded-[22px]"
       >
-        <div className="composer-glow absolute -top-[66px] left-1/2 h-[77px] w-[calc(100%+16px)] -translate-x-1/2 blur-[27.5px]" />
+        <div className="composer-glow absolute -top-[66px] left-1/2 h-[77px] w-[calc(100%+16px)] -translate-x-1/2" />
       </div>
 
       <form

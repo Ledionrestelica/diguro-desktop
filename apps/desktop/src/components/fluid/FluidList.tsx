@@ -10,7 +10,11 @@ import { FluidHoverHighlight } from './fluid-hover-highlight';
  * and unmount (a project expanding, a search filtering chats).
  */
 
-type FluidContext = { register: (key: string, element: HTMLElement | null) => void };
+type FluidContext = {
+  register: (key: string, element: HTMLElement | null) => void;
+  /** Light this row without the pointer (keyboard focus in a menu). */
+  activate: (key: string) => void;
+};
 
 const Context = createContext<FluidContext | null>(null);
 
@@ -28,7 +32,7 @@ export function FluidList({
   const hover = useFluidHover(containerRef, { gapClick: false });
   const slots = useRef(new Map<string, number>());
   const nextSlot = useRef(0);
-  const { registerItem } = hover;
+  const { registerItem, setActiveIndex } = hover;
 
   const register = useCallback(
     (key: string, element: HTMLElement | null) => {
@@ -41,7 +45,14 @@ export function FluidList({
     },
     [registerItem],
   );
-  const value = useMemo(() => ({ register }), [register]);
+  const activate = useCallback(
+    (key: string) => {
+      const slot = slots.current.get(key);
+      if (slot !== undefined) setActiveIndex(slot);
+    },
+    [setActiveIndex],
+  );
+  const value = useMemo(() => ({ register, activate }), [register, activate]);
 
   return (
     <div ref={containerRef} className={cn('relative', className)} {...hover.handlers}>
@@ -61,5 +72,8 @@ export function useFluidItem(key: string | undefined) {
     },
     [context, key],
   );
-  return { ref, fluid: Boolean(context && key) };
+  const activate = useCallback(() => {
+    if (context && key) context.activate(key);
+  }, [context, key]);
+  return { ref, activate, fluid: Boolean(context && key) };
 }

@@ -14,7 +14,10 @@
     rgba(176, 203, 255, 0.8) 100%
   );
   background-size: 200% 100%;
-  opacity: 0.85;
+  /* Figma's layer blur of 27.5 renders like a ~14px CSS blur; the blur
+   * lives here (not in a utility) so the streaming pulse can keep it. */
+  filter: blur(14px);
+  opacity: 0.9;
   animation: composer-glow-drift 9s ease-in-out infinite alternate;
   transition: opacity 600ms ease;
 }
@@ -41,10 +44,10 @@
 
 @keyframes composer-glow-pulse {
   from {
-    filter: saturate(1);
+    filter: blur(14px) saturate(1);
   }
   to {
-    filter: saturate(1.6) brightness(1.05);
+    filter: blur(14px) saturate(1.6) brightness(1.05);
   }
 }
 
