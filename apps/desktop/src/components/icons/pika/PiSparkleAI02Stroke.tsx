@@ -1,0 +1,56 @@
+import type { SVGProps } from 'react';
+
+/**
+ * PiSparkleAI02Stroke icon from the stroke style in general category.
+ */
+interface PiSparkleAI02StrokeProps extends SVGProps<SVGSVGElement> {
+  size?: number;
+  color?: string;
+  className?: string;
+  ariaLabel?: string;
+}
+
+export function PiSparkleAI02Stroke({
+  size = 24,
+  color,
+  className,
+  ariaLabel,
+  ...props
+}: PiSparkleAI02StrokeProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ color: color || 'currentColor' }}
+      role={ariaLabel ? 'img' : undefined}
+      aria-label={ariaLabel}
+      aria-hidden={ariaLabel ? undefined : true}
+      {...props}
+    >
+      <path
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M12.9 3c.64 5.037 2.63 8.142 8.1 9-5.19.814-7.43 3.728-8.1 9-.67-5.272-2.91-8.186-8.1-9 5.19-.814 7.43-3.728 8.1-9Z"
+        fill="none"
+      />
+      <path
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M5.7 3c.248 1.506 1.151 2.445 2.7 2.7-1.549.255-2.452 1.194-2.7 2.7C5.452 6.894 4.548 5.955 3 5.7 4.506 5.452 5.445 4.548 5.7 3Z"
+        fill="none"
+      />
+    </svg>
+  );
+}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Check, Sparkles } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,14 @@ const PLACEHOLDER =
  * `me.setCustomInstructions`; the server injects it into the chat system
  * prompt on every turn (see apps/api/src/hono/chat-route.ts).
  */
-export function CustomInstructionsButton() {
+export function CustomInstructionsButton({
+  trigger,
+  align = 'end',
+}: {
+  /** Custom trigger (e.g. a sidebar row). Defaults to the round top-bar button. */
+  trigger?: ReactNode;
+  align?: 'start' | 'end';
+} = {}) {
   const me = trpc.health.me.useQuery();
   const utils = trpc.useUtils();
   const saved = me.data?.customInstructions ?? '';
@@ -59,32 +66,34 @@ export function CustomInstructionsButton() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label="Custom AI instructions"
-          title="How should the AI behave?"
-          className="relative grid size-[42px] place-items-center rounded-full border border-zinc-100 bg-white text-zinc-700 shadow-xs transition-colors hover:bg-zinc-50"
-        >
-          {justSaved ? (
-            <Check className="size-4 text-emerald-600" />
-          ) : (
-            <Sparkles className="size-4" />
-          )}
-          {hasInstructions && !justSaved && (
-            <span
-              aria-hidden
-              className="absolute right-2 top-2 size-2 rounded-full bg-emerald-500 ring-2 ring-white"
-            />
-          )}
-        </button>
+        {trigger ?? (
+          <button
+            type="button"
+            aria-label="Custom AI instructions"
+            title="How should the AI behave?"
+            className="relative grid size-[42px] place-items-center rounded-full border border-zinc-100 bg-white text-zinc-700 shadow-xs transition-colors hover:bg-zinc-50"
+          >
+            {justSaved ? (
+              <Check className="size-4 text-emerald-600" />
+            ) : (
+              <Sparkles className="size-4" />
+            )}
+            {hasInstructions && !justSaved && (
+              <span
+                aria-hidden
+                className="absolute right-2 top-2 size-2 rounded-full bg-emerald-500 ring-2 ring-white"
+              />
+            )}
+          </button>
+        )}
       </PopoverTrigger>
 
-      <PopoverContent align="end" className="w-96 p-0">
+      <PopoverContent align={align} className="w-96 p-0">
         <div className="border-b border-zinc-100 px-4 py-3">
           <h3 className="text-sm font-medium text-zinc-900">AI instructions</h3>
           <p className="mt-0.5 text-xs leading-4 text-zinc-500">
-            Tell the assistant how to behave — tone, language, format, persona.
-            Applied to every message in this account.
+            Tell the assistant how to behave — tone, language, format, persona. Applied to every
+            message in this account.
           </p>
         </div>
 
@@ -131,9 +140,7 @@ export function CustomInstructionsButton() {
         </div>
 
         {setInstructions.isError && (
-          <p className="px-4 pb-3 text-xs text-destructive">
-            Couldn’t save — please try again.
-          </p>
+          <p className="px-4 pb-3 text-xs text-destructive">Couldn’t save — please try again.</p>
         )}
       </PopoverContent>
     </Popover>

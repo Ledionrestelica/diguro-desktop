@@ -7,6 +7,8 @@ import { Message } from './Message';
 import type { ChatOutletContext } from './ChatLayout';
 import { trpc } from '@/lib/trpc';
 
+const REPORT_ISSUE_URL = 'mailto:support@diguro.se?subject=Iserana%20issue';
+
 export function ChatPage() {
   const { chatId, session, hydrating, citationsByMessageId, conversationScope, scopeLocked } =
     useOutletContext<ChatOutletContext>();
@@ -16,8 +18,16 @@ export function ChatPage() {
   // Default scope for NEW chats: workspace files when the user is in a
   // workspace (the common case), otherwise organization-wide. Existing
   // conversations always honor their stored `conversationScope`.
-  const defaultScope: 'organization' | 'workspace' | 'user' =
-    me.data?.activeWorkspaceId ? 'workspace' : 'organization';
+  const defaultScope: 'organization' | 'workspace' | 'user' = me.data?.activeWorkspaceId
+    ? 'workspace'
+    : 'organization';
+  const effectiveScope = conversationScope ?? defaultScope;
+  const scopeLabel =
+    effectiveScope === 'user'
+      ? 'your files'
+      : effectiveScope === 'workspace'
+        ? (me.data?.activeWorkspace?.name ?? 'workspace')
+        : (me.data?.organization?.name ?? 'organization');
 
   // Spending cap snapshot drives the pre-send guard. The server enforces
   // the same cap in chat-route via `assertUserWithinCap` — this query
@@ -82,10 +92,10 @@ export function ChatPage() {
         resize="smooth"
         initial="smooth"
       >
-        <StickToBottom.Content className="scrollbar-thin px-6 pb-10 pt-4">
-          <div className="mx-auto flex max-w-189 flex-col gap-6">
+        <StickToBottom.Content className="scrollbar-thin px-6 pt-16 pb-10">
+          <div className="mx-auto flex max-w-[720px] flex-col gap-8 font-inter">
             {hydrating && (
-              <p className="text-center text-sm text-zinc-500">Loading conversation…</p>
+              <p className="text-center text-label-14 text-text-secondary">Loading conversation…</p>
             )}
 
             {!hydrating && messages.length === 0 && !isBusy && <EmptyState />}
@@ -101,15 +111,25 @@ export function ChatPage() {
                   thinking={m.role === 'assistant' && isLast && isStreaming}
                   showActions={m.role === 'assistant' && !(isLast && isStreaming)}
                   citations={citationsByMessageId.get(m.id) ?? []}
+                  scopeLabel={scopeLabel}
+                  createdAt={(m.metadata as { createdAt?: string } | undefined)?.createdAt}
                 />
               );
             })}
 
-            {isSubmitting && <Message role="assistant" parts={[]} thinking showActions={false} />}
+            {isSubmitting && (
+              <Message
+                role="assistant"
+                parts={[]}
+                thinking
+                showActions={false}
+                scopeLabel={scopeLabel}
+              />
+            )}
 
             {error && (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                {error.message}
+              <div className="rounded-[12px] border border-danger-border bg-danger-subtle px-4 py-3 text-copy-14 text-danger-text">
+                {readableError(error.message)}
               </div>
             )}
           </div>
@@ -118,9 +138,9 @@ export function ChatPage() {
         <ScrollToBottomButton />
       </StickToBottom>
 
-      <div className="shrink-0 bg-[#fafafa] px-6 pb-8 pt-2">
+      <div className="shrink-0 px-6 pt-2 pb-5">
         {usage.data && (overLimit || nearLimit) && (
-          <div className="mx-auto mb-2 w-full max-w-189">
+          <div className="mx-auto mb-2 w-full max-w-[745px]">
             <SpendingLimitBanner
               overLimit={overLimit}
               usedMicrodollars={usage.data.usedMicrodollars}
@@ -140,8 +160,14 @@ export function ChatPage() {
           scopeLocked={scopeLocked}
           initialModelId={preferredModelId}
         />
-        <p className="mt-3 text-center text-sm leading-4 text-neutral-500">
-          AI can make mistakes. Check important info.
+        <p className="mt-4 text-center font-inter text-label-12 font-medium text-text-placeholder">
+          Having trouble?{' '}
+          <a
+            href={REPORT_ISSUE_URL}
+            className="underline decoration-from-font underline-offset-2 hover:text-text-secondary"
+          >
+            Report an issue or Bug
+          </a>
         </p>
       </div>
     </div>
@@ -173,9 +199,8 @@ function SpendingLimitBanner({
         <div className="flex-1">
           <p className="font-medium">Monthly AI budget reached</p>
           <p className="mt-0.5 text-xs text-red-700/90">
-            You've used {used} of {cap} this month. New messages are paused
-            until your budget resets on {reset}. Ask your workspace admin to
-            raise your cap if you need more headroom.
+            You've used {used} of {cap} this month. New messages are paused until your budget resets
+            on {reset}. Ask your workspace admin to raise your cap if you need more headroom.
           </p>
         </div>
       </div>
@@ -187,9 +212,7 @@ function SpendingLimitBanner({
     <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
       <AlertTriangle className="mt-0.5 size-4 shrink-0" />
       <div className="flex-1">
-        <p className="font-medium">
-          Approaching your monthly AI budget — {pct}% used
-        </p>
+        <p className="font-medium">Approaching your monthly AI budget — {pct}% used</p>
         <p className="mt-0.5 text-xs text-amber-800/90">
           {used} of {cap} this month. Resets {reset}.
         </p>
@@ -218,8 +241,8 @@ function ScrollToBottomButton() {
       aria-label="Scroll to bottom"
       onClick={() => void scrollToBottom()}
       className={cn(
-        'absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-zinc-200 bg-white p-2 text-zinc-700 shadow-md transition-all',
-        'hover:bg-zinc-50',
+        'absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-gray-4 bg-bg-panel p-2 text-text-secondary shadow-[0_3px_6px_rgba(225,225,225,0.7)] transition-all',
+        'hover:text-text',
         isAtBottom ? 'pointer-events-none translate-y-2 opacity-0' : 'translate-y-0 opacity-100',
       )}
     >
@@ -230,13 +253,26 @@ function ScrollToBottomButton() {
 
 function EmptyState() {
   return (
-    <div className="mx-auto mt-24 max-w-md text-center">
-      <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">
-        What can I help you with?
-      </h2>
-      <p className="mt-2 text-sm text-neutral-500">
+    <div className="mx-auto mt-[18vh] max-w-md text-center">
+      <h2 className="text-heading-24 font-medium text-text">What can I help you with?</h2>
+      <p className="mt-2 text-copy-14 text-text-secondary">
         Ask anything. Your conversations save automatically.
       </p>
     </div>
   );
+}
+
+/** Provider errors arrive as raw JSON from the stream; show their message. */
+function readableError(raw: string): string {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    const error: unknown =
+      typeof parsed === 'object' && parsed !== null ? Reflect.get(parsed, 'error') : null;
+    const message: unknown =
+      typeof error === 'object' && error !== null ? Reflect.get(error, 'message') : null;
+    if (typeof message === 'string') return `The AI provider couldn’t answer: ${message}`;
+  } catch {
+    // Not JSON — already a readable message.
+  }
+  return raw;
 }

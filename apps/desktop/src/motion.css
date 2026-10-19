@@ -1,0 +1,93 @@
+/* Motion for the redesigned chat (Figma "Chat - Final"). Shared by desktop
+ * and web — both index.css files import this. Everything here stops under
+ * prefers-reduced-motion. */
+
+/* Chat box glow: the blurred blue band behind the composer's top edge. It
+ * drifts slowly while idle and brightens / speeds up while a reply streams. */
+.composer-glow {
+  background-image: linear-gradient(
+    100deg,
+    rgba(176, 203, 255, 0.8) 0%,
+    rgba(140, 202, 247, 0.8) 25%,
+    rgba(2, 110, 230, 0.38) 50%,
+    rgba(140, 202, 247, 0.8) 75%,
+    rgba(176, 203, 255, 0.8) 100%
+  );
+  background-size: 200% 100%;
+  opacity: 0.85;
+  animation: composer-glow-drift 9s ease-in-out infinite alternate;
+  transition: opacity 600ms ease;
+}
+
+.composer-shell:focus-within .composer-glow {
+  opacity: 1;
+}
+
+.composer-shell.is-active .composer-glow {
+  opacity: 1;
+  animation:
+    composer-glow-drift 2.4s ease-in-out infinite alternate,
+    composer-glow-pulse 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes composer-glow-drift {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes composer-glow-pulse {
+  from {
+    filter: saturate(1);
+  }
+  to {
+    filter: saturate(1.6) brightness(1.05);
+  }
+}
+
+/* Send / stop orb fill. */
+.send-orb {
+  background-image: linear-gradient(
+    173deg,
+    rgba(176, 203, 255, 0.8) 5.5%,
+    rgba(140, 202, 247, 0.8) 47.6%,
+    rgba(2, 110, 230, 0.8) 102.7%
+  );
+}
+
+/* "Thinking" label: a soft light sweeps across the text. */
+.thinking-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-text) 0%,
+    var(--color-text) 35%,
+    var(--color-ai-sparkle) 50%,
+    var(--color-text) 65%,
+    var(--color-text) 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: thinking-shimmer 2.2s linear infinite;
+}
+
+@keyframes thinking-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-glow,
+  .composer-shell.is-active .composer-glow,
+  .thinking-shimmer {
+    animation: none;
+  }
+}

@@ -2,25 +2,15 @@ import { useRef, useState } from 'react';
 import { FileText, Loader2, Search, Trash2, Upload } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
-import {
-  useIsSuperadminBlocked,
-  RedirectToPlatform,
-} from '@/lib/role-gate';
-import { ChatSidebar } from '@/features/chat/ChatSidebar';
-import { TopBar } from '@/features/chat/TopBar';
-import { WorkspaceRail } from '@/features/chat/WorkspaceRail';
+import { useIsSuperadminBlocked, RedirectToPlatform } from '@/lib/role-gate';
+import { AppSidebar } from '@/features/chat/sidebar/AppSidebar';
 
 /**
  * Personal (user-scoped) file library. Deliberately simpler than the org
  * Files page — no folders, no replace, no bulk drag-drop of directory
  * trees. Users have a handful of personal docs; the lean UI is enough.
  */
-const TRANSIENT_STATUSES = new Set([
-  'PENDING',
-  'EXTRACTING',
-  'CHUNKING',
-  'EMBEDDING',
-]);
+const TRANSIENT_STATUSES = new Set(['PENDING', 'EXTRACTING', 'CHUNKING', 'EMBEDDING']);
 
 export function PersonalFilesPage() {
   // Superadmins are platform-tier only — no personal files.
@@ -48,9 +38,7 @@ export function PersonalFilesPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [pendingUploads, setPendingUploads] = useState<
-    Array<{ id: string; name: string }>
-  >([]);
+  const [pendingUploads, setPendingUploads] = useState<Array<{ id: string; name: string }>>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   async function uploadOne(file: File) {
@@ -103,133 +91,123 @@ export function PersonalFilesPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#fafafa] text-foreground">
-      <WorkspaceRail />
-      <ChatSidebar activeChatId={null} />
+      <AppSidebar activeChatId={null} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <TopBar />
         <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto flex max-w-[900px] flex-col gap-6 px-8 py-10">
             <div className="flex flex-col gap-1">
               <h1 className="text-2xl font-semibold text-zinc-900">My files</h1>
               <p className="text-sm text-zinc-500">
-                Personal library — visible only to you. Toggle <em>My files</em> on the
-                chat composer to search these docs in a conversation.
+                Personal library — visible only to you. Toggle <em>My files</em> on the chat
+                composer to search these docs in a conversation.
               </p>
             </div>
 
             <section
-        className={cn(
-          'overflow-hidden rounded-[12px] border bg-white transition-colors',
-          isDraggingOver ? 'border-black/60 ring-2 ring-black/20' : 'border-zinc-200',
-        )}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDraggingOver(true);
-        }}
-        onDragLeave={() => setIsDraggingOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setIsDraggingOver(false);
-          void handleFiles(e.dataTransfer.files);
-        }}
-      >
-        <div className="flex items-center justify-between gap-4 border-b border-zinc-100 p-5">
-          <div className="flex h-10 items-center gap-1 rounded-[10px] border border-zinc-200 bg-white px-2">
-            <Search className="size-4 text-zinc-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search your files"
-              className="w-56 bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={initiate.isPending}
-            className={cn(
-              'flex items-center gap-2 rounded-[10px] bg-black px-4 py-2.5 text-sm font-medium text-white transition-colors',
-              initiate.isPending
-                ? 'cursor-not-allowed opacity-70'
-                : 'hover:bg-zinc-800',
-            )}
-          >
-            Upload files
-            <Upload className="size-4" />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            hidden
-            multiple
-            onChange={(e) => {
-              void handleFiles(e.target.files);
-              e.target.value = '';
-            }}
-          />
-        </div>
-
-        {uploadError && (
-          <div className="border-b border-zinc-100 bg-red-50 px-5 py-2 text-sm text-red-700">
-            {uploadError}
-          </div>
-        )}
-
-        <ul className="flex flex-col">
-          {pendingUploads.map((p) => (
-            <li
-              key={p.id}
-              className="flex items-center gap-4 border-t border-zinc-100 px-5 py-4"
+              className={cn(
+                'overflow-hidden rounded-[12px] border bg-white transition-colors',
+                isDraggingOver ? 'border-black/60 ring-2 ring-black/20' : 'border-zinc-200',
+              )}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDraggingOver(true);
+              }}
+              onDragLeave={() => setIsDraggingOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDraggingOver(false);
+                void handleFiles(e.dataTransfer.files);
+              }}
             >
-              <FileIcon />
-              <div className="flex min-w-0 flex-col">
-                <p className="truncate text-sm font-medium text-zinc-800">{p.name}</p>
-                <p className="text-sm text-zinc-500">Uploading…</p>
+              <div className="flex items-center justify-between gap-4 border-b border-zinc-100 p-5">
+                <div className="flex h-10 items-center gap-1 rounded-[10px] border border-zinc-200 bg-white px-2">
+                  <Search className="size-4 text-zinc-400" />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search your files"
+                    className="w-56 bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={initiate.isPending}
+                  className={cn(
+                    'flex items-center gap-2 rounded-[10px] bg-black px-4 py-2.5 text-sm font-medium text-white transition-colors',
+                    initiate.isPending ? 'cursor-not-allowed opacity-70' : 'hover:bg-zinc-800',
+                  )}
+                >
+                  Upload files
+                  <Upload className="size-4" />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  hidden
+                  multiple
+                  onChange={(e) => {
+                    void handleFiles(e.target.files);
+                    e.target.value = '';
+                  }}
+                />
               </div>
-              <Loader2 className="ml-auto size-4 animate-spin text-zinc-400" />
-            </li>
-          ))}
 
-          {filesQuery.isLoading && pendingUploads.length === 0 && (
-            <li className="px-5 py-8 text-center text-sm text-zinc-500">Loading…</li>
-          )}
+              {uploadError && (
+                <div className="border-b border-zinc-100 bg-red-50 px-5 py-2 text-sm text-red-700">
+                  {uploadError}
+                </div>
+              )}
 
-          {!filesQuery.isLoading &&
-            files.length === 0 &&
-            pendingUploads.length === 0 && (
-              <li className="px-5 py-14 text-center">
-                <p className="text-sm font-medium text-zinc-800">No files yet</p>
-                <p className="mt-1 text-sm text-zinc-500">
-                  Drop files here or click Upload.
-                </p>
-              </li>
-            )}
+              <ul className="flex flex-col">
+                {pendingUploads.map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex items-center gap-4 border-t border-zinc-100 px-5 py-4"
+                  >
+                    <FileIcon />
+                    <div className="flex min-w-0 flex-col">
+                      <p className="truncate text-sm font-medium text-zinc-800">{p.name}</p>
+                      <p className="text-sm text-zinc-500">Uploading…</p>
+                    </div>
+                    <Loader2 className="ml-auto size-4 animate-spin text-zinc-400" />
+                  </li>
+                ))}
 
-          {files.map((file) => (
-            <li
-              key={file.id}
-              className="flex items-center gap-4 border-t border-zinc-100 px-5 py-4"
-            >
-              <FileIcon />
-              <div className="flex min-w-0 flex-col">
-                <p className="truncate text-sm font-medium text-zinc-800">
-                  {file.name}
-                </p>
-                <p className="text-sm text-zinc-500">{formatSize(file.fileSize)}</p>
-              </div>
-              <StatusBadge status={file.ingestStatus} />
-              <button
-                type="button"
-                onClick={() => handleRemove(file.id)}
-                disabled={remove.isPending}
-                className="ml-auto inline-flex items-center gap-2 rounded-[10px] bg-red-50 px-3 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Remove
-                <Trash2 className="size-3.5" />
-              </button>
-            </li>
-          ))}
-        </ul>
+                {filesQuery.isLoading && pendingUploads.length === 0 && (
+                  <li className="px-5 py-8 text-center text-sm text-zinc-500">Loading…</li>
+                )}
+
+                {!filesQuery.isLoading && files.length === 0 && pendingUploads.length === 0 && (
+                  <li className="px-5 py-14 text-center">
+                    <p className="text-sm font-medium text-zinc-800">No files yet</p>
+                    <p className="mt-1 text-sm text-zinc-500">Drop files here or click Upload.</p>
+                  </li>
+                )}
+
+                {files.map((file) => (
+                  <li
+                    key={file.id}
+                    className="flex items-center gap-4 border-t border-zinc-100 px-5 py-4"
+                  >
+                    <FileIcon />
+                    <div className="flex min-w-0 flex-col">
+                      <p className="truncate text-sm font-medium text-zinc-800">{file.name}</p>
+                      <p className="text-sm text-zinc-500">{formatSize(file.fileSize)}</p>
+                    </div>
+                    <StatusBadge status={file.ingestStatus} />
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(file.id)}
+                      disabled={remove.isPending}
+                      className="ml-auto inline-flex items-center gap-2 rounded-[10px] bg-red-50 px-3 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Remove
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </section>
           </div>
         </div>

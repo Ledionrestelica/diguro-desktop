@@ -13,16 +13,10 @@ import {
 import {
   AlertCircle,
   AtSign,
-  Briefcase,
-  Building2,
   ChevronDown,
   FileText,
   Loader2,
-  Lock,
-  Mic,
   Paperclip,
-  Square,
-  User,
   X,
 } from 'lucide-react';
 import {
@@ -34,6 +28,14 @@ import {
 import { cn } from '@/lib/utils';
 import { trpc } from '@/lib/trpc';
 import { ModelPicker } from './ModelPicker';
+import { WorkspaceGlyphIcon } from './sidebar/WorkspaceList';
+import { PiPlusDefaultStroke } from '@/components/icons/pika/PiPlusDefaultStroke';
+import { PiArrowUpStroke } from '@/components/icons/pika/PiArrowUpStroke';
+import { PiStopSmallStroke } from '@/components/icons/pika/PiStopSmallStroke';
+import { PiUserDefaultStroke } from '@/components/icons/pika/PiUserDefaultStroke';
+import { PiFolderDefaultStroke } from '@/components/icons/pika/PiFolderDefaultStroke';
+import { PiLockCloseStroke } from '@/components/icons/pika/PiLockCloseStroke';
+import { PiFileTextStroke } from '@/components/icons/pika/PiFileTextStroke';
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25 MB per file
 const MAX_FILES = 10;
@@ -120,6 +122,7 @@ export function Composer({
   const meQuery = trpc.health.me.useQuery();
   const activeWorkspaceId = meQuery.data?.activeWorkspaceId ?? null;
   const activeWorkspaceName = meQuery.data?.activeWorkspace?.name ?? null;
+  const activeWorkspaceLogoUrl = meQuery.data?.activeWorkspace?.logoUrl ?? null;
 
   const [value, setValue] = useState('');
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
@@ -446,15 +449,18 @@ export function Composer({
   const canSend = hasReadyContent && !anyUploading && !disabled && !streaming;
 
   return (
-    <div className="relative mx-auto w-full max-w-189">
-      <div className="pointer-events-none absolute inset-x-0 -bottom-6 top-6 z-0 overflow-hidden rounded-[35px] opacity-70 blur-[10px]">
-        <div
-          className="size-full"
-          style={{
-            backgroundImage:
-              'linear-gradient(90deg, rgba(106, 169, 210, 0.8) 0%, rgba(235, 208, 249, 0.8) 33%, rgba(193, 230, 255, 0.8) 66%, rgba(198, 229, 245, 0.8) 100%)',
-          }}
-        />
+    <div
+      className={cn(
+        'composer-shell relative mx-auto w-full max-w-[745px] rounded-[22px] border border-gray-4 p-[5px] font-inter',
+        streaming && 'is-active',
+      )}
+    >
+      {/* Blue glow behind the top edge (Figma "Gradient"); animated in CSS. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded-[22px]"
+      >
+        <div className="composer-glow absolute -top-[66px] left-1/2 h-[77px] w-[calc(100%+16px)] -translate-x-1/2 blur-[27.5px]" />
       </div>
 
       <form
@@ -463,17 +469,14 @@ export function Composer({
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         className={cn(
-          'relative z-10 flex min-h-32 flex-col rounded-3xl border bg-[#fafafa] px-6 py-5 transition-colors',
-          dragActive ? 'border-zinc-400 bg-zinc-50' : 'border-zinc-200',
+          'relative z-10 flex min-h-[132px] flex-col rounded-[22px] border bg-bg-panel px-[13px] pt-[11px] pb-[9px] shadow-[0_3px_6.2px_rgba(225,225,225,0.69)] transition-colors',
+          dragActive ? 'border-focus-ring' : 'border-gray-3',
         )}
       >
         {(attachments.length > 0 || mentionedFile) && (
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
             {mentionedFile && (
-              <MentionedFileChip
-                file={mentionedFile}
-                onRemove={() => setMentionedFile(null)}
-              />
+              <MentionedFileChip file={mentionedFile} onRemove={() => setMentionedFile(null)} />
             )}
             {attachments.map((att) => (
               <AttachmentChip
@@ -504,8 +507,8 @@ export function Composer({
             }, 150);
           }}
           disabled={disabled}
-          placeholder="Chat with AI — type # to focus on one file"
-          className="max-h-60 w-full resize-none overflow-y-auto bg-transparent text-base leading-6 text-zinc-800 outline-none placeholder:text-zinc-400 disabled:opacity-50"
+          placeholder="Ask anything — type # to focus on one file"
+          className="max-h-60 w-full resize-none overflow-y-auto bg-transparent text-label-13 leading-5 font-medium text-text outline-none placeholder:text-text-placeholder disabled:opacity-50"
         />
 
         {pickerOpen && (
@@ -519,11 +522,7 @@ export function Composer({
             scope={scope}
             query={pickerQuery}
             onQueryChange={(q) =>
-              setPicker((prev) =>
-                prev.kind === 'button'
-                  ? { kind: 'button', query: q }
-                  : prev,
-              )
+              setPicker((prev) => (prev.kind === 'button' ? { kind: 'button', query: q } : prev))
             }
             onPick={selectMentionFile}
             onHover={setPickerHighlight}
@@ -531,10 +530,10 @@ export function Composer({
           />
         )}
 
-        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        {error && <p className="mt-2 text-label-12 text-danger-text">{error}</p>}
 
-        <div className="mt-auto flex items-center justify-between pt-4">
-          <div className="flex items-center gap-2">
+        <div className="mt-auto flex items-center justify-between pt-3">
+          <div className="flex items-center gap-1.5">
             <input
               ref={fileInputRef}
               type="file"
@@ -543,33 +542,35 @@ export function Composer({
               onChange={onPick}
               className="hidden"
             />
-            <CircleIconButton
-              label="Attach image"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={streaming}
-            >
-              <Paperclip className="size-4" />
-            </CircleIconButton>
-            <CircleIconButton
-              label="Pin a file from your library"
-              onClick={() => {
-                if (picker.kind === 'idle') {
-                  setPicker({ kind: 'button', query: '' });
-                } else {
-                  setPicker({ kind: 'idle' });
-                }
-              }}
-              disabled={streaming}
-            >
-              <AtSign className="size-4" />
-            </CircleIconButton>
-            <CircleIconButton label="Voice input" onClick={() => {}} disabled>
-              <Mic className="size-4" />
-            </CircleIconButton>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Add to message"
+                disabled={streaming}
+                className="grid size-7 cursor-pointer place-items-center rounded-full border border-gray-3 text-text-secondary outline-none transition-colors hover:bg-hover hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <PiPlusDefaultStroke size={14} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top" className="w-56 font-inter">
+                <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
+                  <Paperclip className="size-4" /> Attach images or PDFs
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() =>
+                    setPicker((prev) =>
+                      prev.kind === 'idle' ? { kind: 'button', query: '' } : { kind: 'idle' },
+                    )
+                  }
+                >
+                  <AtSign className="size-4" /> Focus on one file
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <ScopeToggle
               scope={scope}
               locked={scopeLocked}
               workspaceName={activeWorkspaceName}
+              workspaceId={activeWorkspaceId ?? null}
+              workspaceLogoUrl={activeWorkspaceLogoUrl}
               workspaceAvailable={Boolean(activeWorkspaceId)}
               onChange={setScope}
             />
@@ -578,22 +579,21 @@ export function Composer({
           <div className="flex items-center gap-2">
             <ModelPicker value={modelId} onChange={setModelId} disabled={streaming || disabled} />
             {streaming ? (
-              <CircleIconButton label="Stop" onClick={() => onStop?.()}>
-                <Square className="size-3.5 fill-current" />
-              </CircleIconButton>
+              <SendOrb label="Stop" onClick={() => onStop?.()} type="button">
+                <PiStopSmallStroke size={16} />
+              </SendOrb>
             ) : (
-              <button
+              <SendOrb
+                label={anyUploading ? 'Uploading…' : 'Send'}
                 type="submit"
                 disabled={!canSend}
-                className={cn(
-                  'rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                  canSend
-                    ? 'bg-[#111827] text-white hover:bg-[#111827]/90'
-                    : 'cursor-not-allowed bg-zinc-200 text-zinc-400',
-                )}
               >
-                {anyUploading ? 'Uploading…' : 'Send'}
-              </button>
+                {anyUploading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <PiArrowUpStroke size={16} />
+                )}
+              </SendOrb>
             )}
           </div>
         </div>
@@ -603,115 +603,108 @@ export function Composer({
 }
 
 /**
- * Two-state pill that picks which corpus the chat searches. Locked once
- * the conversation has messages — the server won't let you change scope
- * mid-conversation anyway, so we surface that constraint in the UI.
+ * Pill that picks which corpus the chat searches (Figma: the "People and HR"
+ * chip). Locked once the conversation has messages — the server won't
+ * change scope mid-conversation, so the pill turns static with a lock.
  */
-function scopeMeta(scope: RetrievalScope): {
-  label: string;
-  Icon: typeof Building2;
-  /** Tailwind class for the chip when this scope is the active one. */
-  activeClass: string;
-} {
-  switch (scope) {
-    case 'user':
-      return {
-        label: 'My files',
-        Icon: User,
-        activeClass: 'border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100',
-      };
-    case 'workspace':
-      return {
-        label: 'Workspace',
-        Icon: Briefcase,
-        activeClass: 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100',
-      };
-    case 'organization':
-    default:
-      return {
-        label: 'Organization',
-        Icon: Building2,
-        activeClass: 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50',
-      };
+function ScopeIcon({
+  scope,
+  workspaceId,
+  workspaceLogoUrl,
+}: {
+  scope: RetrievalScope;
+  workspaceId: string | null;
+  workspaceLogoUrl: string | null;
+}) {
+  if (scope === 'workspace' && workspaceId) {
+    return <WorkspaceGlyphIcon id={workspaceId} logoUrl={workspaceLogoUrl} />;
   }
+  if (scope === 'user') return <PiUserDefaultStroke size={16} className="text-iris-9" />;
+  return <PiFolderDefaultStroke size={16} className="text-text-secondary" />;
+}
+
+function scopeLabel(scope: RetrievalScope, workspaceName: string | null): string {
+  if (scope === 'user') return 'My files';
+  if (scope === 'workspace') return workspaceName ?? 'Workspace';
+  return 'Organization';
 }
 
 function ScopeToggle({
   scope,
   locked,
   workspaceName,
+  workspaceId,
+  workspaceLogoUrl,
   workspaceAvailable,
   onChange,
 }: {
   scope: RetrievalScope;
   locked: boolean;
-  /** Display name of the active workspace; null if no workspace. Used to
-   *  customize the dropdown label so users see which workspace they're
-   *  scoping retrieval to. */
   workspaceName: string | null;
+  workspaceId: string | null;
+  workspaceLogoUrl: string | null;
   /** False = no active workspace, hide the workspace option entirely. */
   workspaceAvailable: boolean;
   onChange: (next: RetrievalScope) => void;
 }) {
-  const meta = scopeMeta(scope);
-  const Icon = meta.Icon;
-  const label =
-    scope === 'workspace' && workspaceName ? workspaceName : meta.label;
+  const label = scopeLabel(scope, workspaceName);
+  const pill =
+    'inline-flex h-7 items-center gap-1 rounded-full border border-gray-3 bg-bg-panel pr-2 pl-1.5 text-label-12 font-medium text-text shadow-[0_2px_2px_rgba(36,36,36,0.03)]';
+  const icon = (
+    <ScopeIcon scope={scope} workspaceId={workspaceId} workspaceLogoUrl={workspaceLogoUrl} />
+  );
 
   if (locked) {
     return (
-      <span
-        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-600"
-        title="Scope locked for this conversation"
-      >
-        <Lock className="size-3 text-zinc-400" />
-        <Icon className="size-3.5 text-zinc-500" />
-        {label}
+      <span className={pill} title="This chat searches the same files for every message">
+        {icon}
+        <span className="max-w-40 truncate">{label}</span>
+        <PiLockCloseStroke size={12} className="text-text-placeholder" />
       </span>
     );
   }
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-            meta.activeClass,
-          )}
-          title={`Searching ${label.toLowerCase()}. Click to switch.`}
-        >
-          <Icon className="size-3.5" />
-          <span className="max-w-32 truncate">{label}</span>
-          <ChevronDown className="size-3 opacity-60" />
-        </button>
+      <DropdownMenuTrigger
+        className={cn(
+          pill,
+          'cursor-pointer outline-none hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)]',
+        )}
+        title={`Searching ${label}. Click to switch.`}
+      >
+        {icon}
+        <span className="max-w-40 truncate">{label}</span>
+        <ChevronDown className="size-3 text-text-placeholder" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
+      <DropdownMenuContent align="start" side="top" className="w-64 font-inter">
         {workspaceAvailable ? (
           <ScopeItem
-            scope="workspace"
-            activeScope={scope}
-            onPick={onChange}
+            active={scope === 'workspace'}
+            onPick={() => onChange('workspace')}
+            icon={
+              <ScopeIcon
+                scope="workspace"
+                workspaceId={workspaceId}
+                workspaceLogoUrl={workspaceLogoUrl}
+              />
+            }
             label={workspaceName ?? 'Workspace'}
-            description="Workspace files plus all org-wide files."
+            description="Workspace files plus all organization files."
           />
         ) : (
-          // Edge case: user has no active workspace. Fall back to the
-          // org-only option so they can still scope retrieval to their
-          // organization's files instead of being limited to personal.
           <ScopeItem
-            scope="organization"
-            activeScope={scope}
-            onPick={onChange}
+            active={scope === 'organization'}
+            onPick={() => onChange('organization')}
+            icon={<ScopeIcon scope="organization" workspaceId={null} workspaceLogoUrl={null} />}
             label="Organization"
             description="All files shared across the organization."
           />
         )}
         <ScopeItem
-          scope="user"
-          activeScope={scope}
-          onPick={onChange}
+          active={scope === 'user'}
+          onPick={() => onChange('user')}
+          icon={<ScopeIcon scope="user" workspaceId={null} workspaceLogoUrl={null} />}
           label="My files"
           description="Your personal library."
         />
@@ -721,33 +714,57 @@ function ScopeToggle({
 }
 
 function ScopeItem({
-  scope,
-  activeScope,
+  active,
   onPick,
+  icon,
   label,
   description,
 }: {
-  scope: RetrievalScope;
-  activeScope: RetrievalScope;
-  onPick: (next: RetrievalScope) => void;
+  active: boolean;
+  onPick: () => void;
+  icon: React.ReactNode;
   label: string;
   description: string;
 }) {
-  const meta = scopeMeta(scope);
-  const Icon = meta.Icon;
-  const isActive = scope === activeScope;
   return (
-    <DropdownMenuItem
-      className="cursor-pointer"
-      onSelect={() => onPick(scope)}
-    >
-      <Icon className="size-4" />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm font-medium">{label}</span>
-        <span className="truncate text-xs text-zinc-500">{description}</span>
-      </div>
-      {isActive && <span className="ml-2 text-xs text-zinc-400">Active</span>}
+    <DropdownMenuItem className="cursor-pointer items-start" onSelect={onPick}>
+      <span className="mt-0.5">{icon}</span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-label-14 font-medium text-text">{label}</span>
+        <span className="truncate text-label-12 text-text-secondary">{description}</span>
+      </span>
+      {active && <span className="text-label-12 text-text-placeholder">Active</span>}
     </DropdownMenuItem>
+  );
+}
+
+/** Round send / stop button with the blue gradient fill (Figma "Collapse"). */
+function SendOrb({
+  label,
+  children,
+  disabled = false,
+  type,
+  onClick,
+}: {
+  label: string;
+  children: React.ReactNode;
+  disabled?: boolean;
+  type: 'button' | 'submit';
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type={type}
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="group cursor-pointer rounded-full border border-gray-3 p-0.5 outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed"
+    >
+      <span className="send-orb grid size-7 place-items-center rounded-full text-text-on-solid transition-[filter,transform] group-hover:brightness-105 group-active:scale-95 group-disabled:bg-none group-disabled:bg-gray-5 group-disabled:text-text-placeholder">
+        {children}
+      </span>
+    </button>
   );
 }
 
@@ -829,49 +846,19 @@ function RemoveButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function CircleIconButton({
-  children,
-  label,
-  onClick,
-  disabled,
-}: {
-  children: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      disabled={disabled}
-      className="grid size-8 place-items-center rounded-full border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
-    >
-      {children}
-    </button>
-  );
-}
-
-function MentionedFileChip({
-  file,
-  onRemove,
-}: {
-  file: MentionedFile;
-  onRemove: () => void;
-}) {
+function MentionedFileChip({ file, onRemove }: { file: MentionedFile; onRemove: () => void }) {
   return (
     <div
-      className="group inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 py-1 pl-2.5 pr-1 text-xs font-medium text-violet-700"
+      className="group inline-flex items-center gap-1 rounded-[8px] border border-gray-3 bg-bg-panel py-[3px] pr-1 pl-1 text-label-12 font-medium text-text shadow-[0_2px_2px_rgba(36,36,36,0.03)]"
       title={`Focused on ${file.name} — the assistant will only answer from this file`}
     >
-      <FileText className="size-3.5" />
+      <PiFileTextStroke size={12} className="text-blue-9" />
       <span className="max-w-44 truncate">{file.name}</span>
       <button
         type="button"
         aria-label="Unpin file"
         onClick={onRemove}
-        className="grid size-4 place-items-center rounded-full text-violet-400 transition-colors hover:bg-violet-100 hover:text-violet-700"
+        className="grid size-4 cursor-pointer place-items-center rounded-full text-text-placeholder transition-colors hover:bg-hover hover:text-text"
       >
         <X className="size-3" />
       </button>
@@ -955,9 +942,7 @@ function FileMentionPicker({
     >
       <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-2 text-xs text-zinc-500">
         <span>
-          {hasQuery
-            ? `Searching ${scopeLabel} for "${trimmedQuery}"`
-            : `Search ${scopeLabel}`}
+          {hasQuery ? `Searching ${scopeLabel} for "${trimmedQuery}"` : `Search ${scopeLabel}`}
         </span>
         <button
           type="button"
@@ -986,9 +971,7 @@ function FileMentionPicker({
       <div className="max-h-64 overflow-y-auto">
         {!hasQuery && (
           <p className="px-4 py-6 text-center text-sm text-zinc-500">
-            {mode === 'typeahead'
-              ? 'Keep typing to search files…'
-              : 'Type to search files.'}
+            {mode === 'typeahead' ? 'Keep typing to search files…' : 'Type to search files.'}
           </p>
         )}
         {hasQuery && loading && (
@@ -997,9 +980,7 @@ function FileMentionPicker({
           </div>
         )}
         {hasQuery && !loading && files.length === 0 && (
-          <p className="px-4 py-6 text-center text-sm text-zinc-500">
-            No files match.
-          </p>
+          <p className="px-4 py-6 text-center text-sm text-zinc-500">No files match.</p>
         )}
         {hasQuery &&
           !loading &&

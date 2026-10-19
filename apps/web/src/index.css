@@ -2,6 +2,7 @@
 @import 'tw-animate-css';
 @import '../../desktop/src/colors.css';
 @import '../../desktop/src/typography.css';
+@import '../../desktop/src/motion.css';
 
 /* Tailwind v4 scans the current project root by default. Web reuses the
  * desktop React tree via Vite aliases, so we need to explicitly point

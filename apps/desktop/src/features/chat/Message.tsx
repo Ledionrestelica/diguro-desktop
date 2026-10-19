@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Eye, FileText, Globe } from 'lucide-react';
+import { FileText, Globe } from 'lucide-react';
 import type { UIMessage } from 'ai';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -8,6 +8,9 @@ import { useAttachmentUrl } from './useAttachmentUrl';
 import { ToolPart } from './tools/registry';
 import { isGenerativeUIToolName } from './tools/names';
 import type { MessageCitation } from './types';
+import { RetrievalTrace, type RetrievalCall } from './trace/RetrievalTrace';
+import { ThinkingTrace } from './trace/ThinkingTrace';
+import { UserMessageMeta } from './UserMessageMeta';
 
 const RETRIEVAL_TOOL_NAME = 'search_documents';
 
@@ -26,6 +29,10 @@ export interface MessageProps {
    * and a Sources section is rendered at the end of the message.
    */
   citations?: MessageCitation[];
+  /** What retrieval searched, for the trace summary ("Searched HR"). */
+  scopeLabel?: string;
+  /** When the message was sent (persisted messages only). */
+  createdAt?: string | undefined;
 }
 
 const CITATION_MARKER_RE = /\[cite:([a-zA-Z0-9-]+)\]/g;
@@ -36,6 +43,8 @@ export function Message({
   thinking,
   showActions = true,
   citations,
+  scopeLabel = '',
+  createdAt,
 }: MessageProps) {
   // Build a chunkId → rank map. Assistant messages use ranks from the
   // server-persisted citations (stable across page reloads). For live
@@ -57,19 +66,18 @@ export function Message({
           {userFiles.length > 0 && <AttachmentGrid files={userFiles} align="end" />}
           {pinName && <PinnedFileChip name={pinName} />}
           {userText && (
-            <div className="whitespace-pre-wrap rounded-[20px] bg-zinc-100 px-[18px] py-2.5 text-base leading-6 text-black">
+            <div className="whitespace-pre-wrap rounded-[12px] bg-bg-app px-3.5 py-3 font-inter text-copy-14 text-text">
               {userText}
             </div>
           )}
+          {userText && <UserMessageMeta text={userText} createdAt={createdAt} />}
         </div>
       </div>
     );
   }
 
   const hasRenderableContent =
-    blocks.length > 0 ||
-    sources.length > 0 ||
-    (citations && citations.length > 0);
+    blocks.length > 0 || sources.length > 0 || (citations && citations.length > 0);
 
   // Pick the thinking label based on what's happening right now:
   //   - no blocks yet, model hasn't started doing anything → "Thinking..."
@@ -78,45 +86,43 @@ export function Message({
   //   - retrieval finished, text still hasn't arrived → "Answering..."
   //     so the user knows the model is composing, not stuck.
   //   - text is already streaming → nothing; the text is feedback enough.
-  const thinkingLabel = thinking
-    ? pickThinkingLabel(blocks)
-    : null;
+  const thinkingLabel = thinking ? pickThinkingLabel(blocks) : null;
 
   return (
     <div className="flex flex-col gap-4">
       {searchState && <SearchIndicator state={searchState} />}
       {blocks.map((block) => (
-        <BlockRender key={block.key} block={block} citationRanks={citationRanks} />
+        <BlockRender
+          key={block.key}
+          block={block}
+          citationRanks={citationRanks}
+          scopeLabel={scopeLabel}
+        />
       ))}
-      {thinkingLabel && (
-        <p className="thinking-gradient-text w-fit animate-bounce text-base font-medium leading-6">
-          {thinkingLabel}
-        </p>
-      )}
+      {thinkingLabel && <ThinkingTrace label={thinkingLabel} />}
       {sources.length > 0 && <SourceList sources={sources} />}
-      {citations && citations.length > 0 && (
-        <DocumentSourceList citations={citations} />
-      )}
+      {citations && citations.length > 0 && <DocumentSourceList citations={citations} />}
       {showActions && hasRenderableContent && <MessageActions />}
     </div>
   );
 }
 
 function pickThinkingLabel(blocks: Block[]): string | null {
-  if (blocks.length === 0) return 'Thinking..';
+  if (blocks.length === 0) return 'Thinking';
   const last = blocks[blocks.length - 1];
-  if (!last) return 'Thinking..';
+  if (!last) return 'Thinking';
   // Once text is streaming, the text IS the feedback — don't stack a label
   // on top of it.
   if (last.kind === 'text') return null;
   // A tool is in progress → its own indicator carries the load.
   if (last.kind === 'retrieval') {
-    return last.state === 'output-available' || last.state === 'output-error'
-      ? 'Answering..'
-      : null;
+    const done = last.calls.every(
+      (c) => c.state === 'output-available' || c.state === 'output-error',
+    );
+    return done ? 'Writing the answer' : null;
   }
   if (last.kind === 'tool') return null;
-  return 'Thinking..';
+  return 'Thinking';
 }
 
 /* ------------------------------------------------------------------ */
@@ -136,15 +142,7 @@ interface RetrievalResult {
 type Block =
   | { kind: 'text'; text: string; key: string }
   | { kind: 'tool'; part: unknown; key: string }
-  | {
-      kind: 'retrieval';
-      state: ToolState;
-      query: string | null;
-      matched: number | null;
-      sources: string[];
-      errorText: string | null;
-      key: string;
-    }
+  | { kind: 'retrieval'; calls: RetrievalCall[]; key: string }
   | { kind: 'files'; parts: FileLikePart[]; key: string };
 
 function buildBlocks(parts: UIMessage['parts']): Block[] {
@@ -195,9 +193,19 @@ function buildBlocks(parts: UIMessage['parts']): Block[] {
     if (type.startsWith('tool-')) {
       const name = type.slice('tool-'.length);
       if (name === RETRIEVAL_TOOL_NAME) {
-        flushText();
-        flushFiles();
-        out.push(toRetrievalBlock(part, partIdx));
+        // Consecutive searches (no text in between) form one trace.
+        const prev = out[out.length - 1];
+        if (textBuf.length === 0 && fileBuf.length === 0 && prev?.kind === 'retrieval') {
+          prev.calls.push(toRetrievalCall(part));
+        } else {
+          flushText();
+          flushFiles();
+          out.push({
+            kind: 'retrieval',
+            calls: [toRetrievalCall(part)],
+            key: `retrieval-${partIdx}`,
+          });
+        }
         partIdx++;
         continue;
       }
@@ -220,128 +228,37 @@ function buildBlocks(parts: UIMessage['parts']): Block[] {
   return out;
 }
 
-function toRetrievalBlock(
-  part: unknown,
-  partIdx: number,
-): Extract<Block, { kind: 'retrieval' }> {
+function toRetrievalCall(part: unknown): RetrievalCall {
   const state = ((part as { state?: unknown }).state ?? 'input-streaming') as ToolState;
   const input = (part as { input?: unknown }).input as { query?: unknown } | undefined;
-  const output = (part as { output?: unknown }).output as
-    | { matched?: unknown; results?: unknown }
-    | undefined;
+  const output = (part as { output?: unknown }).output as { results?: unknown } | undefined;
   const errorText = (part as { errorText?: unknown }).errorText;
-
-  const query = typeof input?.query === 'string' ? input.query : null;
-  const matched = typeof output?.matched === 'number' ? output.matched : null;
-
-  const sources: string[] = [];
-  if (Array.isArray(output?.results)) {
-    const seen = new Set<string>();
-    for (const r of output.results as RetrievalResult[]) {
-      if (r && typeof r.source === 'string' && !seen.has(r.source)) {
-        seen.add(r.source);
-        sources.push(r.source);
-      }
-    }
-  }
-
+  const results = Array.isArray(output?.results)
+    ? (output.results as RetrievalResult[]).filter((r) => r && typeof r.source === 'string')
+    : [];
   return {
-    kind: 'retrieval',
     state,
-    query,
-    matched,
-    sources,
+    query: typeof input?.query === 'string' ? input.query : null,
+    results,
     errorText: typeof errorText === 'string' ? errorText : null,
-    key: `retrieval-${partIdx}`,
   };
 }
 
 function BlockRender({
   block,
   citationRanks,
+  scopeLabel,
 }: {
   block: Block;
   citationRanks: Map<string, number>;
+  scopeLabel: string;
 }) {
   if (block.kind === 'text')
     return <AssistantText text={block.text} citationRanks={citationRanks} />;
   if (block.kind === 'files') return <AttachmentGrid files={block.parts} align="start" />;
-  if (block.kind === 'retrieval') return <RetrievalBlock block={block} />;
+  if (block.kind === 'retrieval')
+    return <RetrievalTrace calls={block.calls} scopeLabel={scopeLabel} />;
   return <ToolPart part={block.part} />;
-}
-
-function RetrievalBlock({
-  block,
-}: {
-  block: Extract<Block, { kind: 'retrieval' }>;
-}) {
-  const inFlight = block.state === 'input-streaming' || block.state === 'input-available';
-  const errored = block.state === 'output-error';
-  const done = block.state === 'output-available';
-
-  // Screenshot-style labels: past-tense "Viewed" once the result is in,
-  // with the source pills carrying the information. During flight we show
-  // the live query so the user knows what's being looked up.
-  const doneLabel = (() => {
-    if (block.matched === 0 || block.sources.length === 0) {
-      return 'No matching passages';
-    }
-    return 'Viewed';
-  })();
-
-  const flightLabel = block.query
-    ? (
-        <>
-          Searching for{' '}
-          <span className="italic text-zinc-600">&ldquo;{block.query}&rdquo;</span>
-        </>
-      )
-    : 'Searching…';
-
-  return (
-    <div className="flex flex-col gap-1.5 text-sm">
-      <div className="flex items-center gap-2.5 text-zinc-500">
-        {inFlight && <DottedSpinner />}
-        {done && <Eye className="size-3.5 text-zinc-400" />}
-        {errored && (
-          <span className="grid size-3.5 place-items-center rounded-full bg-red-100 text-[9px] font-semibold text-red-600">
-            !
-          </span>
-        )}
-        <span className={inFlight ? 'text-zinc-500' : 'text-zinc-700'}>
-          {errored ? 'Search failed' : inFlight ? flightLabel : doneLabel}
-        </span>
-        {done && block.sources.length > 0 && (
-          <span className="flex flex-wrap items-center gap-1.5">
-            {block.sources.map((src, i) => (
-              <SourceChipInline key={`${src}-${i}`} name={src} />
-            ))}
-          </span>
-        )}
-      </div>
-      {errored && block.errorText && (
-        <p className="ml-6 text-xs text-red-500">{block.errorText}</p>
-      )}
-    </div>
-  );
-}
-
-function SourceChipInline({ name }: { name: string }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-800">
-      <FileText className="size-3 text-zinc-500" />
-      <span className="max-w-[180px] truncate">{name}</span>
-    </span>
-  );
-}
-
-function DottedSpinner() {
-  return (
-    <span
-      aria-hidden
-      className="inline-block size-3.5 animate-spin rounded-full border-2 border-dotted border-zinc-400"
-    />
-  );
 }
 
 function AssistantText({
@@ -368,21 +285,13 @@ function AssistantText({
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          p: ({ children }) => (
-            <p className="mb-4 last:mb-0">
-              {mapCitationsInChildren(children)}
-            </p>
-          ),
+          p: ({ children }) => <p className="mb-4 last:mb-0">{mapCitationsInChildren(children)}</p>,
           strong: ({ children }) => (
-            <strong className="font-semibold">
-              {mapCitationsInChildren(children)}
-            </strong>
+            <strong className="font-semibold">{mapCitationsInChildren(children)}</strong>
           ),
           em: ({ children }) => <em>{mapCitationsInChildren(children)}</em>,
           ul: ({ children }) => <ul className="mb-4 list-disc pl-5 last:mb-0">{children}</ul>,
-          ol: ({ children }) => (
-            <ol className="mb-4 list-decimal pl-5 last:mb-0">{children}</ol>
-          ),
+          ol: ({ children }) => <ol className="mb-4 list-decimal pl-5 last:mb-0">{children}</ol>,
           li: ({ children }) => (
             <li className="mb-1 last:mb-0">{mapCitationsInChildren(children)}</li>
           ),
@@ -404,19 +313,13 @@ function AssistantText({
             </a>
           ),
           h1: ({ children }) => (
-            <h1 className="mb-3 text-xl font-semibold">
-              {mapCitationsInChildren(children)}
-            </h1>
+            <h1 className="mb-3 text-xl font-semibold">{mapCitationsInChildren(children)}</h1>
           ),
           h2: ({ children }) => (
-            <h2 className="mb-3 text-lg font-semibold">
-              {mapCitationsInChildren(children)}
-            </h2>
+            <h2 className="mb-3 text-lg font-semibold">{mapCitationsInChildren(children)}</h2>
           ),
           h3: ({ children }) => (
-            <h3 className="mb-2 text-base font-semibold">
-              {mapCitationsInChildren(children)}
-            </h3>
+            <h3 className="mb-2 text-base font-semibold">{mapCitationsInChildren(children)}</h3>
           ),
         }}
       >
@@ -521,9 +424,7 @@ function useMessageCitationRanks(
 function DocumentSourceList({ citations }: { citations: MessageCitation[] }) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-        Sources
-      </p>
+      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Sources</p>
       <ul className="flex flex-col gap-1.5">
         {citations.map((c) => (
           <li key={c.id}>
@@ -542,9 +443,7 @@ function DocumentSourceList({ citations }: { citations: MessageCitation[] }) {
                 <span className="truncate font-medium text-zinc-900 group-hover:underline">
                   {c.sourceName}
                   {c.pageNumber != null && (
-                    <span className="font-normal text-zinc-500">
-                      {' '}· p. {c.pageNumber}
-                    </span>
+                    <span className="font-normal text-zinc-500"> · p. {c.pageNumber}</span>
                   )}
                 </span>
                 <span className="line-clamp-2 text-zinc-600">{c.snippet}</span>
@@ -562,9 +461,7 @@ function DocumentSourceList({ citations }: { citations: MessageCitation[] }) {
 function SearchIndicator({ state }: { state: 'searching' | 'done' }) {
   return (
     <div className="flex w-fit items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600">
-      <Globe
-        className={`size-3.5 text-zinc-500 ${state === 'searching' ? 'animate-pulse' : ''}`}
-      />
+      <Globe className={`size-3.5 text-zinc-500 ${state === 'searching' ? 'animate-pulse' : ''}`} />
       {state === 'searching' ? 'Searching the web…' : 'Searched the web'}
     </div>
   );
@@ -627,9 +524,7 @@ function PinnedFileChip({ name }: { name: string }) {
 
 function AttachmentGrid({ files, align }: { files: FileLikePart[]; align: 'start' | 'end' }) {
   return (
-    <div
-      className={`flex flex-wrap gap-2 ${align === 'end' ? 'justify-end' : 'justify-start'}`}
-    >
+    <div className={`flex flex-wrap gap-2 ${align === 'end' ? 'justify-end' : 'justify-start'}`}>
       {files.map((f, idx) => (
         <Attachment key={`${f.url}-${idx}`} file={f} />
       ))}
