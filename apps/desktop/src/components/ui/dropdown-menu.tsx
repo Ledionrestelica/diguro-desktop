@@ -197,7 +197,9 @@ function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<'spa
 }
 
 /** Lets an open submenu keep its trigger lit in the parent menu. */
-const SubTriggerActivate = React.createContext<React.RefObject<(() => void) | null> | null>(null);
+const SubTriggerActivate = React.createContext<React.MutableRefObject<(() => void) | null> | null>(
+  null,
+);
 
 function DropdownMenuSub({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
   const activateTrigger = React.useRef<(() => void) | null>(null);

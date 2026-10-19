@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { cn } from '@/lib/utils';
 import { PiFilePdfFormatStroke } from '@/components/icons/pika/PiFilePdfFormatStroke';
 import { PiFileTextStroke } from '@/components/icons/pika/PiFileTextStroke';
 import { PiFileBarGraphStroke } from '@/components/icons/pika/PiFileBarGraphStroke';
@@ -17,16 +18,21 @@ const BY_EXTENSION: Record<string, IconSpec> = {
   csv: { Icon: PiFileBarGraphStroke, color: 'text-green-9' },
 };
 
-/** File-type icon for a source document, in the 24px bubble the trace uses. */
-export function SourceIcon({ name }: { name: string }) {
+/** Pika file icon tinted by extension (PDF red, docs blue, sheets green). */
+export function FileTypeIcon({ name, size }: { name: string; size: number }) {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
   const { Icon, color } = BY_EXTENSION[ext] ?? {
     Icon: PiFileDefaultStroke,
     color: 'text-text-secondary',
   };
+  return <Icon size={size} className={cn('shrink-0', color)} />;
+}
+
+/** File-type icon for a source document, in the 24px bubble the trace uses. */
+export function SourceIcon({ name }: { name: string }) {
   return (
     <span className="flex shrink-0 items-center rounded-full p-[5px]">
-      <Icon size={14} className={color} />
+      <FileTypeIcon name={name} size={14} />
     </span>
   );
 }

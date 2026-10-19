@@ -11,7 +11,7 @@ import type { MessageCitation } from './types';
 import { RetrievalTrace, type RetrievalCall } from './trace/RetrievalTrace';
 import { ThinkingTrace } from './trace/ThinkingTrace';
 import { UserMessageMeta } from './UserMessageMeta';
-import { MentionText } from './MentionText';
+import { MentionText } from './MentionChip';
 
 const RETRIEVAL_TOOL_NAME = 'search_documents';
 

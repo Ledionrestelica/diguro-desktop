@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type ChangeEvent,
@@ -20,7 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import { trpc } from '@/lib/trpc';
 import { ModelPicker } from './ModelPicker';
-import { MentionText } from './MentionText';
+import { ComposerInput, type ComposerInputHandle, type MentionedFile } from './ComposerInput';
 import { WorkspaceGlyphIcon } from './sidebar/WorkspaceList';
 import { PiPlusDefaultStroke } from '@/components/icons/pika/PiPlusDefaultStroke';
 import { PiArrowUpStroke } from '@/components/icons/pika/PiArrowUpStroke';
@@ -64,11 +63,6 @@ export interface ReadyAttachment {
 }
 
 export type RetrievalScope = 'organization' | 'workspace' | 'user';
-
-export interface MentionedFile {
-  id: string;
-  name: string;
-}
 
 interface Props {
   /** Conversation the uploads are scoped to. */
@@ -123,44 +117,15 @@ export function Composer({
   const [scope, setScope] = useState<RetrievalScope>(initialScope);
   const [modelId, setModelId] = useState<string | null>(initialModelId);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const mentionOverlayRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<ComposerInputHandle>(null);
 
-  // Auto-grow the textarea up to a cap. Resetting to `auto` first lets it
-  // shrink on backspace; capping at MAX_HEIGHT switches to internal scroll
-  // so the composer doesn't take over the viewport on long pastes.
-  useLayoutEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const MAX_HEIGHT = 240;
-    ta.style.height = 'auto';
-    ta.style.height = `${Math.min(ta.scrollHeight, MAX_HEIGHT)}px`;
-  }, [value]);
-
-  // Caret to restore after a programmatic edit (inserting or removing the
-  // file pill), applied in the same commit so typing can't land before it.
-  const pendingCaretRef = useRef<number | null>(null);
-  useLayoutEffect(() => {
-    const ta = textareaRef.current;
-    const caret = pendingCaretRef.current;
-    if (!ta || caret === null) return;
-    pendingCaretRef.current = null;
-    ta.focus();
-    ta.setSelectionRange(caret, caret);
-  }, [value]);
-
-  // File mention state. `picker` drives the dropdown — `typeahead` mode is
-  // anchored to a # token in the textarea (selection swaps it for the inline
-  // `#File name` pill);
-  // `button` mode opens via the explicit pick-file button (selection just
-  // sets `mentionedFile`). `mentionedFile` is the per-message single-file
-  // reference that gets sent to the server as `mentionedResourceIds`.
+  // File mention state. `picker` drives the dropdown — `typeahead` mode
+  // follows a `#query` typed at the caret, `button` mode opens from the +
+  // menu. Either way the pick lands in the text as an inline file chip.
+  // `mentionedFile` is that chip's file, sent as `mentionedResourceIds`.
   const [mentionedFile, setMentionedFile] = useState<MentionedFile | null>(null);
-  const mentionTokenText = mentionedFile ? `#${mentionedFile.name}` : null;
   const [picker, setPicker] = useState<
-    | { kind: 'idle' }
-    | { kind: 'typeahead'; start: number; query: string }
-    | { kind: 'button'; query: string }
+    { kind: 'idle' } | { kind: 'typeahead'; query: string } | { kind: 'button'; query: string }
   >({ kind: 'idle' });
   const [pickerHighlight, setPickerHighlight] = useState(0);
 
@@ -322,98 +287,29 @@ export function Composer({
     }));
 
     // The `Pinned: <name>` line tells the bubble which `#name` in the text
-    // is the file pill (and keeps the model aware of the pinned file).
+    // is the file chip (and keeps the model aware of the pinned file).
     const finalText = mentionedFile ? `Pinned: ${mentionedFile.name}\n\n${trimmed}` : trimmed;
 
     onSend(finalText, readyAttachments, scope, modelId, mentionedFile?.id ?? null);
     // Revoke remaining blob URLs
     for (const a of attachments) URL.revokeObjectURL(a.localPreview);
-    setValue('');
+    inputRef.current?.clear();
     setAttachments([]);
-    setMentionedFile(null);
     setPicker({ kind: 'idle' });
     setError(null);
   }
 
-  // Detect a `#` mention token at the caret. Triggers when `#` is at the
-  // start of the value or directly after whitespace (matches Slack — typing
-  // "color#code" should NOT trigger a mention).
-  function detectMentionToken(text: string, cursor: number) {
-    const before = text.slice(0, cursor);
-    const m = before.match(/(?:^|\s)#([^\s#]*)$/);
-    if (!m || m[1] === undefined) return null;
-    const start = cursor - m[1].length - 1;
-    return { start, query: m[1] };
+  function onMentionQuery(query: string | null) {
+    if (query !== null) setPicker({ kind: 'typeahead', query });
+    else setPicker((prev) => (prev.kind === 'typeahead' ? { kind: 'idle' } : prev));
   }
 
-  function onTextChange(e: ChangeEvent<HTMLTextAreaElement>) {
-    const next = e.target.value;
-    setValue(next);
-    // Typing into the pill breaks it; what's left is plain text.
-    if (mentionTokenText && !next.includes(mentionTokenText)) setMentionedFile(null);
-    const cursor = e.target.selectionStart ?? next.length;
-    const detected = detectMentionToken(next, cursor);
-    if (detected) {
-      setPicker({ kind: 'typeahead', ...detected });
-    } else if (picker.kind === 'typeahead') {
-      // The user typed past the token (whitespace, deleted past #, etc.).
-      setPicker({ kind: 'idle' });
-    }
-  }
-
-  /** Puts the `#File name` pill in the text: in place of the typed `#query`,
-   *  or at the caret when picked from the + menu. One file per message, so
-   *  a previous pill is removed. */
   function selectMentionFile(file: MentionedFile) {
-    const token = `#${file.name}`;
-    let text = value;
-    let start = textareaRef.current?.selectionStart ?? text.length;
-    let end = start;
-    if (picker.kind === 'typeahead') {
-      start = picker.start;
-      end = picker.start + 1 + picker.query.length;
-    }
-    if (mentionTokenText) {
-      const old = text.indexOf(mentionTokenText);
-      if (old >= 0) {
-        text = text.slice(0, old) + text.slice(old + mentionTokenText.length);
-        if (old < start) {
-          start -= mentionTokenText.length;
-          end -= mentionTokenText.length;
-        }
-      }
-    }
-    const before = text.slice(0, start);
-    const after = text.slice(end);
-    const lead = before === '' || /\s$/.test(before) ? '' : ' ';
-    const trail = /^\s/.test(after) ? '' : ' ';
-    const next = before + lead + token + trail + after;
-    pendingCaretRef.current = before.length + lead.length + token.length + 1;
-    setValue(next);
-    setMentionedFile(file);
+    inputRef.current?.insertMention(file);
     setPicker({ kind: 'idle' });
   }
 
-  /** Backspace / Delete next to the pill removes all of it. */
-  function removePillAtCaret(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (!mentionTokenText || (e.key !== 'Backspace' && e.key !== 'Delete')) return false;
-    const { selectionStart: caret, selectionEnd } = e.currentTarget;
-    if (caret !== selectionEnd) return false;
-    const start = value.indexOf(mentionTokenText);
-    if (start < 0) return false;
-    const end = start + mentionTokenText.length;
-    const touches =
-      e.key === 'Backspace' ? caret > start && caret <= end : caret >= start && caret < end;
-    if (!touches) return false;
-    e.preventDefault();
-    pendingCaretRef.current = start;
-    setValue(value.slice(0, start) + value.slice(end));
-    setMentionedFile(null);
-    return true;
-  }
-
-  function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (removePillAtCaret(e)) return;
+  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     // Picker keyboard nav takes precedence over normal Enter-to-send.
     if (pickerOpen && mentionFiles.length > 0) {
       if (e.key === 'ArrowDown') {
@@ -446,7 +342,7 @@ export function Composer({
     }
   }
 
-  function onPaste(e: ClipboardEvent<HTMLTextAreaElement>) {
+  function onPaste(e: ClipboardEvent<HTMLDivElement>) {
     const items = Array.from(e.clipboardData.items ?? []);
     const files = items
       .filter((item) => item.kind === 'file' && isAcceptedMime(item.type))
@@ -530,50 +426,26 @@ export function Composer({
           </div>
         )}
 
-        <div className="relative">
-          {/* With a pinned file the textarea's text goes transparent and this
-            copy underneath draws it, with the `#File name` pill. */}
-          {mentionTokenText && (
-            <div
-              ref={mentionOverlayRef}
-              aria-hidden
-              className="pointer-events-none absolute inset-0 overflow-hidden text-label-13 leading-5 font-medium break-words whitespace-pre-wrap text-text"
-            >
-              <MentionText text={value} token={mentionTokenText} />
-              {'\u200b'}
-            </div>
-          )}
-          <textarea
-            ref={textareaRef}
-            onScroll={(e) => {
-              if (mentionOverlayRef.current) {
-                mentionOverlayRef.current.scrollTop = e.currentTarget.scrollTop;
-              }
-            }}
-            rows={1}
-            value={value}
-            onChange={onTextChange}
-            onKeyDown={onKeyDown}
-            onPaste={onPaste}
-            onBlur={() => {
-              // Auto-close the picker when the user clicks outside the
-              // textarea — but only in typeahead mode. In button mode the
-              // picker's own input takes focus when opened, which blurs the
-              // textarea immediately; closing here would kill the picker
-              // we just opened. Defer so a click inside the picker (in
-              // typeahead mode) registers before close.
-              setTimeout(() => {
-                setPicker((prev) => (prev.kind === 'typeahead' ? { kind: 'idle' } : prev));
-              }, 150);
-            }}
-            disabled={disabled}
-            placeholder="Ask anything — type # to focus on one file"
-            className={cn(
-              'relative block max-h-60 w-full resize-none overflow-y-auto bg-transparent text-label-13 leading-5 font-medium text-text outline-none placeholder:text-text-placeholder disabled:opacity-50',
-              mentionTokenText && 'text-transparent caret-text selection:bg-blue-4/70',
-            )}
-          />
-        </div>
+        <ComposerInput
+          ref={inputRef}
+          disabled={disabled}
+          placeholder="Ask anything — type # to focus on one file"
+          onChange={(text, mention) => {
+            setValue(text);
+            setMentionedFile(mention);
+          }}
+          onMentionQuery={onMentionQuery}
+          onKeyDown={onKeyDown}
+          onPaste={onPaste}
+          onBlur={() => {
+            // Close the typeahead picker when focus leaves the field — but
+            // not in button mode, where the picker's own input takes focus.
+            // Deferred so a click inside the picker registers first.
+            setTimeout(() => {
+              setPicker((prev) => (prev.kind === 'typeahead' ? { kind: 'idle' } : prev));
+            }, 150);
+          }}
+        />
 
         {pickerOpen && (
           <FileMentionPicker
