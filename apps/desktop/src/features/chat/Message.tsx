@@ -11,6 +11,7 @@ import type { MessageCitation } from './types';
 import { RetrievalTrace, type RetrievalCall } from './trace/RetrievalTrace';
 import { ThinkingTrace } from './trace/ThinkingTrace';
 import { UserMessageMeta } from './UserMessageMeta';
+import { MentionText } from './MentionText';
 
 const RETRIEVAL_TOOL_NAME = 'search_documents';
 
@@ -60,14 +61,16 @@ export function Message({
     role === 'user' ? extractPinnedFile(rawUserText) : { pinName: null, body: '' };
 
   if (role === 'user') {
+    const pinToken = pinName ? `#${pinName}` : null;
+    const pinInline = pinToken !== null && userText.includes(pinToken);
     return (
       <div className="flex justify-end">
         <div className="flex max-w-[520px] flex-col items-end gap-2">
           {userFiles.length > 0 && <AttachmentGrid files={userFiles} align="end" />}
-          {pinName && <PinnedFileChip name={pinName} />}
+          {pinName && !pinInline && <PinnedFileChip name={pinName} />}
           {userText && (
             <div className="whitespace-pre-wrap rounded-[12px] bg-bg-app px-3.5 py-3 font-inter text-copy-14 text-text">
-              {userText}
+              <MentionText text={userText} token={pinInline ? pinToken : null} />
             </div>
           )}
           {userText && <UserMessageMeta text={userText} createdAt={createdAt} />}
@@ -611,8 +614,8 @@ function extractText(parts: UIMessage['parts']): string {
 /**
  * The Composer prefixes user text with `Pinned: <filename>` when the
  * user pinned a file via # mention. We pull that line back out at render
- * time so the file shows as a chip element above the text bubble — same
- * shape as attachments — instead of leaking into the message body.
+ * time; the body then shows `#<filename>` as an inline pill (or, for
+ * messages without it inline, a chip above the bubble).
  *
  * Format produced by the Composer:
  *   "Pinned: <name>\n\n<body>"   (when both text + pin)
