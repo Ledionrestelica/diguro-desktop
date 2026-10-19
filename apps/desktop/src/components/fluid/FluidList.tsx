@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useMemo, useRef, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import { cn } from '@/lib/utils';
 import { useFluidHover } from './use-fluid-hover';
 import { FluidHoverHighlight } from './fluid-hover-highlight';
@@ -8,6 +17,10 @@ import { FluidHoverHighlight } from './fluid-hover-highlight';
  * pointer instead of each row flashing its own hover fill. Rows anywhere
  * below opt in with `useFluidItem(key)`; keys keep their slot as rows mount
  * and unmount (a project expanding, a search filtering chats).
+ *
+ * Mark non-row areas inside the list (a section header and its "+") with
+ * `data-fluid-ignore`: hovering them clears the highlight instead of lighting
+ * the nearest row. A nested list (a submenu) owns the moves inside it.
  */
 
 type FluidContext = {
@@ -54,8 +67,38 @@ export function FluidList({
   );
   const value = useMemo(() => ({ register, activate }), [register, activate]);
 
+  const { onMouseMove, onMouseLeave } = hover.handlers;
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (target && target.closest('[data-fluid-list]') !== containerRef.current) return;
+      if (target?.closest('[data-fluid-ignore]')) {
+        onMouseLeave();
+        return;
+      }
+      onMouseMove(e);
+    },
+    [onMouseMove, onMouseLeave],
+  );
+
+  // React bubbles events through portals, so moving from a row into the
+  // dropdown it opened never counts as leaving the list and the highlight
+  // stays stuck after the menu closes. The DOM's own mouseleave does fire.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.addEventListener('mouseleave', onMouseLeave);
+    return () => container.removeEventListener('mouseleave', onMouseLeave);
+  }, [onMouseLeave]);
+
   return (
-    <div ref={containerRef} className={cn('relative', className)} {...hover.handlers}>
+    <div
+      ref={containerRef}
+      data-fluid-list=""
+      className={cn('relative', className)}
+      {...hover.handlers}
+      onMouseMove={handleMouseMove}
+    >
       <FluidHoverHighlight hover={hover} className={cn('rounded-[8px]', highlightClassName)} />
       <Context.Provider value={value}>{children}</Context.Provider>
     </div>

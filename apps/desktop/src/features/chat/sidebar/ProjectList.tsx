@@ -88,6 +88,7 @@ export function ProjectList({
       {folders.length === 0 && !creating && (
         <button
           type="button"
+          data-fluid-ignore
           onClick={() => setCreating(true)}
           className="mx-0.5 cursor-pointer rounded-[8px] border border-dashed border-border px-3 py-2.5 text-left text-copy-14 text-text-secondary hover:bg-hover"
         >
@@ -168,10 +169,7 @@ function Project({
                 </DropdownMenuItem>
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
-                    <span
-                      className="size-3 rounded-full border border-border"
-                      style={{ backgroundColor: folder.color ?? 'transparent' }}
-                    />
+                    <ColorDot color={folder.color} />
                     Colour
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className="w-40 font-inter">
@@ -184,7 +182,7 @@ function Project({
                       {folder.color === null ? (
                         <PiCheckTickSingleStroke size={16} />
                       ) : (
-                        <span className="size-3 rounded-full border border-border" />
+                        <ColorDot color={null} />
                       )}
                       Default
                     </DropdownMenuItem>
@@ -200,10 +198,7 @@ function Project({
                         {folder.color === c.value ? (
                           <PiCheckTickSingleStroke size={16} style={{ color: c.value }} />
                         ) : (
-                          <span
-                            className="size-3 rounded-full"
-                            style={{ backgroundColor: c.value }}
-                          />
+                          <ColorDot color={c.value} />
                         )}
                         {c.name}
                       </DropdownMenuItem>
@@ -226,7 +221,9 @@ function Project({
         <div className="pl-[15px]">
           <div className="flex flex-col gap-px border-l-[1.5px] border-border pl-2">
             {chats.length === 0 ? (
-              <p className="px-2 py-1.5 text-label-13 text-text-placeholder">Drag chats here</p>
+              <p data-fluid-ignore className="px-2 py-1.5 text-label-13 text-text-placeholder">
+                Drag chats here
+              </p>
             ) : (
               chats.map((chat) => (
                 <ChatItem
@@ -242,6 +239,19 @@ function Project({
         </div>
       )}
     </div>
+  );
+}
+
+/** A 12px swatch centred in the 16px icon slot, so labels line up with the
+ *  check mark and the other menu icons. */
+function ColorDot({ color }: { color: string | null }) {
+  return (
+    <span className="grid size-4 shrink-0 place-items-center">
+      <span
+        className={cn('size-3 rounded-full', !color && 'border border-border')}
+        style={{ backgroundColor: color ?? 'transparent' }}
+      />
+    </span>
   );
 }
 

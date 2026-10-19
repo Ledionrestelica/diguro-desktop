@@ -90,7 +90,10 @@ export function SidebarItem({
 
 export function SidebarSectionHeader({ label, action }: { label: string; action?: ReactNode }) {
   return (
-    <div className="flex h-[22px] items-center justify-between pr-1.5 pb-1.5 pl-2">
+    <div
+      data-fluid-ignore
+      className="flex h-[22px] items-center justify-between pr-1.5 pb-1.5 pl-2"
+    >
       <span className="text-label-12 font-medium text-text-placeholder">{label}</span>
       {action}
     </div>

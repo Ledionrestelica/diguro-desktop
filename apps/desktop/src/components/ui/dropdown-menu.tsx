@@ -50,15 +50,15 @@ function DropdownMenuContent({
 /** Joins the menu's fluid highlight; keyboard focus moves it too. */
 function useMenuItemFluid(onFocus: React.FocusEventHandler<HTMLDivElement> | undefined) {
   const key = React.useId();
-  const fluid = useFluidItem(key);
+  const { ref, activate } = useFluidItem(key);
   const handleFocus = React.useCallback<React.FocusEventHandler<HTMLDivElement>>(
     (e) => {
-      fluid.activate();
+      activate();
       onFocus?.(e);
     },
-    [fluid, onFocus],
+    [activate, onFocus],
   );
-  return { ref: fluid.ref, onFocus: handleFocus };
+  return { ref, activate, onFocus: handleFocus };
 }
 
 function DropdownMenuGroup({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Group>) {
@@ -196,8 +196,16 @@ function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<'spa
   );
 }
 
+/** Lets an open submenu keep its trigger lit in the parent menu. */
+const SubTriggerActivate = React.createContext<React.RefObject<(() => void) | null> | null>(null);
+
 function DropdownMenuSub({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
-  return <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />;
+  const activateTrigger = React.useRef<(() => void) | null>(null);
+  return (
+    <SubTriggerActivate.Provider value={activateTrigger}>
+      <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />
+    </SubTriggerActivate.Provider>
+  );
 }
 
 function DropdownMenuSubTrigger({
@@ -210,6 +218,14 @@ function DropdownMenuSubTrigger({
   inset?: boolean;
 }) {
   const fluid = useMenuItemFluid(onFocus);
+  const activateTrigger = React.useContext(SubTriggerActivate);
+  React.useEffect(() => {
+    if (!activateTrigger) return;
+    activateTrigger.current = fluid.activate;
+    return () => {
+      activateTrigger.current = null;
+    };
+  }, [activateTrigger, fluid.activate]);
   return (
     <DropdownMenuPrimitive.SubTrigger
       ref={fluid.ref}
@@ -217,7 +233,7 @@ function DropdownMenuSubTrigger({
       data-slot="dropdown-menu-sub-trigger"
       data-inset={inset}
       className={cn(
-        'focus:text-accent-foreground data-[state=open]:bg-hover data-[state=open]:text-accent-foreground relative flex cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-inset:pl-8',
+        "focus:text-accent-foreground data-[state=open]:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-inset:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       {...props}
@@ -231,10 +247,16 @@ function DropdownMenuSubTrigger({
 function DropdownMenuSubContent({
   className,
   children,
+  onPointerMove,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
+  const activateTrigger = React.useContext(SubTriggerActivate);
   return (
     <DropdownMenuPrimitive.SubContent
+      onPointerMove={(e) => {
+        activateTrigger?.current?.();
+        onPointerMove?.(e);
+      }}
       data-slot="dropdown-menu-sub-content"
       className={cn(
         'bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 duration-100 ease-out data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 z-50 min-w-32 origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden rounded-md border p-1 shadow-lg',
