@@ -94,7 +94,7 @@
 }
 
 .composer-beam {
-  padding: 1.5px;
+  padding: 1px;
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
@@ -105,7 +105,7 @@
 }
 
 .composer-beam-halo {
-  filter: blur(10px);
+  filter: blur(6px);
 }
 
 .composer-shell.is-active .composer-beam,
