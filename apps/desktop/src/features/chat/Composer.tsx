@@ -10,15 +10,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from 'react';
-import {
-  AlertCircle,
-  AtSign,
-  ChevronDown,
-  FileText,
-  Loader2,
-  Paperclip,
-  X,
-} from 'lucide-react';
+import { AlertCircle, AtSign, ChevronDown, FileText, Loader2, Paperclip, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,

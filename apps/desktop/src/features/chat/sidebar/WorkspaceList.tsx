@@ -57,6 +57,7 @@ export function WorkspaceList() {
         return (
           <SidebarItem
             key={ws.id}
+            fluidKey={`ws-${ws.id}`}
             icon={<WorkspaceGlyphIcon id={ws.id} logoUrl={ws.logoUrl ?? null} />}
             label={ws.name}
             tone={active ? 'card' : 'muted'}

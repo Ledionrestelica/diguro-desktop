@@ -16,6 +16,7 @@ import { WorkspaceList } from './WorkspaceList';
 import { DropZone, ProjectList } from './ProjectList';
 import { ChatItem } from './ChatItem';
 import { UserFooter } from './UserFooter';
+import { FluidList } from '@/components/fluid/FluidList';
 
 type AppSidebarProps = {
   activeChatId: string | null;
@@ -109,87 +110,97 @@ export function AppSidebar({ activeChatId, runningChatId = null, onCollapse }: A
           New chat
         </button>
 
-        <nav className="flex flex-col gap-px">
-          {search === null ? (
-            <SidebarItem
-              icon={<PiSearchDefaultStroke />}
-              label="Search"
-              trailing="⌘K"
-              onClick={() => {
-                setSearch('');
-                requestAnimationFrame(() => searchInput.current?.focus());
-              }}
-            />
-          ) : (
-            <label className="flex h-8 items-center gap-2.5 rounded-[8px] border border-focus-ring px-2 shadow-[0_0_0_3px_var(--color-selection)]">
-              <PiSearchDefaultStroke size={16} className="shrink-0 text-text-secondary" />
-              <input
-                ref={searchInput}
-                value={search}
-                placeholder="Search chats"
-                onChange={(e) => setSearch(e.target.value)}
-                onBlur={() => !search && setSearch(null)}
-                onKeyDown={(e) => e.key === 'Escape' && setSearch(null)}
-                className="min-w-0 flex-1 bg-transparent text-label-14 font-medium text-text outline-none placeholder:text-text-placeholder"
+        <FluidList>
+          <nav className="flex flex-col gap-px">
+            {search === null ? (
+              <SidebarItem
+                fluidKey="nav-search"
+                icon={<PiSearchDefaultStroke />}
+                label="Search"
+                trailing="⌘K"
+                onClick={() => {
+                  setSearch('');
+                  requestAnimationFrame(() => searchInput.current?.focus());
+                }}
               />
-            </label>
-          )}
-          <SidebarItem
-            icon={<PiFolderDefaultStroke />}
-            label="Files"
-            tone={location.pathname.startsWith('/my-files') ? 'active' : 'default'}
-            onClick={() => void navigate('/my-files')}
-          />
-          <CustomInstructionsButton
-            align="start"
-            trigger={
-              <div>
-                <SidebarItem icon={<PiSparkleAI02Stroke />} label="Custom instructions" />
-              </div>
-            }
-          />
-        </nav>
+            ) : (
+              <label className="flex h-8 items-center gap-2.5 rounded-[8px] border border-focus-ring px-2 shadow-[0_0_0_3px_var(--color-selection)]">
+                <PiSearchDefaultStroke size={16} className="shrink-0 text-text-secondary" />
+                <input
+                  ref={searchInput}
+                  value={search}
+                  placeholder="Search chats"
+                  onChange={(e) => setSearch(e.target.value)}
+                  onBlur={() => !search && setSearch(null)}
+                  onKeyDown={(e) => e.key === 'Escape' && setSearch(null)}
+                  className="min-w-0 flex-1 bg-transparent text-label-14 font-medium text-text outline-none placeholder:text-text-placeholder"
+                />
+              </label>
+            )}
+            <SidebarItem
+              fluidKey="nav-files"
+              icon={<PiFolderDefaultStroke />}
+              label="Files"
+              tone={location.pathname.startsWith('/my-files') ? 'active' : 'default'}
+              onClick={() => void navigate('/my-files')}
+            />
+            <CustomInstructionsButton
+              align="start"
+              trigger={
+                <div>
+                  <SidebarItem
+                    fluidKey="nav-instructions"
+                    icon={<PiSparkleAI02Stroke />}
+                    label="Custom instructions"
+                  />
+                </div>
+              }
+            />
+          </nav>
+        </FluidList>
       </div>
 
-      <div className="scrollbar-thin mt-[18px] flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-3 pb-3">
-        {!query && <WorkspaceList />}
-        {(folders.length > 0 || !query) && (
-          <ProjectList
-            folders={folders}
-            chatsByFolder={chatsByFolder}
-            activeChatId={activeChatId}
-            runningChatId={runningChatId}
-          />
-        )}
-        <section className="flex flex-col gap-px">
-          <SidebarSectionHeader
-            label="Chats"
-            action={
-              <SidebarIconButton label="New chat" onClick={() => void navigate('/chat')}>
-                <PiPlusDefaultStroke size={14} />
-              </SidebarIconButton>
-            }
-          />
-          <DropZone folderId={null}>
-            {loose.map((chat) => (
-              <ChatItem
-                key={chat.id}
-                chat={chat}
-                folders={folders}
-                active={chat.id === activeChatId}
-                running={chat.id === runningChatId}
-              />
-            ))}
-          </DropZone>
-          {conversations.isLoading && (
-            <p className="px-2 py-1 text-label-13 text-text-placeholder">Loading…</p>
+      <div className="scrollbar-thin mt-[18px] min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+        <FluidList className="flex flex-col gap-[18px]">
+          {!query && <WorkspaceList />}
+          {(folders.length > 0 || !query) && (
+            <ProjectList
+              folders={folders}
+              chatsByFolder={chatsByFolder}
+              activeChatId={activeChatId}
+              runningChatId={runningChatId}
+            />
           )}
-          {!conversations.isLoading && loose.length === 0 && (
-            <p className={cn('px-2 py-1 text-label-13 text-text-placeholder')}>
-              {query ? 'No chats match your search.' : 'Your chats will appear here.'}
-            </p>
-          )}
-        </section>
+          <section className="flex flex-col gap-px">
+            <SidebarSectionHeader
+              label="Chats"
+              action={
+                <SidebarIconButton label="New chat" onClick={() => void navigate('/chat')}>
+                  <PiPlusDefaultStroke size={14} />
+                </SidebarIconButton>
+              }
+            />
+            <DropZone folderId={null}>
+              {loose.map((chat) => (
+                <ChatItem
+                  key={chat.id}
+                  chat={chat}
+                  folders={folders}
+                  active={chat.id === activeChatId}
+                  running={chat.id === runningChatId}
+                />
+              ))}
+            </DropZone>
+            {conversations.isLoading && (
+              <p className="px-2 py-1 text-label-13 text-text-placeholder">Loading…</p>
+            )}
+            {!conversations.isLoading && loose.length === 0 && (
+              <p className={cn('px-2 py-1 text-label-13 text-text-placeholder')}>
+                {query ? 'No chats match your search.' : 'Your chats will appear here.'}
+              </p>
+            )}
+          </section>
+        </FluidList>
       </div>
 
       <UserFooter />

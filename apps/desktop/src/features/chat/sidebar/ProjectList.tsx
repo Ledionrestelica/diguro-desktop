@@ -145,6 +145,7 @@ function Project({
         />
       ) : (
         <SidebarItem
+          fluidKey={`project-${folder.id}`}
           icon={
             <FolderIcon size={16} {...(folder.color ? { style: { color: folder.color } } : {})} />
           }

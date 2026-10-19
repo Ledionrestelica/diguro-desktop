@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { useFluidItem } from '@/components/fluid/FluidList';
 
 /**
  * One sidebar row (Figma "Sidebar/Item"): 16px icon, label, trailing meta,
@@ -17,6 +18,16 @@ type SidebarItemProps = Omit<ComponentProps<'button'>, 'children'> & {
   tone?: Tone;
   strong?: boolean;
   compact?: boolean;
+  /** Joins the surrounding FluidList so its shared highlight lands here. */
+  fluidKey?: string;
+};
+
+// Inside a FluidList the list draws the hover fill; rows only brighten text.
+const fluidToneClass: Record<Tone, string> = {
+  default: 'text-text-secondary data-[fluid-hover-active]:text-text',
+  muted: 'text-text-placeholder data-[fluid-hover-active]:text-text',
+  active: 'bg-bg-app text-text',
+  card: 'border border-gray-3 bg-bg-panel text-text shadow-[0_2px_2px_rgba(36,36,36,0.03)]',
 };
 
 const toneClass: Record<Tone, string> = {
@@ -34,16 +45,19 @@ export function SidebarItem({
   tone = 'default',
   strong = false,
   compact = false,
+  fluidKey,
   className,
   type = 'button',
   ...props
 }: SidebarItemProps) {
+  const fluidItem = useFluidItem(fluidKey);
   return (
     <div
+      ref={fluidItem.ref}
       className={cn(
         'group/item relative flex w-full items-center rounded-[8px] transition-colors',
         compact ? 'h-[30px]' : 'h-8',
-        toneClass[tone],
+        (fluidItem.fluid ? fluidToneClass : toneClass)[tone],
         className,
       )}
     >

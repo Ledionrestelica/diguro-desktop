@@ -68,6 +68,7 @@ export function ChatItem({ chat, active, running, folders }: ChatItemProps) {
   return (
     <SidebarItem
       compact
+      fluidKey={`chat-${chat.id}`}
       label={chat.title}
       tone={active ? 'active' : 'default'}
       aria-current={active ? 'page' : undefined}

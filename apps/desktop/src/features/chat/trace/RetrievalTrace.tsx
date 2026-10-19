@@ -7,6 +7,7 @@ import { PiAlertTriangleStroke } from '@/components/icons/pika/PiAlertTriangleSt
 import { Spinner } from '../sidebar/Spinner';
 import { SourceIcon } from './SourceIcon';
 import { Collapsible } from './Collapsible';
+import { FluidList, useFluidItem } from '@/components/fluid/FluidList';
 
 export type RetrievalResult = {
   chunkId: string;
@@ -121,18 +122,20 @@ export function RetrievalTrace({
               </Row>
             ))}
             {documents.length > 0 && <GroupLabel>Found in</GroupLabel>}
-            {shown.map((doc) => (
-              <Row key={doc.name} tall hoverable>
-                <SourceIcon name={doc.name} />
-                <span className="min-w-0 flex-1 truncate text-label-14 font-medium text-text">
-                  {doc.name}
-                </span>
-                <span className="shrink-0 text-label-12 text-text-placeholder">
-                  {doc.passages} {doc.passages === 1 ? 'passage' : 'passages'}
-                  {doc.pages.length > 0 && ` · p. ${doc.pages.slice(0, 3).join(', ')}`}
-                </span>
-              </Row>
-            ))}
+            <FluidList highlightClassName="rounded-l-none rounded-r-[8px] bg-bg-app">
+              {shown.map((doc) => (
+                <Row key={doc.name} tall fluidKey={doc.name}>
+                  <SourceIcon name={doc.name} />
+                  <span className="min-w-0 flex-1 truncate text-label-14 font-medium text-text">
+                    {doc.name}
+                  </span>
+                  <span className="shrink-0 text-label-12 text-text-placeholder">
+                    {doc.passages} {doc.passages === 1 ? 'passage' : 'passages'}
+                    {doc.pages.length > 0 && ` · p. ${doc.pages.slice(0, 3).join(', ')}`}
+                  </span>
+                </Row>
+              ))}
+            </FluidList>
             {hidden > 0 && (
               <button
                 type="button"
@@ -184,18 +187,20 @@ function GroupLabel({ children, first = false }: { children: string; first?: boo
 function Row({
   children,
   tall = false,
-  hoverable = false,
+  fluidKey,
 }: {
   children: ReactNode;
   tall?: boolean;
-  hoverable?: boolean;
+  /** Joins the surrounding FluidList (the "Found in" documents). */
+  fluidKey?: string;
 }) {
+  const fluidItem = useFluidItem(fluidKey);
   return (
     <div
+      ref={fluidItem.ref}
       className={cn(
-        'flex items-center gap-2.5 pr-2 pl-3.5 animate-in fade-in-0 slide-in-from-left-1 duration-300',
+        'relative flex items-center gap-2.5 pr-2 pl-3.5 animate-in fade-in-0 slide-in-from-left-1 duration-300',
         tall ? 'h-[34px]' : 'h-[30px]',
-        hoverable && 'rounded-r-[8px] transition-colors hover:bg-bg-app',
       )}
     >
       {children}
