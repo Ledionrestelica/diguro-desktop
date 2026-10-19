@@ -85,9 +85,8 @@
     from var(--beam-angle),
     transparent 0deg,
     transparent 230deg,
-    rgba(176, 203, 255, 0.6) 290deg,
-    rgba(140, 202, 247, 1) 325deg,
-    rgba(2, 110, 230, 1) 350deg,
+    rgba(140, 202, 247, 0.35) 290deg,
+    #8ccaf7 340deg,
     transparent 360deg
   );
   opacity: 0;
