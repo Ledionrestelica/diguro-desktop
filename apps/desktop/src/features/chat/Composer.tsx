@@ -444,16 +444,27 @@ export function Composer({
     <div
       className={cn(
         'composer-shell relative mx-auto w-full max-w-[745px] rounded-[22px] border border-gray-4 p-[5px] font-inter',
+        hasReadyContent && 'has-query',
         streaming && 'is-active',
       )}
     >
-      {/* Blue glow behind the top edge (Figma "Gradient"); animated in CSS. */}
+      {/* Blue glow behind the top edge (Figma "Gradient"): hidden while empty,
+          breathing once there's a query, and joined by a border beam while a
+          reply streams. All animated in motion.css. */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 overflow-hidden rounded-[22px]"
       >
         <div className="composer-glow absolute -top-[66px] left-1/2 h-[77px] w-[calc(100%+16px)] -translate-x-1/2" />
       </div>
+      <div
+        aria-hidden
+        className="composer-beam-halo pointer-events-none absolute inset-0 rounded-[22px]"
+      />
+      <div
+        aria-hidden
+        className="composer-beam pointer-events-none absolute -inset-px z-20 rounded-[22px]"
+      />
 
       <form
         onSubmit={submit}
