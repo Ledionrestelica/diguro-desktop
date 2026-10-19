@@ -45,8 +45,11 @@ export function ChatItem({ chat, active, running, folders }: ChatItemProps) {
   });
   const remove = trpc.conversations.delete.useMutation({
     onSuccess: () => {
-      void utils.conversations.list.invalidate();
       if (active) void navigate('/chat');
+      utils.conversations.list.setData(undefined, (prev) =>
+        prev?.filter((c) => c.id !== chat.id),
+      );
+      void utils.conversations.list.invalidate();
     },
   });
   const move = trpc.conversations.moveToFolder.useMutation({

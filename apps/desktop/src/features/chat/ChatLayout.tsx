@@ -65,11 +65,16 @@ export function ChatLayout() {
   const navigate = useNavigate();
 
   // Stable fresh id for "new chat" screens. Regenerate when we land back on
-  // /chat after previously holding a :chatId.
+  // /chat after previously holding a :chatId. Done during render, not in an
+  // effect: otherwise the first /chat render still carries the old id (and
+  // its populated session), and the first-send effect below bounces the URL
+  // straight back to /chat/<oldId> — e.g. right after deleting that chat.
   const [freshId, setFreshId] = useState(() => crypto.randomUUID());
-  useEffect(() => {
+  const [prevParamChatId, setPrevParamChatId] = useState(paramChatId);
+  if (prevParamChatId !== paramChatId) {
+    setPrevParamChatId(paramChatId);
     if (!paramChatId) setFreshId(crypto.randomUUID());
-  }, [paramChatId]);
+  }
 
   const chatId = paramChatId ?? freshId;
   const isNewChat = !paramChatId;
