@@ -1,5 +1,7 @@
 # Diguro Desktop
 
+@DESIGNER.md
+
 Context for Claude Code sessions. This file captures the architectural decisions made during planning so future sessions don't re-derive them.
 
 ## What this repo is
