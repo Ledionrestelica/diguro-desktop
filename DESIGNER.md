@@ -57,6 +57,38 @@ If you're unsure whether something counts, treat it as a technical decision.
 4. Carry on with any parts of the task that don't depend on the answer, and say which part is waiting on Ledion.
 5. When Bleart pastes Ledion's reply, follow it exactly.
 
+## Start of every session
+
+Before starting on Bleart's first request, get him up to date. Do this at the start of every session, not only the first one each day:
+
+1. Run `git status`. If there are uncommitted changes, tell Bleart what they are and ask whether to commit them first or keep them as they are. Don't discard anything.
+2. Make sure you're on `master` (`git switch master` if not).
+3. Run `git pull --rebase origin master` to get everyone's latest changes.
+4. If `pnpm-lock.yaml` or any `package.json` changed in the pull, run `pnpm install`. Always use `pnpm`, never `npm` or `yarn`: this is a pnpm workspace.
+5. If the dev servers were already running, restart them so they pick up the new code.
+6. Tell Bleart in one or two plain lines what came in, for example: "Pulled 3 new changes from Ledion: chat redesign fixes and a new password check."
+
+## Running the app
+
+- Start the API: `pnpm dev:api` (http://localhost:3000)
+- Start the desktop app: `pnpm dev:desktop` (opens Electron, Vite on http://localhost:5173)
+- Start the web app: `pnpm dev:web`
+- In local dev, the email verification code is always `000000`.
+- If the API fails to start because of missing environment variables or `.env.local`, don't make up values. Write a question for Ledion.
+
+## Before every commit
+
+Run these checks and fix anything they flag in Bleart's own changes:
+
+1. `pnpm typecheck`: no TypeScript errors.
+2. `pnpm lint`: no lint errors.
+3. `pnpm exec prettier --write <changed files>`: format only the files Bleart changed. Don't run `pnpm format`: it reformats the whole repo and buries his change in unrelated diffs.
+4. Open the changed screens in the running app and check that they look and work as intended.
+
+If a check fails in code Bleart didn't touch, don't fix it. Mention it to him and include it in a question for Ledion.
+
+Write commit messages as a short sentence in the imperative ("Make sidebar icons 16px", not "changes"). Keep each commit to one logical change.
+
 ## Git workflow
 
 - Don't create branches or pull requests. Work directly on `master`.
