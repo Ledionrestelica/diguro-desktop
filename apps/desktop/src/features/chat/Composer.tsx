@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type ChangeEvent,
@@ -10,21 +9,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from 'react';
-import {
-  AlertCircle,
-  AtSign,
-  Briefcase,
-  Building2,
-  ChevronDown,
-  FileText,
-  Loader2,
-  Lock,
-  Mic,
-  Paperclip,
-  Square,
-  User,
-  X,
-} from 'lucide-react';
+import { AlertCircle, AtSign, ChevronDown, FileText, Loader2, Paperclip, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +19,14 @@ import {
 import { cn } from '@/lib/utils';
 import { trpc } from '@/lib/trpc';
 import { ModelPicker } from './ModelPicker';
+import { ComposerInput, type ComposerInputHandle, type MentionedFile } from './ComposerInput';
+import { WorkspaceGlyphIcon } from './sidebar/WorkspaceList';
+import { PiPlusDefaultStroke } from '@/components/icons/pika/PiPlusDefaultStroke';
+import { PiArrowUpStroke } from '@/components/icons/pika/PiArrowUpStroke';
+import { PiStopSmallStroke } from '@/components/icons/pika/PiStopSmallStroke';
+import { PiUserDefaultStroke } from '@/components/icons/pika/PiUserDefaultStroke';
+import { PiFolderDefaultStroke } from '@/components/icons/pika/PiFolderDefaultStroke';
+import { PiLockCloseStroke } from '@/components/icons/pika/PiLockCloseStroke';
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25 MB per file
 const MAX_FILES = 10;
@@ -70,11 +63,6 @@ export interface ReadyAttachment {
 }
 
 export type RetrievalScope = 'organization' | 'workspace' | 'user';
-
-export interface MentionedFile {
-  id: string;
-  name: string;
-}
 
 interface Props {
   /** Conversation the uploads are scoped to. */
@@ -120,6 +108,7 @@ export function Composer({
   const meQuery = trpc.health.me.useQuery();
   const activeWorkspaceId = meQuery.data?.activeWorkspaceId ?? null;
   const activeWorkspaceName = meQuery.data?.activeWorkspace?.name ?? null;
+  const activeWorkspaceLogoUrl = meQuery.data?.activeWorkspace?.logoUrl ?? null;
 
   const [value, setValue] = useState('');
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
@@ -128,29 +117,15 @@ export function Composer({
   const [scope, setScope] = useState<RetrievalScope>(initialScope);
   const [modelId, setModelId] = useState<string | null>(initialModelId);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<ComposerInputHandle>(null);
 
-  // Auto-grow the textarea up to a cap. Resetting to `auto` first lets it
-  // shrink on backspace; capping at MAX_HEIGHT switches to internal scroll
-  // so the composer doesn't take over the viewport on long pastes.
-  useLayoutEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const MAX_HEIGHT = 240;
-    ta.style.height = 'auto';
-    ta.style.height = `${Math.min(ta.scrollHeight, MAX_HEIGHT)}px`;
-  }, [value]);
-
-  // File mention state. `picker` drives the dropdown — `typeahead` mode is
-  // anchored to a # token in the textarea (selection strips the token);
-  // `button` mode opens via the explicit pick-file button (selection just
-  // sets `mentionedFile`). `mentionedFile` is the per-message single-file
-  // reference that gets sent to the server as `mentionedResourceIds`.
+  // File mention state. `picker` drives the dropdown — `typeahead` mode
+  // follows a `#query` typed at the caret, `button` mode opens from the +
+  // menu. Either way the pick lands in the text as an inline file chip.
+  // `mentionedFile` is that chip's file, sent as `mentionedResourceIds`.
   const [mentionedFile, setMentionedFile] = useState<MentionedFile | null>(null);
   const [picker, setPicker] = useState<
-    | { kind: 'idle' }
-    | { kind: 'typeahead'; start: number; query: string }
-    | { kind: 'button'; query: string }
+    { kind: 'idle' } | { kind: 'typeahead'; query: string } | { kind: 'button'; query: string }
   >({ kind: 'idle' });
   const [pickerHighlight, setPickerHighlight] = useState(0);
 
@@ -311,72 +286,30 @@ export function Composer({
       mediaType: a.mediaType,
     }));
 
-    // When a file is pinned, prepend a visible reference to the user text so
-    // (a) the user bubble has SOMETHING to render even if they typed nothing,
-    // and (b) the user can see in the conversation history which file each
-    // turn was scoped to. The model also benefits — system-prompt knows a
-    // file is pinned, but in-message context reinforces it.
-    const finalText = mentionedFile
-      ? trimmed
-        ? `Pinned: ${mentionedFile.name}\n\n${trimmed}`
-        : `Pinned: ${mentionedFile.name}`
-      : trimmed;
+    // The `Pinned: <name>` line tells the bubble which `#name` in the text
+    // is the file chip (and keeps the model aware of the pinned file).
+    const finalText = mentionedFile ? `Pinned: ${mentionedFile.name}\n\n${trimmed}` : trimmed;
 
     onSend(finalText, readyAttachments, scope, modelId, mentionedFile?.id ?? null);
     // Revoke remaining blob URLs
     for (const a of attachments) URL.revokeObjectURL(a.localPreview);
-    setValue('');
+    inputRef.current?.clear();
     setAttachments([]);
-    setMentionedFile(null);
     setPicker({ kind: 'idle' });
     setError(null);
   }
 
-  // Detect a `#` mention token at the caret. Triggers when `#` is at the
-  // start of the value or directly after whitespace (matches Slack — typing
-  // "color#code" should NOT trigger a mention).
-  function detectMentionToken(text: string, cursor: number) {
-    const before = text.slice(0, cursor);
-    const m = before.match(/(?:^|\s)#([^\s#]*)$/);
-    if (!m || m[1] === undefined) return null;
-    const start = cursor - m[1].length - 1;
-    return { start, query: m[1] };
-  }
-
-  function onTextChange(e: ChangeEvent<HTMLTextAreaElement>) {
-    const next = e.target.value;
-    setValue(next);
-    const cursor = e.target.selectionStart ?? next.length;
-    const detected = detectMentionToken(next, cursor);
-    if (detected) {
-      setPicker({ kind: 'typeahead', ...detected });
-    } else if (picker.kind === 'typeahead') {
-      // The user typed past the token (whitespace, deleted past #, etc.).
-      setPicker({ kind: 'idle' });
-    }
+  function onMentionQuery(query: string | null) {
+    if (query !== null) setPicker({ kind: 'typeahead', query });
+    else setPicker((prev) => (prev.kind === 'typeahead' ? { kind: 'idle' } : prev));
   }
 
   function selectMentionFile(file: MentionedFile) {
-    if (picker.kind === 'typeahead') {
-      // Strip the `#${query}` substring from the textarea.
-      const before = value.slice(0, picker.start);
-      const after = value.slice(picker.start + 1 + picker.query.length);
-      const next = before + after;
-      setValue(next);
-      // Restore caret to where the # was.
-      requestAnimationFrame(() => {
-        const ta = textareaRef.current;
-        if (ta) {
-          ta.focus();
-          ta.setSelectionRange(picker.start, picker.start);
-        }
-      });
-    }
-    setMentionedFile(file);
+    inputRef.current?.insertMention(file);
     setPicker({ kind: 'idle' });
   }
 
-  function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     // Picker keyboard nav takes precedence over normal Enter-to-send.
     if (pickerOpen && mentionFiles.length > 0) {
       if (e.key === 'ArrowDown') {
@@ -409,7 +342,7 @@ export function Composer({
     }
   }
 
-  function onPaste(e: ClipboardEvent<HTMLTextAreaElement>) {
+  function onPaste(e: ClipboardEvent<HTMLDivElement>) {
     const items = Array.from(e.clipboardData.items ?? []);
     const files = items
       .filter((item) => item.kind === 'file' && isAcceptedMime(item.type))
@@ -446,16 +379,30 @@ export function Composer({
   const canSend = hasReadyContent && !anyUploading && !disabled && !streaming;
 
   return (
-    <div className="relative mx-auto w-full max-w-189">
-      <div className="pointer-events-none absolute inset-x-0 -bottom-6 top-6 z-0 overflow-hidden rounded-[35px] opacity-70 blur-[10px]">
-        <div
-          className="size-full"
-          style={{
-            backgroundImage:
-              'linear-gradient(90deg, rgba(106, 169, 210, 0.8) 0%, rgba(235, 208, 249, 0.8) 33%, rgba(193, 230, 255, 0.8) 66%, rgba(198, 229, 245, 0.8) 100%)',
-          }}
-        />
+    <div
+      className={cn(
+        'composer-shell relative mx-auto w-full max-w-[745px] rounded-[22px] border border-gray-4 p-[5px] font-inter',
+        hasReadyContent && 'has-query',
+        streaming && 'is-active',
+      )}
+    >
+      {/* Blue glow behind the top edge (Figma "Gradient"): hidden while empty,
+          breathing once there's a query, and joined by a border beam while a
+          reply streams. All animated in motion.css. */}
+      <div
+        aria-hidden
+        className="composer-glow-wrap pointer-events-none absolute inset-0 overflow-hidden rounded-[22px]"
+      >
+        <div className="composer-glow absolute -top-[66px] left-1/2 h-[77px] w-[calc(100%+16px)] -translate-x-1/2" />
       </div>
+      <div
+        aria-hidden
+        className="composer-beam-halo pointer-events-none absolute inset-0 rounded-[22px]"
+      />
+      <div
+        aria-hidden
+        className="composer-beam pointer-events-none absolute -inset-px z-20 rounded-[22px]"
+      />
 
       <form
         onSubmit={submit}
@@ -463,18 +410,12 @@ export function Composer({
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         className={cn(
-          'relative z-10 flex min-h-32 flex-col rounded-3xl border bg-[#fafafa] px-6 py-5 transition-colors',
-          dragActive ? 'border-zinc-400 bg-zinc-50' : 'border-zinc-200',
+          'relative z-10 flex min-h-[132px] flex-col rounded-[22px] border bg-bg-panel px-[13px] pt-[11px] pb-[9px] shadow-[0_3px_6.2px_rgba(225,225,225,0.69)] transition-colors',
+          dragActive ? 'border-focus-ring' : 'border-gray-3',
         )}
       >
-        {(attachments.length > 0 || mentionedFile) && (
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            {mentionedFile && (
-              <MentionedFileChip
-                file={mentionedFile}
-                onRemove={() => setMentionedFile(null)}
-              />
-            )}
+        {attachments.length > 0 && (
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
             {attachments.map((att) => (
               <AttachmentChip
                 key={att.clientId}
@@ -485,27 +426,25 @@ export function Composer({
           </div>
         )}
 
-        <textarea
-          ref={textareaRef}
-          rows={1}
-          value={value}
-          onChange={onTextChange}
+        <ComposerInput
+          ref={inputRef}
+          disabled={disabled}
+          placeholder="Ask anything — type # to focus on one file"
+          onChange={(text, mention) => {
+            setValue(text);
+            setMentionedFile(mention);
+          }}
+          onMentionQuery={onMentionQuery}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
           onBlur={() => {
-            // Auto-close the picker when the user clicks outside the
-            // textarea — but only in typeahead mode. In button mode the
-            // picker's own input takes focus when opened, which blurs the
-            // textarea immediately; closing here would kill the picker
-            // we just opened. Defer so a click inside the picker (in
-            // typeahead mode) registers before close.
+            // Close the typeahead picker when focus leaves the field — but
+            // not in button mode, where the picker's own input takes focus.
+            // Deferred so a click inside the picker registers first.
             setTimeout(() => {
               setPicker((prev) => (prev.kind === 'typeahead' ? { kind: 'idle' } : prev));
             }, 150);
           }}
-          disabled={disabled}
-          placeholder="Chat with AI — type # to focus on one file"
-          className="max-h-60 w-full resize-none overflow-y-auto bg-transparent text-base leading-6 text-zinc-800 outline-none placeholder:text-zinc-400 disabled:opacity-50"
         />
 
         {pickerOpen && (
@@ -519,11 +458,7 @@ export function Composer({
             scope={scope}
             query={pickerQuery}
             onQueryChange={(q) =>
-              setPicker((prev) =>
-                prev.kind === 'button'
-                  ? { kind: 'button', query: q }
-                  : prev,
-              )
+              setPicker((prev) => (prev.kind === 'button' ? { kind: 'button', query: q } : prev))
             }
             onPick={selectMentionFile}
             onHover={setPickerHighlight}
@@ -531,10 +466,10 @@ export function Composer({
           />
         )}
 
-        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        {error && <p className="mt-2 text-label-12 text-danger-text">{error}</p>}
 
-        <div className="mt-auto flex items-center justify-between pt-4">
-          <div className="flex items-center gap-2">
+        <div className="mt-auto flex items-center justify-between pt-3">
+          <div className="flex items-center gap-1.5">
             <input
               ref={fileInputRef}
               type="file"
@@ -543,33 +478,35 @@ export function Composer({
               onChange={onPick}
               className="hidden"
             />
-            <CircleIconButton
-              label="Attach image"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={streaming}
-            >
-              <Paperclip className="size-4" />
-            </CircleIconButton>
-            <CircleIconButton
-              label="Pin a file from your library"
-              onClick={() => {
-                if (picker.kind === 'idle') {
-                  setPicker({ kind: 'button', query: '' });
-                } else {
-                  setPicker({ kind: 'idle' });
-                }
-              }}
-              disabled={streaming}
-            >
-              <AtSign className="size-4" />
-            </CircleIconButton>
-            <CircleIconButton label="Voice input" onClick={() => {}} disabled>
-              <Mic className="size-4" />
-            </CircleIconButton>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Add to message"
+                disabled={streaming}
+                className="grid size-7 cursor-pointer place-items-center rounded-full border border-gray-3 text-text-secondary outline-none transition-colors hover:bg-hover hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <PiPlusDefaultStroke size={14} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top" className="w-56 font-inter">
+                <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
+                  <Paperclip className="size-4" /> Attach images or PDFs
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() =>
+                    setPicker((prev) =>
+                      prev.kind === 'idle' ? { kind: 'button', query: '' } : { kind: 'idle' },
+                    )
+                  }
+                >
+                  <AtSign className="size-4" /> Focus on one file
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <ScopeToggle
               scope={scope}
               locked={scopeLocked}
               workspaceName={activeWorkspaceName}
+              workspaceId={activeWorkspaceId ?? null}
+              workspaceLogoUrl={activeWorkspaceLogoUrl}
               workspaceAvailable={Boolean(activeWorkspaceId)}
               onChange={setScope}
             />
@@ -578,22 +515,21 @@ export function Composer({
           <div className="flex items-center gap-2">
             <ModelPicker value={modelId} onChange={setModelId} disabled={streaming || disabled} />
             {streaming ? (
-              <CircleIconButton label="Stop" onClick={() => onStop?.()}>
-                <Square className="size-3.5 fill-current" />
-              </CircleIconButton>
+              <SendOrb label="Stop" onClick={() => onStop?.()} type="button">
+                <PiStopSmallStroke size={16} />
+              </SendOrb>
             ) : (
-              <button
+              <SendOrb
+                label={anyUploading ? 'Uploading…' : 'Send'}
                 type="submit"
                 disabled={!canSend}
-                className={cn(
-                  'rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                  canSend
-                    ? 'bg-[#111827] text-white hover:bg-[#111827]/90'
-                    : 'cursor-not-allowed bg-zinc-200 text-zinc-400',
-                )}
               >
-                {anyUploading ? 'Uploading…' : 'Send'}
-              </button>
+                {anyUploading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <PiArrowUpStroke size={16} />
+                )}
+              </SendOrb>
             )}
           </div>
         </div>
@@ -603,115 +539,108 @@ export function Composer({
 }
 
 /**
- * Two-state pill that picks which corpus the chat searches. Locked once
- * the conversation has messages — the server won't let you change scope
- * mid-conversation anyway, so we surface that constraint in the UI.
+ * Pill that picks which corpus the chat searches (Figma: the "People and HR"
+ * chip). Locked once the conversation has messages — the server won't
+ * change scope mid-conversation, so the pill turns static with a lock.
  */
-function scopeMeta(scope: RetrievalScope): {
-  label: string;
-  Icon: typeof Building2;
-  /** Tailwind class for the chip when this scope is the active one. */
-  activeClass: string;
-} {
-  switch (scope) {
-    case 'user':
-      return {
-        label: 'My files',
-        Icon: User,
-        activeClass: 'border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100',
-      };
-    case 'workspace':
-      return {
-        label: 'Workspace',
-        Icon: Briefcase,
-        activeClass: 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100',
-      };
-    case 'organization':
-    default:
-      return {
-        label: 'Organization',
-        Icon: Building2,
-        activeClass: 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50',
-      };
+function ScopeIcon({
+  scope,
+  workspaceId,
+  workspaceLogoUrl,
+}: {
+  scope: RetrievalScope;
+  workspaceId: string | null;
+  workspaceLogoUrl: string | null;
+}) {
+  if (scope === 'workspace' && workspaceId) {
+    return <WorkspaceGlyphIcon id={workspaceId} logoUrl={workspaceLogoUrl} />;
   }
+  if (scope === 'user') return <PiUserDefaultStroke size={16} className="text-iris-9" />;
+  return <PiFolderDefaultStroke size={16} className="text-text-secondary" />;
+}
+
+function scopeLabel(scope: RetrievalScope, workspaceName: string | null): string {
+  if (scope === 'user') return 'My files';
+  if (scope === 'workspace') return workspaceName ?? 'Workspace';
+  return 'Organization';
 }
 
 function ScopeToggle({
   scope,
   locked,
   workspaceName,
+  workspaceId,
+  workspaceLogoUrl,
   workspaceAvailable,
   onChange,
 }: {
   scope: RetrievalScope;
   locked: boolean;
-  /** Display name of the active workspace; null if no workspace. Used to
-   *  customize the dropdown label so users see which workspace they're
-   *  scoping retrieval to. */
   workspaceName: string | null;
+  workspaceId: string | null;
+  workspaceLogoUrl: string | null;
   /** False = no active workspace, hide the workspace option entirely. */
   workspaceAvailable: boolean;
   onChange: (next: RetrievalScope) => void;
 }) {
-  const meta = scopeMeta(scope);
-  const Icon = meta.Icon;
-  const label =
-    scope === 'workspace' && workspaceName ? workspaceName : meta.label;
+  const label = scopeLabel(scope, workspaceName);
+  const pill =
+    'inline-flex h-7 items-center gap-1 rounded-full border border-gray-3 bg-bg-panel pr-2 pl-1.5 text-label-12 font-medium text-text shadow-[0_2px_2px_rgba(36,36,36,0.03)]';
+  const icon = (
+    <ScopeIcon scope={scope} workspaceId={workspaceId} workspaceLogoUrl={workspaceLogoUrl} />
+  );
 
   if (locked) {
     return (
-      <span
-        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-600"
-        title="Scope locked for this conversation"
-      >
-        <Lock className="size-3 text-zinc-400" />
-        <Icon className="size-3.5 text-zinc-500" />
-        {label}
+      <span className={pill} title="This chat searches the same files for every message">
+        {icon}
+        <span className="max-w-40 truncate">{label}</span>
+        <PiLockCloseStroke size={12} className="text-text-placeholder" />
       </span>
     );
   }
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-            meta.activeClass,
-          )}
-          title={`Searching ${label.toLowerCase()}. Click to switch.`}
-        >
-          <Icon className="size-3.5" />
-          <span className="max-w-32 truncate">{label}</span>
-          <ChevronDown className="size-3 opacity-60" />
-        </button>
+      <DropdownMenuTrigger
+        className={cn(
+          pill,
+          'cursor-pointer outline-none hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)]',
+        )}
+        title={`Searching ${label}. Click to switch.`}
+      >
+        {icon}
+        <span className="max-w-40 truncate">{label}</span>
+        <ChevronDown className="size-3 text-text-placeholder" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
+      <DropdownMenuContent align="start" side="top" className="w-64 font-inter">
         {workspaceAvailable ? (
           <ScopeItem
-            scope="workspace"
-            activeScope={scope}
-            onPick={onChange}
+            active={scope === 'workspace'}
+            onPick={() => onChange('workspace')}
+            icon={
+              <ScopeIcon
+                scope="workspace"
+                workspaceId={workspaceId}
+                workspaceLogoUrl={workspaceLogoUrl}
+              />
+            }
             label={workspaceName ?? 'Workspace'}
-            description="Workspace files plus all org-wide files."
+            description="Workspace files plus all organization files."
           />
         ) : (
-          // Edge case: user has no active workspace. Fall back to the
-          // org-only option so they can still scope retrieval to their
-          // organization's files instead of being limited to personal.
           <ScopeItem
-            scope="organization"
-            activeScope={scope}
-            onPick={onChange}
+            active={scope === 'organization'}
+            onPick={() => onChange('organization')}
+            icon={<ScopeIcon scope="organization" workspaceId={null} workspaceLogoUrl={null} />}
             label="Organization"
             description="All files shared across the organization."
           />
         )}
         <ScopeItem
-          scope="user"
-          activeScope={scope}
-          onPick={onChange}
+          active={scope === 'user'}
+          onPick={() => onChange('user')}
+          icon={<ScopeIcon scope="user" workspaceId={null} workspaceLogoUrl={null} />}
           label="My files"
           description="Your personal library."
         />
@@ -721,33 +650,57 @@ function ScopeToggle({
 }
 
 function ScopeItem({
-  scope,
-  activeScope,
+  active,
   onPick,
+  icon,
   label,
   description,
 }: {
-  scope: RetrievalScope;
-  activeScope: RetrievalScope;
-  onPick: (next: RetrievalScope) => void;
+  active: boolean;
+  onPick: () => void;
+  icon: React.ReactNode;
   label: string;
   description: string;
 }) {
-  const meta = scopeMeta(scope);
-  const Icon = meta.Icon;
-  const isActive = scope === activeScope;
   return (
-    <DropdownMenuItem
-      className="cursor-pointer"
-      onSelect={() => onPick(scope)}
-    >
-      <Icon className="size-4" />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm font-medium">{label}</span>
-        <span className="truncate text-xs text-zinc-500">{description}</span>
-      </div>
-      {isActive && <span className="ml-2 text-xs text-zinc-400">Active</span>}
+    <DropdownMenuItem className="cursor-pointer items-start" onSelect={onPick}>
+      <span className="mt-0.5">{icon}</span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-label-14 font-medium text-text">{label}</span>
+        <span className="truncate text-label-12 text-text-secondary">{description}</span>
+      </span>
+      {active && <span className="text-label-12 text-text-placeholder">Active</span>}
     </DropdownMenuItem>
+  );
+}
+
+/** Round send / stop button with the blue gradient fill (Figma "Collapse"). */
+function SendOrb({
+  label,
+  children,
+  disabled = false,
+  type,
+  onClick,
+}: {
+  label: string;
+  children: React.ReactNode;
+  disabled?: boolean;
+  type: 'button' | 'submit';
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type={type}
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="group cursor-pointer rounded-full border border-gray-3 p-0.5 outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed"
+    >
+      <span className="send-orb grid size-7 place-items-center rounded-full text-text-on-solid transition-[filter,transform] group-hover:brightness-105 group-active:scale-95 group-disabled:bg-none group-disabled:bg-gray-5 group-disabled:text-text-placeholder">
+        {children}
+      </span>
+    </button>
   );
 }
 
@@ -829,56 +782,6 @@ function RemoveButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function CircleIconButton({
-  children,
-  label,
-  onClick,
-  disabled,
-}: {
-  children: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      disabled={disabled}
-      className="grid size-8 place-items-center rounded-full border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
-    >
-      {children}
-    </button>
-  );
-}
-
-function MentionedFileChip({
-  file,
-  onRemove,
-}: {
-  file: MentionedFile;
-  onRemove: () => void;
-}) {
-  return (
-    <div
-      className="group inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 py-1 pl-2.5 pr-1 text-xs font-medium text-violet-700"
-      title={`Focused on ${file.name} — the assistant will only answer from this file`}
-    >
-      <FileText className="size-3.5" />
-      <span className="max-w-44 truncate">{file.name}</span>
-      <button
-        type="button"
-        aria-label="Unpin file"
-        onClick={onRemove}
-        className="grid size-4 place-items-center rounded-full text-violet-400 transition-colors hover:bg-violet-100 hover:text-violet-700"
-      >
-        <X className="size-3" />
-      </button>
-    </div>
-  );
-}
-
 interface FileMentionPickerProps {
   mode: 'typeahead' | 'button';
   files: MentionedFile[];
@@ -955,9 +858,7 @@ function FileMentionPicker({
     >
       <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-2 text-xs text-zinc-500">
         <span>
-          {hasQuery
-            ? `Searching ${scopeLabel} for "${trimmedQuery}"`
-            : `Search ${scopeLabel}`}
+          {hasQuery ? `Searching ${scopeLabel} for "${trimmedQuery}"` : `Search ${scopeLabel}`}
         </span>
         <button
           type="button"
@@ -986,9 +887,7 @@ function FileMentionPicker({
       <div className="max-h-64 overflow-y-auto">
         {!hasQuery && (
           <p className="px-4 py-6 text-center text-sm text-zinc-500">
-            {mode === 'typeahead'
-              ? 'Keep typing to search files…'
-              : 'Type to search files.'}
+            {mode === 'typeahead' ? 'Keep typing to search files…' : 'Type to search files.'}
           </p>
         )}
         {hasQuery && loading && (
@@ -997,9 +896,7 @@ function FileMentionPicker({
           </div>
         )}
         {hasQuery && !loading && files.length === 0 && (
-          <p className="px-4 py-6 text-center text-sm text-zinc-500">
-            No files match.
-          </p>
+          <p className="px-4 py-6 text-center text-sm text-zinc-500">No files match.</p>
         )}
         {hasQuery &&
           !loading &&

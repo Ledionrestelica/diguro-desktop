@@ -1,4 +1,5 @@
 import { API_URL } from './api';
+import { authErrorFromResponse } from '@/lib/auth-error';
 
 /**
  * Web-side drop-in for `@/lib/api-auth`. Same export surface as the
@@ -8,7 +9,6 @@ import { API_URL } from './api';
  * Better-Auth cookie automatically.
  */
 
-type AuthError = { error: string };
 type SignInResponse = { user: { id: string; email: string } };
 
 async function call<T>(path: string, body: unknown): Promise<T> {
@@ -19,12 +19,8 @@ async function call<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
 
-  const json = (await res.json().catch(() => ({}))) as T | AuthError;
-  if (!res.ok) {
-    const msg = (json as AuthError).error ?? `Auth request failed (${res.status})`;
-    throw new Error(msg);
-  }
-  return json as T;
+  if (!res.ok) throw await authErrorFromResponse(res);
+  return (await res.json().catch(() => ({}))) as T;
 }
 
 export const apiAuth = {
@@ -34,15 +30,20 @@ export const apiAuth = {
   signIn: (email: string, password: string) =>
     call<SignInResponse>('/sign-in/email', { email, password }),
 
+  sendVerificationCode: (email: string) =>
+    call<{ success: boolean }>('/email-otp/send-verification-otp', {
+      email,
+      type: 'email-verification',
+    }),
+
+  verifyEmail: (email: string, otp: string) =>
+    call<SignInResponse>('/email-otp/verify-email', { email, otp }),
+
   signOut: async () => {
     await call<{ success: boolean }>('/sign-out', {}).catch(() => undefined);
   },
 
-  changePassword: (
-    currentPassword: string,
-    newPassword: string,
-    revokeOtherSessions = false,
-  ) =>
+  changePassword: (currentPassword: string, newPassword: string, revokeOtherSessions = false) =>
     call<{ user?: { id: string } }>('/change-password', {
       currentPassword,
       newPassword,

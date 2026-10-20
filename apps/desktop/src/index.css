@@ -2,6 +2,7 @@
 @import 'tw-animate-css';
 @import './colors.css';
 @import './typography.css';
+@import './motion.css';
 /* Re-enable when `highlight.js` lands with chat markdown rendering.
 @import 'highlight.js/styles/github.css' screen and (prefers-color-scheme: light);
 @import 'highlight.js/styles/github-dark.css' screen and (prefers-color-scheme: dark);
@@ -123,7 +124,11 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50 font-normal;
+    @apply border-border outline-ring/50;
+    /* Plain property, not `font-normal`: that utility also sets
+       --tw-font-weight on every element, which would override the weight
+       baked into the type tokens (e.g. text-button-14 is Medium). */
+    font-weight: 400;
   }
   body {
     @apply bg-background text-foreground;

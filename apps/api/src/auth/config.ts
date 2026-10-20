@@ -1,17 +1,40 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { admin, bearer, organization } from 'better-auth/plugins';
+import { admin, bearer, emailOTP, organization } from 'better-auth/plugins';
 import { adminAc, userAc } from 'better-auth/plugins/admin/access';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { isStrongPassword, PASSWORD_RULE_MESSAGE } from '@diguro/shared/password';
 import type { Db } from '@diguro/db';
 import * as schema from '@diguro/db/schema';
 import type { Config } from '../config.ts';
 import type { Logger } from '../lib/logger.ts';
 import type { EmailProvider } from '../ports/emailProvider.ts';
 import { sendPasswordResetEmail } from '../services/email/passwordReset.ts';
+import { sendVerificationCodeEmail } from '../services/email/verificationCode.ts';
 
 /** Reset-token lifetime. Better-Auth defaults to 1h; we keep it explicit so
  *  the email copy and the server agree. */
 const RESET_TOKEN_EXPIRES_IN_SEC = 60 * 60;
+
+const VERIFICATION_CODE_EXPIRES_IN_SEC = 10 * 60;
+
+/** Fixed sign-up code for local UI work, so the flow can be clicked through
+ *  without email. Only when running in development against a localhost API —
+ *  NODE_ENV alone isn't enough because it defaults to "development". */
+const DEV_VERIFICATION_CODE = '000000';
+
+function usesDevVerificationCode(config: Config): boolean {
+  if (config.NODE_ENV !== 'development') return false;
+  const host = new URL(config.BETTER_AUTH_URL).hostname;
+  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+}
+
+/** Endpoints that set a user-chosen password, and the body field holding it. */
+const PASSWORD_FIELDS: Record<string, 'password' | 'newPassword'> = {
+  '/sign-up/email': 'password',
+  '/reset-password': 'newPassword',
+  '/change-password': 'newPassword',
+};
 
 /**
  * Better-Auth instance. Dual auth from day 1:
@@ -34,6 +57,11 @@ export function createAuth(
   config: Config,
   deps: { emailProvider: EmailProvider | null; logger: Logger },
 ) {
+  const devVerificationCode = usesDevVerificationCode(config);
+  if (devVerificationCode) {
+    deps.logger.warn(`email verification codes are fixed to ${DEV_VERIFICATION_CODE} (local dev)`);
+  }
+
   return betterAuth({
     secret: config.BETTER_AUTH_SECRET,
     baseURL: config.BETTER_AUTH_URL,
@@ -57,7 +85,7 @@ export function createAuth(
       minPasswordLength: 8,
       maxPasswordLength: 128,
       autoSignIn: true,
-      requireEmailVerification: false,
+      requireEmailVerification: true,
       resetPasswordTokenExpiresIn: RESET_TOKEN_EXPIRES_IN_SEC,
       // We build our own reset URL pointing at the web app's
       // `/reset-password` page (APP_BASE_URL) rather than using BA's `url`,
@@ -90,6 +118,14 @@ export function createAuth(
       },
     },
 
+    // Sign-up returns no session until the emailed code is confirmed;
+    // `/email-otp/verify-email` then signs the user in. Unverified sign-ins
+    // get a fresh code and an EMAIL_NOT_VERIFIED error the client routes on.
+    emailVerification: {
+      sendOnSignIn: true,
+      autoSignInAfterVerification: true,
+    },
+
     // Custom columns on `users` that Better-Auth must include on the
     // session.user object. Without declaring these, `ctx.user.organizationId`
     // is always undefined even when the DB row has it set.
@@ -106,6 +142,22 @@ export function createAuth(
           input: false,
         },
       },
+    },
+
+    hooks: {
+      before: createAuthMiddleware((ctx) => {
+        const field = PASSWORD_FIELDS[ctx.path];
+        if (!field) return Promise.resolve();
+        const body: unknown = ctx.body;
+        const password: unknown =
+          typeof body === 'object' && body !== null ? Reflect.get(body, field) : undefined;
+        if (typeof password === 'string' && !isStrongPassword(password)) {
+          return Promise.reject(
+            new APIError('BAD_REQUEST', { code: 'WEAK_PASSWORD', message: PASSWORD_RULE_MESSAGE }),
+          );
+        }
+        return Promise.resolve();
+      }),
     },
 
     trustedOrigins: config.ALLOWED_ORIGINS,
@@ -141,6 +193,37 @@ export function createAuth(
         adminRoles: ['superadmin'],
       }),
       bearer(),
+      emailOTP({
+        otpLength: 6,
+        expiresIn: VERIFICATION_CODE_EXPIRES_IN_SEC,
+        sendVerificationOnSignUp: true,
+        overrideDefaultEmailVerification: true,
+        ...(devVerificationCode ? { generateOTP: () => DEV_VERIFICATION_CODE } : {}),
+        sendVerificationOTP: async ({ email, otp, type }) => {
+          if (type !== 'email-verification') return;
+          if (!deps.emailProvider) {
+            deps.logger.warn('verification code requested but email not configured', {
+              email,
+            });
+            return;
+          }
+          try {
+            await sendVerificationCodeEmail(
+              { email: deps.emailProvider },
+              {
+                to: email,
+                code: otp,
+                expiresInMinutes: VERIFICATION_CODE_EXPIRES_IN_SEC / 60,
+              },
+            );
+          } catch (err) {
+            deps.logger.warn('failed to send verification code email', {
+              email,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+        },
+      }),
     ],
   });
 }

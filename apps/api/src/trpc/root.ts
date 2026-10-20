@@ -8,6 +8,7 @@ import { adminWorkspaceRouter } from './routers/adminWorkspace.ts';
 import { workspacesRouter } from './routers/workspaces.ts';
 import { invitationsRouter } from './routers/invitations.ts';
 import { meRouter } from './routers/me.ts';
+import { onboardingRouter } from './routers/onboarding.ts';
 
 export const appRouter = router({
   health: healthRouter,
@@ -16,6 +17,7 @@ export const appRouter = router({
   workspaces: workspacesRouter,
   invitations: invitationsRouter,
   me: meRouter,
+  onboarding: onboardingRouter,
   adminPlatform: adminPlatformRouter,
   adminOrganization: adminOrganizationRouter,
   adminWorkspace: adminWorkspaceRouter,

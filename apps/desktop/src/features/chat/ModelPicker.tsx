@@ -78,9 +78,7 @@ export function ModelPicker({ value, onChange, disabled }: Props) {
 
   const effectiveId = value ?? defaultId;
   const currentModel =
-    models.find((m) => m.id === effectiveId) ??
-    models.find((m) => m.defaultForSelect) ??
-    models[0];
+    models.find((m) => m.id === effectiveId) ?? models.find((m) => m.defaultForSelect) ?? models[0];
   const activeTier = currentModel?.tier;
 
   if (query.isLoading) {
@@ -120,26 +118,16 @@ export function ModelPicker({ value, onChange, disabled }: Props) {
             <DropdownMenuItem
               key={tier}
               onSelect={() => onChange(model.id)}
-              className={cn(
-                'flex cursor-pointer items-center gap-3 rounded-md px-2 py-2.5',
-                isActive && 'bg-zinc-50',
-              )}
+              className="flex cursor-pointer items-center gap-3 px-2 py-2.5"
             >
-              <span
-                className={cn(
-                  'grid size-9 shrink-0 place-items-center rounded-lg',
-                  meta.tile,
-                )}
-              >
+              <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg', meta.tile)}>
                 <meta.Icon className="size-4.5" />
               </span>
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="text-sm font-semibold leading-none text-zinc-900">
                   {meta.label}
                 </span>
-                <span className="text-xs leading-snug text-zinc-500">
-                  {meta.tagline}
-                </span>
+                <span className="text-xs leading-snug text-zinc-500">{meta.tagline}</span>
               </span>
               {isActive && <Check className="size-4 shrink-0 text-zinc-900" />}
             </DropdownMenuItem>

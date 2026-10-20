@@ -85,6 +85,20 @@
       "when": 1780337289289,
       "tag": "0011_silent_instructions",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792093424880,
+      "tag": "0012_mark_existing_users_verified",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792096220934,
+      "tag": "0013_onboarding_completed_at",
+      "breakpoints": true
     }
   ]
 }

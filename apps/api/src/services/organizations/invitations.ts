@@ -382,6 +382,8 @@ export async function acceptOrgInvitation(
       .set({
         organizationId: invitation.organizationId,
         role: invitation.role as 'user' | 'organization_admin',
+        // Joining by invite replaces onboarding's create-or-personal choice.
+        onboardingCompletedAt: sql`coalesce(${schema.users.onboardingCompletedAt}, now())`,
         updatedAt: new Date(),
       })
       .where(eq(schema.users.id, input.actingUserId));

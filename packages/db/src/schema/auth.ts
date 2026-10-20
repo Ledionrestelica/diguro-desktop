@@ -37,6 +37,9 @@ export const users = pgTable(
      *  into the chat system prompt on every turn. Null = no custom guidance. */
     customInstructions: text('custom_instructions'),
     maxPersonalResources: integer('max_personal_resources').notNull().default(100),
+    /** Set when the user finishes (or is exempt from) first-run onboarding.
+     *  Null routes the client into the onboarding flow after sign-in. */
+    onboardingCompletedAt: timestamp('onboarding_completed_at'),
   },
   (t) => [index('users_organization_idx').on(t.organizationId)],
 );

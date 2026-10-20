@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { UIMessage } from 'ai';
-import { X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useIsSuperadminBlocked, RedirectToPlatform } from '@/lib/role-gate';
 import { useMediaQuery } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-import { ChatSidebar } from './ChatSidebar';
-import { TopBar } from './TopBar';
-import { WorkspaceRail } from './WorkspaceRail';
+import { PiSidebarLeftOpenStroke } from '@/components/icons/pika/PiSidebarLeftOpenStroke';
+import { AppSidebar } from './sidebar/AppSidebar';
 // Absolute alias (not `./useChatSession`) so web's Vite alias override
 // in apps/web/vite.config.ts can swap this file for the cookie-auth
 // variant at build time. Relative imports bypass aliases.
@@ -67,11 +65,16 @@ export function ChatLayout() {
   const navigate = useNavigate();
 
   // Stable fresh id for "new chat" screens. Regenerate when we land back on
-  // /chat after previously holding a :chatId.
+  // /chat after previously holding a :chatId. Done during render, not in an
+  // effect: otherwise the first /chat render still carries the old id (and
+  // its populated session), and the first-send effect below bounces the URL
+  // straight back to /chat/<oldId> — e.g. right after deleting that chat.
   const [freshId, setFreshId] = useState(() => crypto.randomUUID());
-  useEffect(() => {
+  const [prevParamChatId, setPrevParamChatId] = useState(paramChatId);
+  if (prevParamChatId !== paramChatId) {
+    setPrevParamChatId(paramChatId);
     if (!paramChatId) setFreshId(crypto.randomUUID());
-  }, [paramChatId]);
+  }
 
   const chatId = paramChatId ?? freshId;
   const isNewChat = !paramChatId;
@@ -185,24 +188,31 @@ export function ChatLayout() {
     // live sessions we also treat "any message in useChat state" as locked
     // — once the user has sent one, subsequent scope changes wouldn't
     // take effect because the server already stamped the row.
-    scopeLocked:
-      (conversationQuery.data?.messages.length ?? 0) > 0 ||
-      session.messages.length > 0,
+    scopeLocked: (conversationQuery.data?.messages.length ?? 0) > 0 || session.messages.length > 0,
   };
 
-  // Sidebar collapses into a drawer below 700px viewport width. The
-  // workspace rail stays visible because it's narrow (and the only way to
-  // switch workspaces from inside chat).
+  // Below 700px the sidebar becomes a slide-in drawer. On wider screens it
+  // can be collapsed; the choice is remembered per device.
   const isNarrow = useMediaQuery('(max-width: 700px)');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => readCollapsed());
   const location = useLocation();
 
   // Auto-close the drawer when the route changes on narrow screens — clicking
   // a conversation should drop you back to the chat pane, not leave the
   // overlay covering it.
   useEffect(() => {
-    if (isNarrow) setSidebarOpen(false);
+    if (isNarrow) setDrawerOpen(false);
   }, [location.pathname, isNarrow]);
+
+  function toggleCollapsed(next: boolean) {
+    setCollapsed(next);
+    try {
+      localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0');
+    } catch {
+      // Storage unavailable (private mode) — keep the in-memory state.
+    }
+  }
 
   // Bounce superadmins to the platform tier (post-hooks early return).
   if (isSuperadminBlocked) return <RedirectToPlatform />;
@@ -211,51 +221,68 @@ export function ChatLayout() {
   // the first-render flash before the cached value arrives.
   if (hasNoWorkspace) return <Navigate to="/workspaces" replace />;
 
-  return (
-    <div className="relative flex h-screen overflow-hidden bg-[#fafafa] text-foreground">
-      <WorkspaceRail />
+  const runningChatId =
+    session.status === 'submitted' || session.status === 'streaming' ? chatId : null;
+  const sidebar = (
+    <AppSidebar
+      activeChatId={paramChatId ?? null}
+      runningChatId={runningChatId}
+      onCollapse={() => (isNarrow ? setDrawerOpen(false) : toggleCollapsed(true))}
+    />
+  );
+  const showOpenButton = isNarrow ? !drawerOpen : collapsed;
 
+  return (
+    <div className="relative flex h-screen overflow-hidden bg-bg-panel font-inter text-text">
       {isNarrow ? (
         <>
-          {sidebarOpen && (
+          {drawerOpen && (
             <button
               type="button"
               aria-label="Close sidebar"
-              onClick={() => setSidebarOpen(false)}
-              className="absolute inset-0 z-40 bg-black/30"
+              onClick={() => setDrawerOpen(false)}
+              className="absolute inset-0 z-40 bg-gray-12/30"
             />
           )}
           <div
             className={cn(
               'absolute inset-y-0 left-0 z-50 shadow-2xl transition-transform duration-200 ease-out',
-              sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+              drawerOpen ? 'translate-x-0' : '-translate-x-full',
             )}
           >
-            <ChatSidebar activeChatId={paramChatId ?? null} />
-            <button
-              type="button"
-              aria-label="Close sidebar"
-              onClick={() => setSidebarOpen(false)}
-              className="absolute right-2 top-2 grid size-8 place-items-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800"
-            >
-              <X className="size-4" />
-            </button>
+            {sidebar}
           </div>
         </>
       ) : (
-        <ChatSidebar activeChatId={paramChatId ?? null} />
+        !collapsed && sidebar
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <TopBar
-          {...(isNarrow ? { onMenuClick: () => setSidebarOpen((v) => !v) } : {})}
-        />
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <Outlet context={outletContext} />
-        </div>
+      <div className="relative min-w-0 flex-1 overflow-hidden">
+        {showOpenButton && (
+          <button
+            type="button"
+            aria-label="Open sidebar"
+            title="Open sidebar"
+            onClick={() => (isNarrow ? setDrawerOpen(true) : toggleCollapsed(false))}
+            className="absolute top-3 left-3 z-30 grid size-8 cursor-pointer place-items-center rounded-[8px] text-text-secondary outline-none hover:bg-hover hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+          >
+            <PiSidebarLeftOpenStroke size={16} />
+          </button>
+        )}
+        <Outlet context={outletContext} />
       </div>
     </div>
   );
+}
+
+const COLLAPSED_KEY = 'iserana.sidebar.collapsed';
+
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
 function toUIMessage(row: PersistedMessage): UIMessage {
@@ -264,5 +291,6 @@ function toUIMessage(row: PersistedMessage): UIMessage {
     id: row.id,
     role: role as UIMessage['role'],
     parts: row.parts as UIMessage['parts'],
+    metadata: { createdAt: new Date(row.createdAt).toISOString() },
   };
 }

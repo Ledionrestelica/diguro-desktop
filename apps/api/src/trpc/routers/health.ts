@@ -120,6 +120,7 @@ export const healthRouter = router({
         image: schema.users.image,
         preferredChatModelId: schema.users.preferredChatModelId,
         customInstructions: schema.users.customInstructions,
+        onboardingCompletedAt: schema.users.onboardingCompletedAt,
       })
       .from(schema.users)
       .where(eq(schema.users.id, ctx.user.id))
@@ -145,6 +146,7 @@ export const healthRouter = router({
       activeWorkspace,
       preferredChatModelId: prefRows[0]?.preferredChatModelId ?? null,
       customInstructions: prefRows[0]?.customInstructions ?? null,
+      onboardingCompletedAt: prefRows[0]?.onboardingCompletedAt?.toISOString() ?? null,
     };
   }),
 
