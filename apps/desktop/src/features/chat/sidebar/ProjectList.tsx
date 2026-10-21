@@ -56,11 +56,11 @@ export function ProjectList({
   });
 
   return (
-    <section className="flex flex-col gap-px">
+    <section className="flex flex-col gap-1">
       <SidebarSectionHeader
-        label="Projects"
+        label="Folders"
         action={
-          <SidebarIconButton label="New project" onClick={() => setCreating(true)}>
+          <SidebarIconButton label="New folder" onClick={() => setCreating(true)}>
             <PiPlusDefaultStroke size={14} />
           </SidebarIconButton>
         }
@@ -68,7 +68,7 @@ export function ProjectList({
       {creating && (
         <RenameField
           initial=""
-          placeholder="Project name"
+          placeholder="Folder name"
           onDone={(name) => {
             setCreating(false);
             if (name) create.mutate({ name });
@@ -135,7 +135,7 @@ function Project({
   const FolderIcon = expanded ? PiFolderOpenStroke : PiFolderDefaultStroke;
 
   return (
-    <div {...drop.handlers} className={cn('rounded-[8px]', drop.over && 'bg-selection')}>
+    <div {...drop.handlers} className={cn('rounded-[10px]', drop.over && 'bg-selection')}>
       {renaming ? (
         <RenameField
           initial={folder.name}
@@ -146,6 +146,7 @@ function Project({
         />
       ) : (
         <SidebarItem
+          hug
           fluidKey={`project-${folder.id}`}
           icon={
             <FolderIcon size={16} {...(folder.color ? { style: { color: folder.color } } : {})} />
@@ -158,7 +159,7 @@ function Project({
           actions={
             <DropdownMenu>
               <DropdownMenuTrigger
-                aria-label="Project actions"
+                aria-label="Folder actions"
                 className="grid size-5 cursor-pointer place-items-center rounded-[5px] text-text-secondary opacity-0 outline-none group-hover/item:opacity-100 hover:bg-selected focus-visible:opacity-100 data-[state=open]:bg-selected data-[state=open]:opacity-100"
               >
                 <PiThreeDotsMenuHorizontalStroke size={14} />
@@ -210,7 +211,7 @@ function Project({
                   variant="destructive"
                   onSelect={() => remove.mutate({ folderId: folder.id })}
                 >
-                  <PiDeleteDustbin02Stroke size={16} /> Delete project
+                  <PiDeleteDustbin02Stroke size={16} /> Delete folder
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -284,7 +285,7 @@ export function useChatDrop(folderId: string | null) {
 export function DropZone({ folderId, children }: { folderId: string | null; children: ReactNode }) {
   const { over, handlers } = useChatDrop(folderId);
   return (
-    <div {...handlers} className={cn('rounded-[8px]', over && 'bg-selection')}>
+    <div {...handlers} className={cn('rounded-[10px]', over && 'bg-selection')}>
       {children}
     </div>
   );

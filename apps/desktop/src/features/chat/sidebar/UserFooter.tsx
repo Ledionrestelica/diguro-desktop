@@ -20,8 +20,9 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 /** Bottom of the sidebar (Figma "Sidebar/User"): avatar, name, role ·
- *  workspace, and the account menu that used to live in the top bar. */
-export function UserFooter() {
+ *  workspace, and the account menu. `compact` (the collapsed rail) shows
+ *  just the avatar, which opens the same menu. */
+export function UserFooter({ compact = false }: { compact?: boolean }) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const me = trpc.health.me.useQuery();
@@ -44,49 +45,73 @@ export function UserFooter() {
     signOut();
   }
 
+  const avatar = (
+    <span className="grid size-[30px] shrink-0 place-items-center overflow-hidden rounded-full bg-bg-subtle-active text-label-12 font-semibold text-text">
+      {data?.image ? (
+        <img src={data.image} alt="" className="size-full object-cover" />
+      ) : (
+        initials(data?.name || data?.email)
+      )}
+    </span>
+  );
+  const menu = (
+    <DropdownMenuContent
+      align={compact ? 'start' : 'end'}
+      side={compact ? 'right' : 'top'}
+      className="w-52 font-inter"
+    >
+      <DropdownMenuItem onSelect={() => void navigate('/workspaces')}>
+        Switch workspace
+      </DropdownMenuItem>
+      {canAdminWorkspace && (
+        <DropdownMenuItem onSelect={() => void navigate('/admin/workspace/general')}>
+          Workspace settings
+        </DropdownMenuItem>
+      )}
+      {canAdminOrg && (
+        <DropdownMenuItem onSelect={() => void navigate('/admin/organization/general')}>
+          Organization settings
+        </DropdownMenuItem>
+      )}
+      <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>Settings</DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onSelect={() => void handleSignOut()}>Sign out</DropdownMenuItem>
+    </DropdownMenuContent>
+  );
+
   return (
     <>
-      <div className="flex h-[62px] shrink-0 items-center gap-2.5 px-3 pt-3 pb-3.5">
-        <span className="grid size-[30px] shrink-0 place-items-center overflow-hidden rounded-full bg-bg-subtle-active text-label-12 font-semibold text-text">
-          {data?.image ? (
-            <img src={data.image} alt="" className="size-full object-cover" />
-          ) : (
-            initials(data?.name || data?.email)
-          )}
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-          <span className="truncate text-label-13 font-medium text-text">
-            {data?.name || data?.email}
-          </span>
-          <span className="truncate text-label-12 text-text-secondary">{subtitle}</span>
-        </span>
+      {compact ? (
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Account menu"
-            className="grid size-6 cursor-pointer place-items-center rounded-[6px] text-text-secondary outline-none hover:bg-hover hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-text)] data-[state=open]:bg-selected"
+            title={data?.name || data?.email}
+            className="cursor-pointer rounded-full outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
           >
-            <PiThreeDotsMenuVerticalStroke size={14} />
+            {avatar}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top" className="w-52 font-inter">
-            <DropdownMenuItem onSelect={() => void navigate('/workspaces')}>
-              Switch workspace
-            </DropdownMenuItem>
-            {canAdminWorkspace && (
-              <DropdownMenuItem onSelect={() => void navigate('/admin/workspace/general')}>
-                Workspace settings
-              </DropdownMenuItem>
-            )}
-            {canAdminOrg && (
-              <DropdownMenuItem onSelect={() => void navigate('/admin/organization/general')}>
-                Organization settings
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>Settings</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => void handleSignOut()}>Sign out</DropdownMenuItem>
-          </DropdownMenuContent>
+          {menu}
         </DropdownMenu>
-      </div>
+      ) : (
+        <div className="flex h-[62px] shrink-0 items-center gap-2.5 pt-3 pb-3.5">
+          {avatar}
+          <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
+            <span className="truncate text-label-13 font-medium text-text">
+              {data?.name || data?.email}
+            </span>
+            <span className="truncate text-label-12 text-text-secondary">{subtitle}</span>
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Account menu"
+              className="grid size-6 cursor-pointer place-items-center rounded-[6px] text-text-secondary outline-none hover:bg-hover hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-text)] data-[state=open]:bg-selected"
+            >
+              <PiThreeDotsMenuVerticalStroke size={14} />
+            </DropdownMenuTrigger>
+            {menu}
+          </DropdownMenu>
+        </div>
+      )}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>
   );

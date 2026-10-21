@@ -46,9 +46,7 @@ export function ChatItem({ chat, active, running, folders }: ChatItemProps) {
   const remove = trpc.conversations.delete.useMutation({
     onSuccess: () => {
       if (active) void navigate('/chat');
-      utils.conversations.list.setData(undefined, (prev) =>
-        prev?.filter((c) => c.id !== chat.id),
-      );
+      utils.conversations.list.setData(undefined, (prev) => prev?.filter((c) => c.id !== chat.id));
       void utils.conversations.list.invalidate();
     },
   });
@@ -70,7 +68,7 @@ export function ChatItem({ chat, active, running, folders }: ChatItemProps) {
 
   return (
     <SidebarItem
-      compact
+      hug
       fluidKey={`chat-${chat.id}`}
       label={chat.title}
       tone={active ? 'active' : 'default'}
@@ -99,7 +97,7 @@ export function ChatItem({ chat, active, running, folders }: ChatItemProps) {
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <PiFolderDefaultStroke size={16} /> Move to project
+                <PiFolderDefaultStroke size={16} /> Move to folder
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="max-h-72 w-48 overflow-y-auto font-inter">
                 <DropdownMenuItem
@@ -108,7 +106,7 @@ export function ChatItem({ chat, active, running, folders }: ChatItemProps) {
                     move.mutate({ conversationId: chat.id, folderId: null })
                   }
                 >
-                  <MenuCheck on={chat.folderId === null} /> No project
+                  <MenuCheck on={chat.folderId === null} /> No folder
                 </DropdownMenuItem>
                 {folders.length > 0 && <DropdownMenuSeparator />}
                 {folders.map((folder) => (
