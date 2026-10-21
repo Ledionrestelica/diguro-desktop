@@ -20,7 +20,9 @@ import { FluidHoverHighlight } from './fluid-hover-highlight';
  *
  * Mark non-row areas inside the list (a section header and its "+") with
  * `data-fluid-ignore`: hovering them clears the highlight instead of lighting
- * the nearest row. A nested list (a submenu) owns the moves inside it.
+ * the nearest row. The selected row (`data-fluid-selected`) already has its
+ * own fill, so the highlight never slides onto it. A nested list (a submenu)
+ * owns the moves inside it.
  */
 
 type FluidContext = {
@@ -42,7 +44,7 @@ export function FluidList({
   highlightClassName?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const hover = useFluidHover(containerRef, { gapClick: false });
+  const hover = useFluidHover(containerRef, { gapClick: false, isItemDisabled: isSkipped });
   const slots = useRef(new Map<string, number>());
   const nextSlot = useRef(0);
   const { registerItem, setActiveIndex } = hover;
@@ -72,7 +74,7 @@ export function FluidList({
     (e: MouseEvent) => {
       const target = e.target instanceof Element ? e.target : null;
       if (target && target.closest('[data-fluid-list]') !== containerRef.current) return;
-      if (target?.closest('[data-fluid-ignore]')) {
+      if (target?.closest('[data-fluid-ignore], [data-fluid-selected]')) {
         onMouseLeave();
         return;
       }
@@ -104,6 +106,10 @@ export function FluidList({
     </div>
   );
 }
+
+// The selected row has its own fill; rows in a closed disclosure are hidden.
+const isSkipped = (element: HTMLElement) =>
+  element.hasAttribute('data-fluid-selected') || element.closest('[inert]') !== null;
 
 /** Ref callback that joins the nearest `FluidList`, plus whether one exists
  *  (rows drop their own hover fill when the list draws it). */

@@ -90,9 +90,9 @@ export function PersonalFilesPage() {
   if (isSuperadminBlocked) return <RedirectToPlatform />;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#fafafa] text-foreground">
+    <div className="flex h-screen overflow-hidden bg-bg-app text-foreground">
       <AppSidebar activeChatId={null} />
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="mt-5 mb-3.5 ml-[26px] flex min-w-0 flex-1 flex-col overflow-hidden rounded-l-[24px] bg-bg-panel">
         <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto flex max-w-[900px] flex-col gap-6 px-8 py-10">
             <div className="flex flex-col gap-1">

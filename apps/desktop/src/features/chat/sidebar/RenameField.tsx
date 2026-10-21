@@ -29,7 +29,7 @@ export function RenameField({
         onKeyDown={(e) => {
           if (e.key === 'Escape') onDone(null);
         }}
-        className="h-8 w-full rounded-[8px] border border-focus-ring bg-bg-panel px-2 text-label-14 font-medium text-text shadow-[0_0_0_3px_var(--color-selection)] outline-none placeholder:text-text-placeholder"
+        className="h-9 w-full rounded-[10px] border border-focus-ring bg-bg-panel px-2 text-label-14 font-medium text-text shadow-[0_0_0_3px_var(--color-selection)] outline-none placeholder:text-text-placeholder"
       />
     </form>
   );

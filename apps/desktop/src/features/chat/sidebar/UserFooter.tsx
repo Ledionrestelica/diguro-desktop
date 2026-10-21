@@ -20,8 +20,9 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 /** Bottom of the sidebar (Figma "Sidebar/User"): avatar, name, role ·
- *  workspace, and the account menu that used to live in the top bar. */
-export function UserFooter() {
+ *  workspace, and the account menu. `compact` (the collapsed rail) shows
+ *  just the avatar, which opens the same menu. */
+export function UserFooter({ compact = false }: { compact?: boolean }) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const me = trpc.health.me.useQuery();
@@ -44,16 +45,53 @@ export function UserFooter() {
     signOut();
   }
 
+  const menu = (
+    <DropdownMenuContent
+      align={compact ? 'start' : 'end'}
+      side={compact ? 'right' : 'top'}
+      className="w-52 font-inter"
+    >
+      <DropdownMenuItem onSelect={() => void navigate('/workspaces')}>
+        Switch workspace
+      </DropdownMenuItem>
+      {canAdminWorkspace && (
+        <DropdownMenuItem onSelect={() => void navigate('/admin/workspace/general')}>
+          Workspace settings
+        </DropdownMenuItem>
+      )}
+      {canAdminOrg && (
+        <DropdownMenuItem onSelect={() => void navigate('/admin/organization/general')}>
+          Organization settings
+        </DropdownMenuItem>
+      )}
+      <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>Settings</DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onSelect={() => void handleSignOut()}>Sign out</DropdownMenuItem>
+    </DropdownMenuContent>
+  );
+
+  if (compact) {
+    return (
+      <>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label="Account menu"
+            title={data?.name || data?.email}
+            className="cursor-pointer rounded-full outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+          >
+            <UserAvatar />
+          </DropdownMenuTrigger>
+          {menu}
+        </DropdownMenu>
+        <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      </>
+    );
+  }
+
   return (
     <>
-      <div className="flex h-[62px] shrink-0 items-center gap-2.5 px-3 pt-3 pb-3.5">
-        <span className="grid size-[30px] shrink-0 place-items-center overflow-hidden rounded-full bg-bg-subtle-active text-label-12 font-semibold text-text">
-          {data?.image ? (
-            <img src={data.image} alt="" className="size-full object-cover" />
-          ) : (
-            initials(data?.name || data?.email)
-          )}
-        </span>
+      <div className="flex h-[62px] shrink-0 items-center gap-2.5 pt-3 pb-3.5">
+        <UserAvatar />
         <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
           <span className="truncate text-label-13 font-medium text-text">
             {data?.name || data?.email}
@@ -67,28 +105,26 @@ export function UserFooter() {
           >
             <PiThreeDotsMenuVerticalStroke size={14} />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top" className="w-52 font-inter">
-            <DropdownMenuItem onSelect={() => void navigate('/workspaces')}>
-              Switch workspace
-            </DropdownMenuItem>
-            {canAdminWorkspace && (
-              <DropdownMenuItem onSelect={() => void navigate('/admin/workspace/general')}>
-                Workspace settings
-              </DropdownMenuItem>
-            )}
-            {canAdminOrg && (
-              <DropdownMenuItem onSelect={() => void navigate('/admin/organization/general')}>
-                Organization settings
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>Settings</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => void handleSignOut()}>Sign out</DropdownMenuItem>
-          </DropdownMenuContent>
+          {menu}
         </DropdownMenu>
       </div>
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>
+  );
+}
+
+/** The signed-in user's 30px avatar: their image, or initials. */
+export function UserAvatar() {
+  const me = trpc.health.me.useQuery();
+  const data = me.data;
+  return (
+    <span className="grid size-[30px] shrink-0 place-items-center overflow-hidden rounded-full bg-bg-subtle-active text-label-12 font-semibold text-text">
+      {data?.image ? (
+        <img src={data.image} alt="" className="size-full object-cover" />
+      ) : (
+        initials(data?.name || data?.email)
+      )}
+    </span>
   );
 }
 

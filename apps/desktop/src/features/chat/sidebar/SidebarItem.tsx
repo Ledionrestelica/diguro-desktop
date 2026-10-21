@@ -3,12 +3,14 @@ import { cn } from '@/lib/utils';
 import { useFluidItem } from '@/components/fluid/FluidList';
 
 /**
- * One sidebar row (Figma "Sidebar/Item"): 16px icon, label, trailing meta,
- * optional hover actions. `tone` maps to the Figma states — default rows are
- * secondary text, `active` gets the gray-2 fill, `card` is the white
- * selected-workspace card.
+ * One sidebar row (Figma "Chat - Final · New Sidebar"): 16px icon, label,
+ * trailing meta, optional hover actions. Default rows are secondary text,
+ * `muted` placeholder text, `active` the gray-3 fill (one row at a time),
+ * `current` dark text without the fill. `hug` makes the row a
+ * pill as wide as its label instead of the full column.
+ * States are still being designed — kept local to the sidebar on purpose.
  */
-type Tone = 'default' | 'active' | 'card' | 'muted';
+type Tone = 'default' | 'active' | 'current' | 'muted';
 
 type SidebarItemProps = Omit<ComponentProps<'button'>, 'children'> & {
   icon?: ReactNode;
@@ -17,7 +19,7 @@ type SidebarItemProps = Omit<ComponentProps<'button'>, 'children'> & {
   actions?: ReactNode;
   tone?: Tone;
   strong?: boolean;
-  compact?: boolean;
+  hug?: boolean;
   /** Joins the surrounding FluidList so its shared highlight lands here. */
   fluidKey?: string;
 };
@@ -26,15 +28,15 @@ type SidebarItemProps = Omit<ComponentProps<'button'>, 'children'> & {
 const fluidToneClass: Record<Tone, string> = {
   default: 'text-text-secondary data-[fluid-hover-active]:text-text',
   muted: 'text-text-placeholder data-[fluid-hover-active]:text-text',
-  active: 'bg-bg-app text-text',
-  card: 'border border-gray-3 bg-bg-panel text-text shadow-[0_2px_2px_rgba(36,36,36,0.03)]',
+  active: 'bg-gray-3 text-text',
+  current: 'text-text data-[fluid-hover-active]:text-text',
 };
 
 const toneClass: Record<Tone, string> = {
   default: 'text-text-secondary hover:bg-hover hover:text-text',
   muted: 'text-text-placeholder hover:bg-hover hover:text-text',
-  active: 'bg-bg-app text-text',
-  card: 'border border-gray-3 bg-bg-panel text-text shadow-[0_2px_2px_rgba(36,36,36,0.03)]',
+  active: 'bg-gray-3 text-text',
+  current: 'text-text hover:bg-hover',
 };
 
 export function SidebarItem({
@@ -44,7 +46,7 @@ export function SidebarItem({
   actions,
   tone = 'default',
   strong = false,
-  compact = false,
+  hug = false,
   fluidKey,
   className,
   type = 'button',
@@ -54,16 +56,17 @@ export function SidebarItem({
   return (
     <div
       ref={fluidItem.ref}
+      data-fluid-selected={tone === 'active' ? '' : undefined}
       className={cn(
-        'group/item relative flex w-full items-center rounded-[8px] transition-colors',
-        compact ? 'h-[30px]' : 'h-8',
+        'group/item relative flex h-9 items-center rounded-[16px] transition-colors',
+        hug ? 'w-fit max-w-full' : 'w-full',
         (fluidItem.fluid ? fluidToneClass : toneClass)[tone],
         className,
       )}
     >
       <button
         type={type}
-        className="flex h-full min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-[8px] px-2 text-left outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+        className="flex h-full min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-[16px] pr-3 pl-2.5 text-left outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
         {...props}
       >
         {icon && (
@@ -73,7 +76,8 @@ export function SidebarItem({
         )}
         <span
           className={cn(
-            'min-w-0 flex-1 truncate text-label-14',
+            'min-w-0 truncate text-label-14',
+            !hug && 'flex-1',
             strong ? 'font-semibold' : 'font-medium',
           )}
         >

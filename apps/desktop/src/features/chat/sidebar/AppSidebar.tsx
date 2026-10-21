@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
-import { OrganizationMark } from '@/features/organization/OrganizationMark';
 import { PiChevronSortVerticalStroke } from '@/components/icons/pika/PiChevronSortVerticalStroke';
 import { PiSidebarLeftCloseStroke } from '@/components/icons/pika/PiSidebarLeftCloseStroke';
 import { PiPlusDefaultStroke } from '@/components/icons/pika/PiPlusDefaultStroke';
@@ -16,6 +14,7 @@ import { WorkspaceList } from './WorkspaceList';
 import { DropZone, ProjectList } from './ProjectList';
 import { ChatItem } from './ChatItem';
 import { UserFooter } from './UserFooter';
+import { OrgAvatar } from './OrgAvatar';
 import { FluidList } from '@/components/fluid/FluidList';
 
 type AppSidebarProps = {
@@ -25,34 +24,17 @@ type AppSidebarProps = {
   onCollapse?: () => void;
 };
 
-/** The redesigned app sidebar (Figma "Chat - Final" › Sidebar). */
+/** The app sidebar (Figma "Chat - Final · New Sidebar"): sits on the app's
+ *  gray, rows are pills, the chat area is a white card beside it. */
 export function AppSidebar({ activeChatId, runningChatId = null, onCollapse }: AppSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const me = trpc.health.me.useQuery();
   const conversations = trpc.conversations.list.useQuery();
   const foldersQuery = trpc.conversations.foldersList.useQuery();
-  const [search, setSearch] = useState<string | null>(null);
-  const searchInput = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setSearch((s) => s ?? '');
-        requestAnimationFrame(() => searchInput.current?.focus());
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
   const org = me.data?.organization;
   const folders = foldersQuery.data ?? [];
-  const query = search?.trim().toLowerCase() ?? '';
-  const chats = (conversations.data ?? []).filter(
-    (c) => !query || c.title.toLowerCase().includes(query),
-  );
+  const chats = conversations.data ?? [];
   const folderIds = new Set(folders.map((f) => f.id));
   const chatsByFolder = new Map<string, ConversationSummary[]>();
   const loose: ConversationSummary[] = [];
@@ -63,28 +45,16 @@ export function AppSidebar({ activeChatId, runningChatId = null, onCollapse }: A
   }
 
   return (
-    <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-gray-3 bg-bg-panel font-inter text-text antialiased">
-      <div className="flex shrink-0 flex-col gap-[18px] px-3 pt-3">
-        <div className="flex h-8 items-center justify-between">
+    <aside className="group/sidebar flex h-full w-[288px] shrink-0 flex-col font-inter text-text antialiased">
+      <div className="flex shrink-0 flex-col gap-7 px-4 pt-5">
+        <div className="flex h-9 items-center justify-between">
           <button
             type="button"
             onClick={() => void navigate('/workspaces')}
-            className="flex min-w-0 cursor-pointer items-center gap-2 rounded-[8px] pr-1 outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+            className="flex h-9 min-w-0 cursor-pointer items-center gap-2 rounded-full border border-gray-4 bg-bg-panel pr-3 pl-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] outline-none hover:bg-gray-2 focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
             title="Switch workspace"
           >
-            {org?.logoUrl ? (
-              <OrganizationMark
-                logoUrl={org.logoUrl}
-                seed={org.id}
-                size={24}
-                alt=""
-                className="rounded-full"
-              />
-            ) : (
-              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary text-label-12 font-semibold text-text-on-solid">
-                {(org?.name ?? 'I').charAt(0).toUpperCase()}
-              </span>
-            )}
+            <OrgAvatar org={org} />
             <span className="truncate text-label-14 font-semibold">{org?.name ?? 'Iserana'}</span>
             <PiChevronSortVerticalStroke size={12} className="shrink-0 text-text-secondary" />
           </button>
@@ -94,50 +64,33 @@ export function AppSidebar({ activeChatId, runningChatId = null, onCollapse }: A
               aria-label="Collapse sidebar"
               title="Collapse sidebar"
               onClick={onCollapse}
-              className="grid size-7 cursor-pointer place-items-center rounded-[7px] text-text-secondary outline-none hover:bg-hover hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+              className="grid size-7 cursor-pointer place-items-center rounded-[7px] text-text-secondary opacity-0 outline-none group-hover/sidebar:opacity-100 hover:bg-hover hover:text-text focus-visible:opacity-100 focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
             >
               <PiSidebarLeftCloseStroke size={16} />
             </button>
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => void navigate('/chat')}
-          className="flex h-[34px] cursor-pointer items-center justify-center gap-1.5 rounded-[8px] border border-[#e7e7e7] bg-bg-panel text-button-14 text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
-        >
-          <PiPlusDefaultStroke size={16} />
-          New chat
-        </button>
-
-        <FluidList>
-          <nav className="flex flex-col gap-px">
-            {search === null ? (
-              <SidebarItem
-                fluidKey="nav-search"
-                icon={<PiSearchDefaultStroke />}
-                label="Search"
-                trailing="⌘K"
-                onClick={() => {
-                  setSearch('');
-                  requestAnimationFrame(() => searchInput.current?.focus());
-                }}
-              />
-            ) : (
-              <label className="flex h-8 items-center gap-2.5 rounded-[8px] border border-focus-ring px-2 shadow-[0_0_0_3px_var(--color-selection)]">
-                <PiSearchDefaultStroke size={16} className="shrink-0 text-text-secondary" />
-                <input
-                  ref={searchInput}
-                  value={search}
-                  placeholder="Search chats"
-                  onChange={(e) => setSearch(e.target.value)}
-                  onBlur={() => !search && setSearch(null)}
-                  onKeyDown={(e) => e.key === 'Escape' && setSearch(null)}
-                  className="min-w-0 flex-1 bg-transparent text-label-14 font-medium text-text outline-none placeholder:text-text-placeholder"
-                />
-              </label>
-            )}
+        <FluidList highlightClassName="rounded-[16px]">
+          <nav className="flex flex-col gap-1">
             <SidebarItem
+              hug
+              fluidKey="nav-new-chat"
+              icon={<PiPlusDefaultStroke />}
+              label="New chat"
+              className="text-text"
+              onClick={() => void navigate('/chat')}
+            />
+            {/* Search gets its own page; until then the row is a placeholder. */}
+            <SidebarItem
+              hug
+              fluidKey="nav-search"
+              icon={<PiSearchDefaultStroke />}
+              label="Search"
+              trailing="⌘K"
+            />
+            <SidebarItem
+              hug
               fluidKey="nav-files"
               icon={<PiFolderDefaultStroke />}
               label="Files"
@@ -149,6 +102,7 @@ export function AppSidebar({ activeChatId, runningChatId = null, onCollapse }: A
               trigger={
                 <div>
                   <SidebarItem
+                    hug
                     fluidKey="nav-instructions"
                     icon={<PiSparkleAI02Stroke />}
                     label="Custom instructions"
@@ -160,18 +114,16 @@ export function AppSidebar({ activeChatId, runningChatId = null, onCollapse }: A
         </FluidList>
       </div>
 
-      <div className="scrollbar-thin mt-[18px] min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-        <FluidList className="flex flex-col gap-[18px]">
-          {!query && <WorkspaceList />}
-          {(folders.length > 0 || !query) && (
-            <ProjectList
-              folders={folders}
-              chatsByFolder={chatsByFolder}
-              activeChatId={activeChatId}
-              runningChatId={runningChatId}
-            />
-          )}
-          <section className="flex flex-col gap-px">
+      <div className="scrollbar-thin mt-7 min-h-0 flex-1 overflow-y-auto px-4 pb-3">
+        <FluidList className="flex flex-col gap-7" highlightClassName="rounded-[16px]">
+          <WorkspaceList />
+          <ProjectList
+            folders={folders}
+            chatsByFolder={chatsByFolder}
+            activeChatId={activeChatId}
+            runningChatId={runningChatId}
+          />
+          <section className="flex flex-col gap-1">
             <SidebarSectionHeader
               label="Chats"
               action={
@@ -196,14 +148,16 @@ export function AppSidebar({ activeChatId, runningChatId = null, onCollapse }: A
             )}
             {!conversations.isLoading && loose.length === 0 && (
               <p className={cn('px-2 py-1 text-label-13 text-text-placeholder')}>
-                {query ? 'No chats match your search.' : 'Your chats will appear here.'}
+                Your chats will appear here.
               </p>
             )}
           </section>
         </FluidList>
       </div>
 
-      <UserFooter />
+      <div className="px-4">
+        <UserFooter />
+      </div>
     </aside>
   );
 }
