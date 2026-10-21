@@ -27,13 +27,13 @@ type SidebarItemProps = Omit<ComponentProps<'button'>, 'children'> & {
 const fluidToneClass: Record<Tone, string> = {
   default: 'text-text-secondary data-[fluid-hover-active]:text-text',
   muted: 'text-text-placeholder data-[fluid-hover-active]:text-text',
-  active: 'bg-gray-3 text-text',
+  active: 'rounded-[16px] bg-gray-3 text-text',
 };
 
 const toneClass: Record<Tone, string> = {
   default: 'text-text-secondary hover:bg-hover hover:text-text',
   muted: 'text-text-placeholder hover:bg-hover hover:text-text',
-  active: 'bg-gray-3 text-text',
+  active: 'rounded-[16px] bg-gray-3 text-text',
 };
 
 export function SidebarItem({
