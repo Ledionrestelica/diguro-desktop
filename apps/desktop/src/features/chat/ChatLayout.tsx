@@ -7,6 +7,7 @@ import { useMediaQuery } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { PiSidebarLeftOpenStroke } from '@/components/icons/pika/PiSidebarLeftOpenStroke';
 import { AppSidebar } from './sidebar/AppSidebar';
+import { CollapsedRail } from './sidebar/CollapsedRail';
 // Absolute alias (not `./useChatSession`) so web's Vite alias override
 // in apps/web/vite.config.ts can swap this file for the cookie-auth
 // variant at build time. Relative imports bypass aliases.
@@ -196,6 +197,7 @@ export function ChatLayout() {
   const isNarrow = useMediaQuery('(max-width: 700px)');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => readCollapsed());
+  const [expandWithSearch, setExpandWithSearch] = useState(false);
   const location = useLocation();
 
   // Auto-close the drawer when the route changes on narrow screens — clicking
@@ -227,13 +229,17 @@ export function ChatLayout() {
     <AppSidebar
       activeChatId={paramChatId ?? null}
       runningChatId={runningChatId}
-      onCollapse={() => (isNarrow ? setDrawerOpen(false) : toggleCollapsed(true))}
+      onCollapse={() => {
+        setExpandWithSearch(false);
+        if (isNarrow) setDrawerOpen(false);
+        else toggleCollapsed(true);
+      }}
+      startSearch={expandWithSearch}
     />
   );
-  const showOpenButton = isNarrow ? !drawerOpen : collapsed;
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-bg-panel font-inter text-text">
+    <div className="relative flex h-screen overflow-hidden bg-bg-app font-inter text-text">
       {isNarrow ? (
         <>
           {drawerOpen && (
@@ -246,24 +252,38 @@ export function ChatLayout() {
           )}
           <div
             className={cn(
-              'absolute inset-y-0 left-0 z-50 shadow-2xl transition-transform duration-200 ease-out',
+              'absolute inset-y-0 left-0 z-50 bg-bg-app shadow-2xl transition-transform duration-200 ease-out',
               drawerOpen ? 'translate-x-0' : '-translate-x-full',
             )}
           >
             {sidebar}
           </div>
         </>
+      ) : collapsed ? (
+        <CollapsedRail
+          onExpand={(opts) => {
+            setExpandWithSearch(Boolean(opts?.search));
+            toggleCollapsed(false);
+          }}
+        />
       ) : (
-        !collapsed && sidebar
+        sidebar
       )}
 
-      <div className="relative min-w-0 flex-1 overflow-hidden">
-        {showOpenButton && (
+      {/* The chat sits in a white card on the app's gray (Figma "New Sidebar"). */}
+      <div
+        className={cn(
+          'relative min-w-0 flex-1 overflow-hidden bg-bg-panel',
+          !isNarrow && 'mt-5 mb-3.5 rounded-l-[24px]',
+          !isNarrow && (collapsed ? 'ml-[18px]' : 'ml-[26px]'),
+        )}
+      >
+        {isNarrow && !drawerOpen && (
           <button
             type="button"
             aria-label="Open sidebar"
             title="Open sidebar"
-            onClick={() => (isNarrow ? setDrawerOpen(true) : toggleCollapsed(false))}
+            onClick={() => setDrawerOpen(true)}
             className="absolute top-3 left-3 z-30 grid size-8 cursor-pointer place-items-center rounded-[8px] text-text-secondary outline-none hover:bg-hover hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
           >
             <PiSidebarLeftOpenStroke size={16} />
