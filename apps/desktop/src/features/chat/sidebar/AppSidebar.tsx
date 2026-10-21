@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
@@ -23,48 +22,19 @@ type AppSidebarProps = {
   /** Conversation whose reply is streaming right now (shows a spinner). */
   runningChatId?: string | null;
   onCollapse?: () => void;
-  /** Open with the chat search already active (from the collapsed rail). */
-  startSearch?: boolean;
 };
 
 /** The app sidebar (Figma "Chat - Final · New Sidebar"): sits on the app's
  *  gray, rows are pills, the chat area is a white card beside it. */
-export function AppSidebar({
-  activeChatId,
-  runningChatId = null,
-  onCollapse,
-  startSearch = false,
-}: AppSidebarProps) {
+export function AppSidebar({ activeChatId, runningChatId = null, onCollapse }: AppSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const me = trpc.health.me.useQuery();
   const conversations = trpc.conversations.list.useQuery();
   const foldersQuery = trpc.conversations.foldersList.useQuery();
-  const [search, setSearch] = useState<string | null>(startSearch ? '' : null);
-  const searchInput = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (startSearch) requestAnimationFrame(() => searchInput.current?.focus());
-  }, [startSearch]);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setSearch((s) => s ?? '');
-        requestAnimationFrame(() => searchInput.current?.focus());
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
   const org = me.data?.organization;
   const folders = foldersQuery.data ?? [];
-  const query = search?.trim().toLowerCase() ?? '';
-  const chats = (conversations.data ?? []).filter(
-    (c) => !query || c.title.toLowerCase().includes(query),
-  );
+  const chats = conversations.data ?? [];
   const folderIds = new Set(folders.map((f) => f.id));
   const chatsByFolder = new Map<string, ConversationSummary[]>();
   const loose: ConversationSummary[] = [];
@@ -111,32 +81,14 @@ export function AppSidebar({
               className="text-text"
               onClick={() => void navigate('/chat')}
             />
-            {search === null ? (
-              <SidebarItem
-                hug
-                fluidKey="nav-search"
-                icon={<PiSearchDefaultStroke />}
-                label="Search"
-                trailing="⌘K"
-                onClick={() => {
-                  setSearch('');
-                  requestAnimationFrame(() => searchInput.current?.focus());
-                }}
-              />
-            ) : (
-              <label className="flex h-9 items-center gap-2.5 rounded-[10px] border border-focus-ring bg-bg-panel px-2.5 shadow-[0_0_0_3px_var(--color-selection)]">
-                <PiSearchDefaultStroke size={16} className="shrink-0 text-text-secondary" />
-                <input
-                  ref={searchInput}
-                  value={search}
-                  placeholder="Search chats"
-                  onChange={(e) => setSearch(e.target.value)}
-                  onBlur={() => !search && setSearch(null)}
-                  onKeyDown={(e) => e.key === 'Escape' && setSearch(null)}
-                  className="min-w-0 flex-1 bg-transparent text-label-14 font-medium text-text outline-none placeholder:text-text-placeholder"
-                />
-              </label>
-            )}
+            {/* Search gets its own page; until then the row is a placeholder. */}
+            <SidebarItem
+              hug
+              fluidKey="nav-search"
+              icon={<PiSearchDefaultStroke />}
+              label="Search"
+              trailing="⌘K"
+            />
             <SidebarItem
               hug
               fluidKey="nav-files"
@@ -164,15 +116,13 @@ export function AppSidebar({
 
       <div className="scrollbar-thin mt-7 min-h-0 flex-1 overflow-y-auto px-4 pb-3">
         <FluidList className="flex flex-col gap-7" highlightClassName="rounded-[16px]">
-          {!query && <WorkspaceList />}
-          {(folders.length > 0 || !query) && (
-            <ProjectList
-              folders={folders}
-              chatsByFolder={chatsByFolder}
-              activeChatId={activeChatId}
-              runningChatId={runningChatId}
-            />
-          )}
+          <WorkspaceList />
+          <ProjectList
+            folders={folders}
+            chatsByFolder={chatsByFolder}
+            activeChatId={activeChatId}
+            runningChatId={runningChatId}
+          />
           <section className="flex flex-col gap-1">
             <SidebarSectionHeader
               label="Chats"
@@ -198,7 +148,7 @@ export function AppSidebar({
             )}
             {!conversations.isLoading && loose.length === 0 && (
               <p className={cn('px-2 py-1 text-label-13 text-text-placeholder')}>
-                {query ? 'No chats match your search.' : 'Your chats will appear here.'}
+                Your chats will appear here.
               </p>
             )}
           </section>

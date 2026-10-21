@@ -12,15 +12,16 @@ import { CustomInstructionsButton } from '../CustomInstructionsButton';
 import { WorkspaceGlyphIcon } from './WorkspaceList';
 import { useWorkspaceSwitch } from './useWorkspaceSwitch';
 import { OrgAvatar } from './OrgAvatar';
-import { UserAvatar } from './UserFooter';
+import { UserFooter } from './UserFooter';
 
 /**
  * The collapsed sidebar (Figma "Sidebar - Alignment - Collapsed"): a 64px
  * rail of round 36px icon buttons with tooltips. Every icon sits on the same
  * y as its row in the expanded sidebar — the dividers take the height of the
- * section headers they replace. Hovering the avatar reveals the expand icon.
+ * section headers they replace. Hovering the org mark at the top reveals the
+ * expand icon; the avatar at the bottom opens the account menu.
  */
-export function CollapsedRail({ onExpand }: { onExpand: (opts?: { search?: boolean }) => void }) {
+export function CollapsedRail({ onExpand }: { onExpand: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
   const me = trpc.health.me.useQuery();
@@ -32,14 +33,19 @@ export function CollapsedRail({ onExpand }: { onExpand: (opts?: { search?: boole
   return (
     <aside className="flex h-full w-16 shrink-0 flex-col items-center justify-between px-3.5 pt-5 pb-5 font-inter text-text antialiased">
       <div className="flex flex-col items-center">
-        <RailTooltip label={org?.name ?? 'Switch workspace'}>
+        <RailTooltip label="Expand sidebar">
           <button
             type="button"
-            onClick={() => void navigate('/workspaces')}
-            aria-label="Switch workspace"
-            className="grid size-9 cursor-pointer place-items-center rounded-full border border-gray-4 bg-bg-panel shadow-[0_1px_3px_rgba(0,0,0,0.04)] outline-none hover:bg-gray-2 focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+            onClick={onExpand}
+            aria-label={`Expand sidebar (${org?.name ?? 'organization'})`}
+            className="group/org relative grid size-9 cursor-pointer place-items-center rounded-full border border-gray-4 bg-bg-panel shadow-[0_1px_3px_rgba(0,0,0,0.04)] outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
           >
-            <OrgAvatar org={org} />
+            <span className="transition-opacity group-hover/org:opacity-0 group-focus-visible/org:opacity-0">
+              <OrgAvatar org={org} />
+            </span>
+            <span className="absolute inset-0 grid place-items-center rounded-full text-text opacity-0 transition-opacity group-hover/org:opacity-100 group-focus-visible/org:opacity-100">
+              <PiSidebarLeftOpenStroke size={16} />
+            </span>
           </button>
         </RailTooltip>
 
@@ -47,7 +53,7 @@ export function CollapsedRail({ onExpand }: { onExpand: (opts?: { search?: boole
           <RailButton label="New chat" onClick={() => void navigate('/chat')}>
             <PiPlusDefaultStroke size={16} className="text-text" />
           </RailButton>
-          <RailButton label="Search" hint="⌘K" onClick={() => onExpand({ search: true })}>
+          <RailButton label="Search" hint="⌘K">
             <PiSearchDefaultStroke size={16} />
           </RailButton>
           <RailButton label="Files" active={onFiles} onClick={() => void navigate('/my-files')}>
@@ -89,7 +95,7 @@ export function CollapsedRail({ onExpand }: { onExpand: (opts?: { search?: boole
             <RailDivider />
             <div className="flex flex-col items-center gap-1">
               {folders.data?.map((folder) => (
-                <RailButton key={folder.id} label={folder.name} onClick={() => onExpand()}>
+                <RailButton key={folder.id} label={folder.name} onClick={onExpand}>
                   <PiFolderDefaultStroke
                     size={16}
                     {...(folder.color ? { style: { color: folder.color } } : {})}
@@ -102,21 +108,7 @@ export function CollapsedRail({ onExpand }: { onExpand: (opts?: { search?: boole
         <RailDivider />
       </div>
 
-      <RailTooltip label="Expand sidebar">
-        <button
-          type="button"
-          aria-label="Expand sidebar"
-          onClick={() => onExpand()}
-          className="group/avatar relative grid size-[30px] cursor-pointer place-items-center rounded-full outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
-        >
-          <span className="transition-opacity group-hover/avatar:opacity-0 group-focus-visible/avatar:opacity-0">
-            <UserAvatar />
-          </span>
-          <span className="absolute inset-0 grid place-items-center rounded-full bg-gray-3 text-text opacity-0 transition-opacity group-hover/avatar:opacity-100 group-focus-visible/avatar:opacity-100">
-            <PiSidebarLeftOpenStroke size={16} />
-          </span>
-        </button>
-      </RailTooltip>
+      <UserFooter compact />
     </aside>
   );
 }

@@ -56,6 +56,7 @@ export function SidebarItem({
   return (
     <div
       ref={fluidItem.ref}
+      data-fluid-selected={tone === 'active' ? '' : undefined}
       className={cn(
         'group/item relative flex h-9 items-center rounded-[16px] transition-colors',
         hug ? 'w-fit max-w-full' : 'w-full',
