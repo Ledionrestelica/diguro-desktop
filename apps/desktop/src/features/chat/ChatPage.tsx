@@ -128,7 +128,7 @@ export function ChatPage() {
             )}
 
             {error && (
-              <div className="rounded-[12px] border border-danger-border bg-danger-subtle px-4 py-3 text-copy-14 text-danger-text">
+              <div className="enter-rise rounded-[12px] border border-danger-border bg-danger-subtle px-4 py-3 text-copy-14 text-danger-text">
                 {readableError(error.message)}
               </div>
             )}

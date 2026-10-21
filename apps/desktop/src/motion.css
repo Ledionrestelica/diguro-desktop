@@ -2,6 +2,37 @@
  * and web — both index.css files import this. Everything here stops under
  * prefers-reduced-motion. */
 
+/* Shared curve for UI entrances: fast start, soft landing. */
+:root {
+  --motion-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Small entrances for content that would otherwise pop in: the chat error
+ * box rises 4px, attachment chips grow from 96%. Entry only, via
+ * @starting-style; reduced motion keeps the fade and drops the movement. */
+.enter-rise,
+.enter-pop {
+  transition:
+    opacity 200ms var(--motion-ease-out),
+    transform 200ms var(--motion-ease-out);
+}
+
+.enter-pop {
+  transition-duration: 180ms;
+  transform-origin: left center;
+}
+
+@starting-style {
+  .enter-rise {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  .enter-pop {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
 /* Chat box glow: the blurred blue band behind the composer's top edge.
  * Hidden while the composer is empty, breathing once there's a query, and
  * brighter and faster while a reply streams. The wrapper owns the fade so
@@ -157,6 +188,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  @starting-style {
+    .enter-rise,
+    .enter-pop {
+      transform: none;
+    }
+  }
+
   .composer-glow,
   .composer-shell.is-active .composer-glow,
   .composer-shell.is-active .composer-beam,

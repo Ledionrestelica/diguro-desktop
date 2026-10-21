@@ -22,6 +22,7 @@ import type { ChatFolderRow, ConversationSummary } from '../types';
 import { SidebarIconButton, SidebarItem, SidebarSectionHeader } from './SidebarItem';
 import { CHAT_DRAG_TYPE, ChatItem } from './ChatItem';
 import { RenameField } from './RenameField';
+import { Collapsible } from '../trace/Collapsible';
 
 /** Preset project colours, stored as hex on chat_folders.color. */
 const PROJECT_COLORS = [
@@ -218,7 +219,7 @@ function Project({
           }
         />
       )}
-      {expanded && (
+      <Collapsible open={expanded} fast>
         <div className="pl-[15px]">
           <div className="flex flex-col gap-px border-l-[1.5px] border-border pl-2">
             {chats.length === 0 ? (
@@ -238,7 +239,7 @@ function Project({
             )}
           </div>
         </div>
-      )}
+      </Collapsible>
     </div>
   );
 }
