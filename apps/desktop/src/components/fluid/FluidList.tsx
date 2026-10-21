@@ -44,7 +44,7 @@ export function FluidList({
   highlightClassName?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const hover = useFluidHover(containerRef, { gapClick: false, isItemDisabled: isSelected });
+  const hover = useFluidHover(containerRef, { gapClick: false, isItemDisabled: isSkipped });
   const slots = useRef(new Map<string, number>());
   const nextSlot = useRef(0);
   const { registerItem, setActiveIndex } = hover;
@@ -107,7 +107,9 @@ export function FluidList({
   );
 }
 
-const isSelected = (element: HTMLElement) => element.hasAttribute('data-fluid-selected');
+// The selected row has its own fill; rows in a closed disclosure are hidden.
+const isSkipped = (element: HTMLElement) =>
+  element.hasAttribute('data-fluid-selected') || element.closest('[inert]') !== null;
 
 /** Ref callback that joins the nearest `FluidList`, plus whether one exists
  *  (rows drop their own hover fill when the list draws it). */

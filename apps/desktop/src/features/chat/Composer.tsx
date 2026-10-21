@@ -714,7 +714,7 @@ function AttachmentChip({
   const isImage = attachment.mediaType.startsWith('image/');
 
   return (
-    <div className="group relative">
+    <div className="enter-pop group relative">
       {isImage ? (
         <div className="relative size-16 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
           <img

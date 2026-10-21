@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { PiCheckTickDoubleStroke } from '@/components/icons/pika/PiCheckTickDoubleStroke';
 import { PiCopyDefaultStroke } from '@/components/icons/pika/PiCopyDefaultStroke';
 import { PiCheckTickSingleStroke } from '@/components/icons/pika/PiCheckTickSingleStroke';
@@ -37,7 +38,23 @@ export function UserMessageMeta({
         title={copied ? 'Copied' : 'Copy'}
         className="cursor-pointer rounded-[4px] outline-none hover:text-text-secondary focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
       >
-        {copied ? <PiCheckTickSingleStroke size={14} /> : <PiCopyDefaultStroke size={14} />}
+        {/* Both icons share one cell and cross-fade, so the check reads as a reply. */}
+        <span className="grid *:col-start-1 *:row-start-1">
+          <PiCopyDefaultStroke
+            size={14}
+            className={cn(
+              'transition-[opacity,scale] duration-100 ease-out motion-reduce:scale-100',
+              copied ? 'scale-80 opacity-0' : 'scale-100 opacity-100',
+            )}
+          />
+          <PiCheckTickSingleStroke
+            size={14}
+            className={cn(
+              'transition-[opacity,scale] duration-150 ease-(--motion-ease-out) motion-reduce:scale-100',
+              copied ? 'scale-100 opacity-100' : 'scale-80 opacity-0',
+            )}
+          />
+        </span>
       </button>
     </div>
   );
