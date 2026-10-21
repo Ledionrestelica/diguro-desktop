@@ -20,13 +20,21 @@ import { UserAvatar } from './UserFooter';
  * y as its row in the expanded sidebar — the dividers take the height of the
  * section headers they replace. Hovering the avatar reveals the expand icon.
  */
-export function CollapsedRail({ onExpand }: { onExpand: (opts?: { search?: boolean }) => void }) {
+export function CollapsedRail({
+  activeChatId,
+  onExpand,
+}: {
+  activeChatId: string | null;
+  onExpand: (opts?: { search?: boolean }) => void;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const me = trpc.health.me.useQuery();
   const folders = trpc.conversations.foldersList.useQuery();
   const { workspaces, activeId, switching, pick } = useWorkspaceSwitch();
   const org = me.data?.organization;
+  const onFiles = location.pathname.startsWith('/my-files');
+  const selectedElsewhere = activeChatId !== null || onFiles;
 
   return (
     <aside className="flex h-full w-16 shrink-0 flex-col items-center justify-between px-3.5 pt-5 pb-5 font-inter text-text antialiased">
@@ -49,11 +57,7 @@ export function CollapsedRail({ onExpand }: { onExpand: (opts?: { search?: boole
           <RailButton label="Search" hint="⌘K" onClick={() => onExpand({ search: true })}>
             <PiSearchDefaultStroke size={16} />
           </RailButton>
-          <RailButton
-            label="Files"
-            active={location.pathname.startsWith('/my-files')}
-            onClick={() => void navigate('/my-files')}
-          >
+          <RailButton label="Files" active={onFiles} onClick={() => void navigate('/my-files')}>
             <PiFolderDefaultStroke size={16} />
           </RailButton>
           <CustomInstructionsButton
@@ -76,7 +80,8 @@ export function CollapsedRail({ onExpand }: { onExpand: (opts?: { search?: boole
                 <RailButton
                   key={ws.id}
                   label={ws.name}
-                  active={ws.id === activeId}
+                  active={ws.id === activeId && !selectedElsewhere}
+                  current={ws.id === activeId && selectedElsewhere}
                   disabled={switching}
                   onClick={() => void pick(ws.id)}
                 >
@@ -128,6 +133,7 @@ function RailButton({
   label,
   hint,
   active = false,
+  current = false,
   disabled = false,
   onClick,
   children,
@@ -135,6 +141,7 @@ function RailButton({
   label: string;
   hint?: string;
   active?: boolean;
+  current?: boolean;
   disabled?: boolean;
   onClick?: () => void;
   children: ReactNode;
@@ -150,6 +157,7 @@ function RailButton({
         className={cn(
           'grid size-9 cursor-pointer place-items-center rounded-full text-text-secondary outline-none transition-colors focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-default',
           active ? 'bg-gray-3 text-text' : 'hover:bg-hover hover:text-text',
+          current && 'text-text',
         )}
       >
         {children}

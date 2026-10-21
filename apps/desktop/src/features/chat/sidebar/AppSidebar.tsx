@@ -60,6 +60,8 @@ export function AppSidebar({
   }, []);
 
   const org = me.data?.organization;
+  // Only one row looks selected: an open chat or page takes it from the workspace.
+  const selectedElsewhere = activeChatId !== null || location.pathname.startsWith('/my-files');
   const folders = foldersQuery.data ?? [];
   const query = search?.trim().toLowerCase() ?? '';
   const chats = (conversations.data ?? []).filter(
@@ -101,7 +103,7 @@ export function AppSidebar({
           )}
         </div>
 
-        <FluidList highlightClassName="rounded-[10px]">
+        <FluidList highlightClassName="rounded-[16px]">
           <nav className="flex flex-col gap-1">
             <SidebarItem
               hug
@@ -163,8 +165,8 @@ export function AppSidebar({
       </div>
 
       <div className="scrollbar-thin mt-7 min-h-0 flex-1 overflow-y-auto px-4 pb-3">
-        <FluidList className="flex flex-col gap-7" highlightClassName="rounded-[10px]">
-          {!query && <WorkspaceList />}
+        <FluidList className="flex flex-col gap-7" highlightClassName="rounded-[16px]">
+          {!query && <WorkspaceList selectedElsewhere={selectedElsewhere} />}
           {(folders.length > 0 || !query) && (
             <ProjectList
               folders={folders}

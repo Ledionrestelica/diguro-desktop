@@ -261,6 +261,7 @@ export function ChatLayout() {
         </>
       ) : collapsed ? (
         <CollapsedRail
+          activeChatId={paramChatId ?? null}
           onExpand={(opts) => {
             setExpandWithSearch(Boolean(opts?.search));
             toggleCollapsed(false);
