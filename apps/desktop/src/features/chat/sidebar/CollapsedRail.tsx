@@ -20,13 +20,7 @@ import { UserAvatar } from './UserFooter';
  * y as its row in the expanded sidebar — the dividers take the height of the
  * section headers they replace. Hovering the avatar reveals the expand icon.
  */
-export function CollapsedRail({
-  activeChatId,
-  onExpand,
-}: {
-  activeChatId: string | null;
-  onExpand: (opts?: { search?: boolean }) => void;
-}) {
+export function CollapsedRail({ onExpand }: { onExpand: (opts?: { search?: boolean }) => void }) {
   const navigate = useNavigate();
   const location = useLocation();
   const me = trpc.health.me.useQuery();
@@ -34,7 +28,6 @@ export function CollapsedRail({
   const { workspaces, activeId, switching, pick } = useWorkspaceSwitch();
   const org = me.data?.organization;
   const onFiles = location.pathname.startsWith('/my-files');
-  const selectedElsewhere = activeChatId !== null || onFiles;
 
   return (
     <aside className="flex h-full w-16 shrink-0 flex-col items-center justify-between px-3.5 pt-5 pb-5 font-inter text-text antialiased">
@@ -80,8 +73,7 @@ export function CollapsedRail({
                 <RailButton
                   key={ws.id}
                   label={ws.name}
-                  active={ws.id === activeId && !selectedElsewhere}
-                  current={ws.id === activeId && selectedElsewhere}
+                  current={ws.id === activeId}
                   disabled={switching}
                   onClick={() => void pick(ws.id)}
                 >

@@ -29,9 +29,9 @@ export function WorkspaceGlyphIcon({ id, logoUrl }: { id: string; logoUrl: strin
   return <Icon size={16} className={color} />;
 }
 
-/** The current workspace gets the selected fill only when no chat or page
- *  is selected; otherwise it keeps dark text so you still see where you are. */
-export function WorkspaceList({ selectedElsewhere }: { selectedElsewhere: boolean }) {
+/** Picking a workspace is about its files, not a chat, so a workspace row
+ *  is never the selected row — the current one just keeps dark text. */
+export function WorkspaceList() {
   const { workspaces, activeId, pendingId, switching, pick } = useWorkspaceSwitch();
   if (workspaces.length === 0) return null;
 
@@ -46,7 +46,7 @@ export function WorkspaceList({ selectedElsewhere }: { selectedElsewhere: boolea
             fluidKey={`ws-${ws.id}`}
             icon={<WorkspaceGlyphIcon id={ws.id} logoUrl={ws.logoUrl ?? null} />}
             label={ws.name}
-            tone={active ? (selectedElsewhere ? 'current' : 'active') : 'muted'}
+            tone={active ? 'current' : 'muted'}
             aria-current={active ? 'true' : undefined}
             disabled={switching}
             onClick={() => void pick(ws.id)}
