@@ -35,9 +35,6 @@ const overrideDir = (rel: string) => ({
   replacement: path.resolve(webSrc, rel),
 });
 
-// Override when port 3000 is taken locally, e.g. API_PROXY_TARGET=http://localhost:3001
-const apiProxyTarget = process.env['API_PROXY_TARGET'] ?? 'http://localhost:3000';
-
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
@@ -71,14 +68,14 @@ export default defineConfig({
     // rewrite /api/* to api.diguro.se, or subdomain with shared parent).
     proxy: {
       '/api': {
-        target: apiProxyTarget,
+        target: 'http://localhost:3000',
         changeOrigin: false,
         // Chat streams SSE / chunked. Without ws:true the upgrade works
         // fine but we also want long-lived POSTs to stay open.
         ws: true,
       },
       '/trpc': {
-        target: apiProxyTarget,
+        target: 'http://localhost:3000',
         changeOrigin: false,
       },
     },
