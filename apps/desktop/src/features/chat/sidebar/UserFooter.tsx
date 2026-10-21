@@ -20,8 +20,9 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 /** Bottom of the sidebar (Figma "Sidebar/User"): avatar, name, role ·
- *  workspace, and the account menu. */
-export function UserFooter() {
+ *  workspace, and the account menu. `compact` (the collapsed rail) shows
+ *  just the avatar, which opens the same menu. */
+export function UserFooter({ compact = false }: { compact?: boolean }) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const me = trpc.health.me.useQuery();
@@ -45,7 +46,11 @@ export function UserFooter() {
   }
 
   const menu = (
-    <DropdownMenuContent align="end" side="top" className="w-52 font-inter">
+    <DropdownMenuContent
+      align={compact ? 'start' : 'end'}
+      side={compact ? 'right' : 'top'}
+      className="w-52 font-inter"
+    >
       <DropdownMenuItem onSelect={() => void navigate('/workspaces')}>
         Switch workspace
       </DropdownMenuItem>
@@ -64,6 +69,24 @@ export function UserFooter() {
       <DropdownMenuItem onSelect={() => void handleSignOut()}>Sign out</DropdownMenuItem>
     </DropdownMenuContent>
   );
+
+  if (compact) {
+    return (
+      <>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label="Account menu"
+            title={data?.name || data?.email}
+            className="cursor-pointer rounded-full outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+          >
+            <UserAvatar />
+          </DropdownMenuTrigger>
+          {menu}
+        </DropdownMenu>
+        <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      </>
+    );
+  }
 
   return (
     <>

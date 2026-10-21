@@ -197,7 +197,6 @@ export function ChatLayout() {
   const isNarrow = useMediaQuery('(max-width: 700px)');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => readCollapsed());
-  const [expandWithSearch, setExpandWithSearch] = useState(false);
   const location = useLocation();
 
   // Auto-close the drawer when the route changes on narrow screens — clicking
@@ -230,11 +229,9 @@ export function ChatLayout() {
       activeChatId={paramChatId ?? null}
       runningChatId={runningChatId}
       onCollapse={() => {
-        setExpandWithSearch(false);
         if (isNarrow) setDrawerOpen(false);
         else toggleCollapsed(true);
       }}
-      startSearch={expandWithSearch}
     />
   );
 
@@ -260,12 +257,7 @@ export function ChatLayout() {
           </div>
         </>
       ) : collapsed ? (
-        <CollapsedRail
-          onExpand={(opts) => {
-            setExpandWithSearch(Boolean(opts?.search));
-            toggleCollapsed(false);
-          }}
-        />
+        <CollapsedRail onExpand={() => toggleCollapsed(false)} />
       ) : (
         sidebar
       )}
