@@ -280,10 +280,42 @@
   }
 }
 
+/* Document preview: the panel slides in 16px from the right as it opens,
+ * and the cited passage fades in once the page's text is matched. The mark
+ * looks like a text selection (Figma "Document preview - Highlight"). */
+.preview-panel {
+  transition:
+    opacity 240ms var(--motion-ease-out),
+    transform 240ms var(--motion-ease-out);
+}
+
+@starting-style {
+  .preview-panel {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+.textLayer .pdf-cite-mark {
+  background: var(--color-blue-9);
+  color: #fff;
+  border-radius: 4px;
+  /* Room around the words without moving them off the page's glyphs. */
+  box-shadow: 0 0 0 3px var(--color-blue-9);
+  animation: pdf-cite-in 320ms var(--motion-ease-out) both;
+}
+
+@keyframes pdf-cite-in {
+  from {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   @starting-style {
     .enter-rise,
-    .enter-pop {
+    .enter-pop,
+    .preview-panel {
       transform: none;
     }
   }

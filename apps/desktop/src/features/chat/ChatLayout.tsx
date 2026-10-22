@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { UIMessage } from 'ai';
 import { trpc } from '@/lib/trpc';
@@ -13,6 +13,12 @@ import { CollapsedRail } from './sidebar/CollapsedRail';
 // variant at build time. Relative imports bypass aliases.
 import { useChatSession, type ChatSession } from '@/features/chat/useChatSession';
 import type { MessageCitation, PersistedMessage } from './types';
+import {
+  DocumentPreviewProvider,
+  useDocumentPreview,
+  type PreviewTarget,
+} from './preview/DocumentPreviewContext';
+import { DocumentPreviewPanel } from './preview/DocumentPreviewPanel';
 
 export interface ChatOutletContext {
   chatId: string;
@@ -72,8 +78,10 @@ export function ChatLayout() {
   // straight back to /chat/<oldId> — e.g. right after deleting that chat.
   const [freshId, setFreshId] = useState(() => crypto.randomUUID());
   const [prevParamChatId, setPrevParamChatId] = useState(paramChatId);
+  const [preview, setPreview] = useState<PreviewTarget | null>(null);
   if (prevParamChatId !== paramChatId) {
     setPrevParamChatId(paramChatId);
+    setPreview(null);
     if (!paramChatId) setFreshId(crypto.randomUUID());
   }
 
@@ -199,6 +207,16 @@ export function ChatLayout() {
   const [collapsed, setCollapsed] = useState(() => readCollapsed());
   const location = useLocation();
 
+  // An open document preview needs the room, so the sidebar shrinks to the
+  // rail (Figma "Document preview") until the preview closes. Expanding it
+  // from the rail keeps it open for this preview only.
+  const [expandedOverPreview, setExpandedOverPreview] = useState(false);
+  const showRail = collapsed || (preview !== null && !expandedOverPreview);
+  const onPreviewChange = useCallback((next: PreviewTarget | null) => {
+    setPreview(next);
+    if (!next) setExpandedOverPreview(false);
+  }, []);
+
   // Auto-close the drawer when the route changes on narrow screens — clicking
   // a conversation should drop you back to the chat pane, not leave the
   // overlay covering it.
@@ -230,59 +248,85 @@ export function ChatLayout() {
       runningChatId={runningChatId}
       onCollapse={() => {
         if (isNarrow) setDrawerOpen(false);
+        else if (preview) setExpandedOverPreview(false);
         else toggleCollapsed(true);
       }}
     />
   );
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-bg-app font-inter text-text">
-      {isNarrow ? (
-        <>
-          {drawerOpen && (
+    <DocumentPreviewProvider target={preview} onChange={onPreviewChange}>
+      <div className="relative flex h-screen overflow-hidden bg-bg-app font-inter text-text">
+        {isNarrow ? (
+          <>
+            {drawerOpen && (
+              <button
+                type="button"
+                aria-label="Close sidebar"
+                onClick={() => setDrawerOpen(false)}
+                className="absolute inset-0 z-40 bg-gray-12/30"
+              />
+            )}
+            <div
+              className={cn(
+                'absolute inset-y-0 left-0 z-50 bg-bg-app shadow-2xl transition-transform duration-200 ease-out',
+                drawerOpen ? 'translate-x-0' : '-translate-x-full',
+              )}
+            >
+              {sidebar}
+            </div>
+          </>
+        ) : showRail ? (
+          <CollapsedRail
+            onExpand={() => {
+              if (collapsed) toggleCollapsed(false);
+              if (preview) setExpandedOverPreview(true);
+            }}
+          />
+        ) : (
+          sidebar
+        )}
+
+        {/* The chat sits in a white card on the app's gray (Figma "New Sidebar"). */}
+        <div
+          className={cn(
+            'relative min-w-0 flex-1 overflow-hidden bg-bg-panel',
+            !isNarrow && 'mt-5 mb-3.5 rounded-l-[24px]',
+            !isNarrow && (showRail ? 'ml-[18px]' : 'ml-[26px]'),
+          )}
+        >
+          {isNarrow && !drawerOpen && (
             <button
               type="button"
-              aria-label="Close sidebar"
-              onClick={() => setDrawerOpen(false)}
-              className="absolute inset-0 z-40 bg-gray-12/30"
-            />
+              aria-label="Open sidebar"
+              title="Open sidebar"
+              onClick={() => setDrawerOpen(true)}
+              className="absolute top-3 left-3 z-30 grid size-8 cursor-pointer place-items-center rounded-[8px] text-text-secondary outline-none hover:bg-hover hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+            >
+              <PiSidebarLeftOpenStroke size={16} />
+            </button>
           )}
-          <div
-            className={cn(
-              'absolute inset-y-0 left-0 z-50 bg-bg-app shadow-2xl transition-transform duration-200 ease-out',
-              drawerOpen ? 'translate-x-0' : '-translate-x-full',
-            )}
-          >
-            {sidebar}
-          </div>
-        </>
-      ) : collapsed ? (
-        <CollapsedRail onExpand={() => toggleCollapsed(false)} />
-      ) : (
-        sidebar
-      )}
-
-      {/* The chat sits in a white card on the app's gray (Figma "New Sidebar"). */}
-      <div
-        className={cn(
-          'relative min-w-0 flex-1 overflow-hidden bg-bg-panel',
-          !isNarrow && 'mt-5 mb-3.5 rounded-l-[24px]',
-          !isNarrow && (collapsed ? 'ml-[18px]' : 'ml-[26px]'),
-        )}
-      >
-        {isNarrow && !drawerOpen && (
-          <button
-            type="button"
-            aria-label="Open sidebar"
-            title="Open sidebar"
-            onClick={() => setDrawerOpen(true)}
-            className="absolute top-3 left-3 z-30 grid size-8 cursor-pointer place-items-center rounded-[8px] text-text-secondary outline-none hover:bg-hover hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
-          >
-            <PiSidebarLeftOpenStroke size={16} />
-          </button>
-        )}
-        <Outlet context={outletContext} />
+          <ChatWithPreview narrow={isNarrow}>
+            <Outlet context={outletContext} />
+          </ChatWithPreview>
+        </div>
       </div>
+    </DocumentPreviewProvider>
+  );
+}
+
+/** The chat, and the cited document beside it once a citation is opened
+ *  (Figma "Document preview"). On narrow windows the preview covers the chat. */
+function ChatWithPreview({ narrow, children }: { narrow: boolean; children: ReactNode }) {
+  const target = useDocumentPreview()?.target ?? null;
+  return (
+    <div className="flex h-full">
+      <div className="h-full min-w-0 flex-1">{children}</div>
+      {target && (
+        <div className={cn('h-full', narrow ? 'absolute inset-0 z-40' : 'w-[58%] shrink-0')}>
+          <DocumentPreviewPanel target={target} />
+        </div>
+      )}
     </div>
   );
 }

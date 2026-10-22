@@ -4,10 +4,8 @@ import { authedProcedure, router } from '../trpc.ts';
 import { mapDomainError } from '../error-mapper.ts';
 import { listConversations } from '../../services/conversations/list.ts';
 import { getConversation } from '../../services/conversations/get.ts';
-import {
-  deleteConversation,
-  renameConversation,
-} from '../../services/conversations/delete.ts';
+import { getCitationSource } from '../../services/conversations/citationSource.ts';
+import { deleteConversation, renameConversation } from '../../services/conversations/delete.ts';
 import {
   createChatFolder,
   deleteChatFolder,
@@ -19,10 +17,7 @@ import {
 import { Forbidden, ResourceNotFound } from '@diguro/shared/errors';
 
 /** Active workspace from the caller's session, or null for personal scope. */
-async function activeWorkspaceId(
-  db: Db,
-  sessionId: string,
-): Promise<string | null> {
+async function activeWorkspaceId(db: Db, sessionId: string): Promise<string | null> {
   const row = (
     await db
       .select({ activeWorkspaceId: schema.sessions.activeWorkspaceId })
@@ -42,10 +37,7 @@ export const conversationsRouter = router({
       // so chats from before workspace-tagging stay visible.
       const workspaceId = await activeWorkspaceId(ctx.db, ctx.session.id);
 
-      return await listConversations(
-        { db: ctx.db },
-        { userId: ctx.user.id, workspaceId },
-      );
+      return await listConversations({ db: ctx.db }, { userId: ctx.user.id, workspaceId });
     } catch (err) {
       throw mapDomainError(err);
     }
@@ -54,10 +46,7 @@ export const conversationsRouter = router({
   foldersList: authedProcedure.query(async ({ ctx }) => {
     try {
       const workspaceId = await activeWorkspaceId(ctx.db, ctx.session.id);
-      return await listChatFolders(
-        { db: ctx.db },
-        { userId: ctx.user.id, workspaceId },
-      );
+      return await listChatFolders({ db: ctx.db }, { userId: ctx.user.id, workspaceId });
     } catch (err) {
       throw mapDomainError(err);
     }
@@ -123,10 +112,7 @@ export const conversationsRouter = router({
     .input(z.object({ folderId: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       try {
-        await deleteChatFolder(
-          { db: ctx.db },
-          { userId: ctx.user.id, folderId: input.folderId },
-        );
+        await deleteChatFolder({ db: ctx.db }, { userId: ctx.user.id, folderId: input.folderId });
         return { success: true as const };
       } catch (err) {
         throw mapDomainError(err);
@@ -156,20 +142,32 @@ export const conversationsRouter = router({
       }
     }),
 
-  get: authedProcedure
-    .input(z.object({ id: z.string().min(1) }))
+  /** The file and passage behind a citation, for the document preview. */
+  citationSource: authedProcedure
+    .input(z.object({ citationId: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       try {
-        const conv = await getConversation(
-          { db: ctx.db },
-          { userId: ctx.user.id, conversationId: input.id },
+        return await getCitationSource(
+          { db: ctx.db, objectStore: ctx.objectStore },
+          { userId: ctx.user.id, citationId: input.citationId },
         );
-        if (!conv) throw new ResourceNotFound(input.id);
-        return conv;
       } catch (err) {
         throw mapDomainError(err);
       }
     }),
+
+  get: authedProcedure.input(z.object({ id: z.string().min(1) })).query(async ({ ctx, input }) => {
+    try {
+      const conv = await getConversation(
+        { db: ctx.db },
+        { userId: ctx.user.id, conversationId: input.id },
+      );
+      if (!conv) throw new ResourceNotFound(input.id);
+      return conv;
+    } catch (err) {
+      throw mapDomainError(err);
+    }
+  }),
 
   delete: authedProcedure
     .input(z.object({ id: z.string().min(1) }))
@@ -228,8 +226,7 @@ export const conversationsRouter = router({
         const scopeWhere =
           input.scope === 'organization'
             ? (() => {
-                const orgId = (ctx.user as { organizationId?: string | null })
-                  .organizationId;
+                const orgId = (ctx.user as { organizationId?: string | null }).organizationId;
                 if (!orgId) {
                   throw new Forbidden('Caller is not in any organization');
                 }
@@ -252,8 +249,8 @@ export const conversationsRouter = router({
                   // picker also surfaces org-wide files alongside the
                   // workspace's own. Keeps the picker consistent with
                   // what the model can actually search.
-                  const orgId = (ctx.user as { organizationId?: string | null })
-                    .organizationId ?? null;
+                  const orgId =
+                    (ctx.user as { organizationId?: string | null }).organizationId ?? null;
                   return orgId
                     ? or(
                         eq(schema.resources.workspaceId, wsId),

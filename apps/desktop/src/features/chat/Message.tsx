@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { FileText, Globe } from 'lucide-react';
 import type { UIMessage } from 'ai';
 import ReactMarkdown from 'react-markdown';
@@ -12,6 +12,9 @@ import { RetrievalTrace, type RetrievalCall } from './trace/RetrievalTrace';
 import { ThinkingTrace } from './trace/ThinkingTrace';
 import { UserMessageMeta } from './UserMessageMeta';
 import { MentionText } from './MentionChip';
+import { cn } from '@/lib/utils';
+import { useDocumentPreview } from './preview/DocumentPreviewContext';
+import { citationContexts } from './preview/citationContext';
 
 const RETRIEVAL_TOOL_NAME = 'search_documents';
 
@@ -38,6 +41,14 @@ export interface MessageProps {
 
 const CITATION_MARKER_RE = /\[cite:([a-zA-Z0-9-]+)\]/g;
 
+/** The message's persisted citations and the answer sentence each one backs
+ *  up, so an inline chip can open its source with the right words marked. */
+const MessageCitationsContext = createContext<{
+  citations: MessageCitation[];
+  answers: Map<string, string>;
+}>({ citations: [], answers: new Map() });
+const NO_CITATIONS: MessageCitation[] = [];
+
 export function Message({
   role,
   parts,
@@ -52,6 +63,10 @@ export function Message({
   // streamed messages that haven't been persisted yet, we assign ranks
   // by first-appearance in the text.
   const citationRanks = useMessageCitationRanks(parts, citations);
+  const citationValue = useMemo(
+    () => ({ citations: citations ?? NO_CITATIONS, answers: citationContexts(extractText(parts)) }),
+    [citations, parts],
+  );
   const blocks = buildBlocks(parts);
   const sources = extractSources(parts);
   const searchState = extractSearchState(parts);
@@ -92,21 +107,23 @@ export function Message({
   const thinkingLabel = thinking ? pickThinkingLabel(blocks) : null;
 
   return (
-    <div className="flex flex-col gap-4">
-      {searchState && <SearchIndicator state={searchState} />}
-      {blocks.map((block) => (
-        <BlockRender
-          key={block.key}
-          block={block}
-          citationRanks={citationRanks}
-          scopeLabel={scopeLabel}
-        />
-      ))}
-      {thinkingLabel && <ThinkingTrace label={thinkingLabel} />}
-      {sources.length > 0 && <SourceList sources={sources} />}
-      {citations && citations.length > 0 && <DocumentSourceList citations={citations} />}
-      {showActions && hasRenderableContent && <MessageActions />}
-    </div>
+    <MessageCitationsContext.Provider value={citationValue}>
+      <div className="flex flex-col gap-4">
+        {searchState && <SearchIndicator state={searchState} />}
+        {blocks.map((block) => (
+          <BlockRender
+            key={block.key}
+            block={block}
+            citationRanks={citationRanks}
+            scopeLabel={scopeLabel}
+          />
+        ))}
+        {thinkingLabel && <ThinkingTrace label={thinkingLabel} />}
+        {sources.length > 0 && <SourceList sources={sources} />}
+        {citations && citations.length > 0 && <DocumentSourceList citations={citations} />}
+        {showActions && hasRenderableContent && <MessageActions />}
+      </div>
+    </MessageCitationsContext.Provider>
   );
 }
 
@@ -373,7 +390,7 @@ function renderWithCitations(text: string): React.ReactNode {
     if (match.index > last) parts.push(text.slice(last, match.index));
     const rankStr = match[2];
     const rank = rankStr && rankStr !== '?' ? Number(rankStr) : null;
-    parts.push(<CitationChip key={`c-${key++}`} rank={rank} />);
+    parts.push(<CitationChip key={`c-${key++}`} chunkId={match[1] ?? ''} rank={rank} />);
     last = match.index + match[0].length;
   }
   if (parts.length === 0) return text;
@@ -381,10 +398,30 @@ function renderWithCitations(text: string): React.ReactNode {
   return parts;
 }
 
-function CitationChip({ rank }: { rank: number | null }) {
+function CitationChip({ chunkId, rank }: { chunkId: string; rank: number | null }) {
+  const { citations, answers } = useContext(MessageCitationsContext);
+  const preview = useDocumentPreview();
+  const index = citations.findIndex((c) => c.chunkId === chunkId);
+  const citation = citations[index];
+  const chipClass =
+    'mx-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-gray-4 bg-gray-2 px-1 align-super text-[10px] font-semibold text-text-secondary';
+  if (!preview || !citation) return <sup className={chipClass}>{rank ?? '?'}</sup>;
+
+  const active = preview.target?.citations[preview.target.index]?.id === citation.id;
   return (
-    <sup className="mx-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-zinc-200 bg-zinc-50 px-1 text-[10px] font-semibold text-zinc-700 align-super">
-      {rank ?? '?'}
+    <sup>
+      <button
+        type="button"
+        title={`Open ${citation.sourceName}${citation.pageNumber != null ? `, p. ${citation.pageNumber}` : ''}`}
+        onClick={() => preview.open(citations, index, answers)}
+        className={cn(
+          chipClass,
+          'cursor-pointer leading-none outline-none transition-colors focus-visible:shadow-[0_0_0_2px_var(--color-text)]',
+          active ? 'border-blue-9 bg-blue-9 text-white' : 'hover:bg-gray-3 hover:text-text',
+        )}
+      >
+        {rank ?? '?'}
+      </button>
     </sup>
   );
 }
@@ -425,15 +462,18 @@ function useMessageCitationRanks(
 }
 
 function DocumentSourceList({ citations }: { citations: MessageCitation[] }) {
+  const preview = useDocumentPreview();
+  const { answers } = useContext(MessageCitationsContext);
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Sources</p>
       <ul className="flex flex-col gap-1.5">
-        {citations.map((c) => (
+        {citations.map((c, i) => (
           <li key={c.id}>
             <button
               type="button"
               title={c.snippet}
+              onClick={() => preview?.open(citations, i, answers)}
               className="group flex w-full items-start gap-2 rounded-[10px] border border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-700 transition-colors hover:bg-zinc-50"
             >
               <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-zinc-100 text-[10px] font-semibold text-zinc-600">
