@@ -151,14 +151,107 @@
   }
 }
 
-/* Send / stop orb fill. */
-.send-orb {
+/* Chat send button (Figma "Chat Send Button"). Empty: gray. Ready: blue orb
+ * with a soft gradient ring. Thinking: a darker arc travels round the ring
+ * (the Thinking 1 → 4 frames, each turned 90°, played as one rotation). */
+@property --send-ring-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 180deg;
+}
+
+.send-button {
+  position: relative;
+  display: inline-grid;
+  padding: 3px;
+  border-radius: 999px;
+}
+
+/* 1px ring drawn as a masked gradient so it can carry the moving arc. */
+.send-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--color-gray-3);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+
+.send-button[data-state='ready']::before {
+  background: linear-gradient(90deg, rgba(176, 203, 255, 0.5) 0%, rgba(140, 202, 247, 0.5) 36.5%);
+}
+
+.send-button[data-state='thinking']::before {
+  background: linear-gradient(
+    var(--send-ring-angle),
+    rgba(176, 203, 255, 0.2) 0%,
+    rgba(140, 202, 247, 0.2) 36.5%,
+    rgba(2, 110, 230, 0.5) 100%
+  );
+  animation: send-ring-spin 1.6s linear infinite;
+}
+
+@keyframes send-ring-spin {
+  from {
+    --send-ring-angle: 180deg;
+  }
+  to {
+    --send-ring-angle: 540deg;
+  }
+}
+
+.send-button-orb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: var(--color-gray-5);
+  color: var(--color-text-on-solid);
+  transition:
+    box-shadow 200ms var(--motion-ease-out),
+    transform 160ms var(--motion-ease-out);
+}
+
+/* The blue fill fades in over the gray, so empty → ready doesn't snap. */
+.send-button-orb::before {
+  content: '';
+  position: absolute;
+  inset: 0;
   background-image: linear-gradient(
     173deg,
     rgba(176, 203, 255, 0.8) 5.5%,
     rgba(140, 202, 247, 0.8) 47.6%,
     rgba(2, 110, 230, 0.8) 102.7%
   );
+  opacity: 0;
+  transition: opacity 200ms var(--motion-ease-out);
+}
+
+.send-button-orb > * {
+  position: relative;
+}
+
+.send-button:not([data-state='empty']) .send-button-orb {
+  box-shadow: 0 0 2px #b1d5fc;
+}
+
+.send-button:not([data-state='empty']) .send-button-orb::before {
+  opacity: 1;
+}
+
+.send-button:not(:disabled):active .send-button-orb {
+  transform: scale(0.95);
 }
 
 /* "Thinking" label: a soft light sweeps across the text. */
@@ -199,6 +292,7 @@
   .composer-shell.is-active .composer-glow,
   .composer-shell.is-active .composer-beam,
   .composer-shell.is-active .composer-beam-halo,
+  .send-button[data-state='thinking']::before,
   .thinking-shimmer {
     animation: none;
   }

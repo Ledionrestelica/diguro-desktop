@@ -19,11 +19,10 @@ import {
 import { cn } from '@/lib/utils';
 import { trpc } from '@/lib/trpc';
 import { ModelPicker } from './ModelPicker';
+import { SendButton } from './SendButton';
 import { ComposerInput, type ComposerInputHandle, type MentionedFile } from './ComposerInput';
 import { WorkspaceGlyphIcon } from './sidebar/WorkspaceList';
 import { PiPlusDefaultStroke } from '@/components/icons/pika/PiPlusDefaultStroke';
-import { PiArrowUpStroke } from '@/components/icons/pika/PiArrowUpStroke';
-import { PiStopSmallStroke } from '@/components/icons/pika/PiStopSmallStroke';
 import { PiUserDefaultStroke } from '@/components/icons/pika/PiUserDefaultStroke';
 import { PiFolderDefaultStroke } from '@/components/icons/pika/PiFolderDefaultStroke';
 import { PiLockCloseStroke } from '@/components/icons/pika/PiLockCloseStroke';
@@ -514,23 +513,11 @@ export function Composer({
 
           <div className="flex items-center gap-2">
             <ModelPicker value={modelId} onChange={setModelId} disabled={streaming || disabled} />
-            {streaming ? (
-              <SendOrb label="Stop" onClick={() => onStop?.()} type="button">
-                <PiStopSmallStroke size={16} />
-              </SendOrb>
-            ) : (
-              <SendOrb
-                label={anyUploading ? 'Uploading…' : 'Send'}
-                type="submit"
-                disabled={!canSend}
-              >
-                {anyUploading ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <PiArrowUpStroke size={16} />
-                )}
-              </SendOrb>
-            )}
+            <SendButton
+              state={streaming ? 'thinking' : canSend ? 'ready' : 'empty'}
+              uploading={anyUploading}
+              onStop={() => onStop?.()}
+            />
           </div>
         </div>
       </form>
@@ -675,35 +662,6 @@ function ScopeItem({
 }
 
 /** Round send / stop button with the blue gradient fill (Figma "Collapse"). */
-function SendOrb({
-  label,
-  children,
-  disabled = false,
-  type,
-  onClick,
-}: {
-  label: string;
-  children: React.ReactNode;
-  disabled?: boolean;
-  type: 'button' | 'submit';
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type={type}
-      aria-label={label}
-      title={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="group cursor-pointer rounded-full border border-gray-3 p-0.5 outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed"
-    >
-      <span className="send-orb grid size-7 place-items-center rounded-full text-text-on-solid transition-[filter,transform] group-hover:brightness-105 group-active:scale-95 group-disabled:bg-none group-disabled:bg-gray-5 group-disabled:text-text-placeholder">
-        {children}
-      </span>
-    </button>
-  );
-}
-
 function AttachmentChip({
   attachment,
   onRemove,
