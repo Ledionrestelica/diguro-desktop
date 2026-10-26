@@ -26,7 +26,7 @@ export function PiSparkleAI02Stroke({
       className={className}
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       style={{ color: color || 'currentColor' }}
@@ -39,7 +39,8 @@ export function PiSparkleAI02Stroke({
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
         d="M12.9 3c.64 5.037 2.63 8.142 8.1 9-5.19.814-7.43 3.728-8.1 9-.67-5.272-2.91-8.186-8.1-9 5.19-.814 7.43-3.728 8.1-9Z"
         fill="none"
       />
@@ -47,7 +48,8 @@ export function PiSparkleAI02Stroke({
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
         d="M5.7 3c.248 1.506 1.151 2.445 2.7 2.7-1.549.255-2.452 1.194-2.7 2.7C5.452 6.894 4.548 5.955 3 5.7 4.506 5.452 5.445 4.548 5.7 3Z"
         fill="none"
       />

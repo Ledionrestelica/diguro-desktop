@@ -26,7 +26,7 @@ export function PiPlusDefaultStroke({
       className={className}
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       style={{ color: color || 'currentColor' }}
@@ -39,7 +39,8 @@ export function PiPlusDefaultStroke({
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
         d="M12 19v-7m0 0V5m0 7H5m7 0h7"
         fill="none"
       />

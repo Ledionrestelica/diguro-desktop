@@ -26,7 +26,7 @@ export function PiArrowRightStroke({
       className={className}
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       style={{ color: color || 'currentColor' }}
@@ -39,7 +39,8 @@ export function PiArrowRightStroke({
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
         d="M15.17 6a30.2 30.2 0 0 1 5.62 5.406c.14.174.21.384.21.594m-5.83 6a30.2 30.2 0 0 0 5.62-5.406A.95.95 0 0 0 21 12m0 0H3"
         fill="none"
       />

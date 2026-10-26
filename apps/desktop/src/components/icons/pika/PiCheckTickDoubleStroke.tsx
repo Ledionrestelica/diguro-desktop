@@ -26,7 +26,7 @@ export function PiCheckTickDoubleStroke({
       className={className}
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       style={{ color: color || 'currentColor' }}
@@ -39,7 +39,8 @@ export function PiCheckTickDoubleStroke({
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
         d="m2.605 11.781 4.524 5.224.374-.654a26.7 26.7 0 0 1 8.119-8.793l.825-.563m5.106.614-.87.49a26.7 26.7 0 0 0-8.837 8.07l-.428.62-.298-.352"
         fill="none"
       />

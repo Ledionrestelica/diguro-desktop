@@ -26,7 +26,7 @@ export function PiThreeDotsMenuVerticalStroke({
       className={className}
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       style={{ color: color || 'currentColor' }}
@@ -39,7 +39,8 @@ export function PiThreeDotsMenuVerticalStroke({
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
         d="M12 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"
         fill="none"
       />
@@ -47,7 +48,8 @@ export function PiThreeDotsMenuVerticalStroke({
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
         d="M12 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"
         fill="none"
       />
@@ -55,7 +57,8 @@ export function PiThreeDotsMenuVerticalStroke({
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
         d="M12 20a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"
         fill="none"
       />

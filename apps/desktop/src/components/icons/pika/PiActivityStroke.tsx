@@ -26,7 +26,7 @@ export function PiActivityStroke({
       className={className}
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       style={{ color: color || 'currentColor' }}
@@ -39,7 +39,8 @@ export function PiActivityStroke({
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
         d="M2 12h3.28a1 1 0 0 0 .948-.684L9 3l6 18 2.772-8.316a1 1 0 0 1 .949-.684H22"
         fill="none"
       />
