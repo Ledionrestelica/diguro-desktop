@@ -6,9 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { PiPlusDefaultStroke } from '@/components/icons/pika/PiPlusDefaultStroke';
 import { PiSearchDefaultStroke } from '@/components/icons/pika/PiSearchDefaultStroke';
 import { PiFolderDefaultStroke } from '@/components/icons/pika/PiFolderDefaultStroke';
-import { PiSparkleAI02Stroke } from '@/components/icons/pika/PiSparkleAI02Stroke';
 import { PiSidebarLeftOpenStroke } from '@/components/icons/pika/PiSidebarLeftOpenStroke';
-import { CustomInstructionsButton } from '../CustomInstructionsButton';
 import { WorkspaceGlyphIcon } from './WorkspaceList';
 import { useWorkspaceSwitch } from './useWorkspaceSwitch';
 import { OrgAvatar } from './OrgAvatar';
@@ -59,16 +57,6 @@ export function CollapsedRail({ onExpand }: { onExpand: () => void }) {
           <RailButton label="Files" active={onFiles} onClick={() => void navigate('/my-files')}>
             <PiFolderDefaultStroke size={16} />
           </RailButton>
-          <CustomInstructionsButton
-            align="start"
-            trigger={
-              <div>
-                <RailButton label="Custom instructions">
-                  <PiSparkleAI02Stroke size={16} />
-                </RailButton>
-              </div>
-            }
-          />
         </nav>
 
         {workspaces.length > 0 && (

@@ -6,8 +6,6 @@ import { PiSidebarLeftCloseStroke } from '@/components/icons/pika/PiSidebarLeftC
 import { PiPlusDefaultStroke } from '@/components/icons/pika/PiPlusDefaultStroke';
 import { PiSearchDefaultStroke } from '@/components/icons/pika/PiSearchDefaultStroke';
 import { PiFolderDefaultStroke } from '@/components/icons/pika/PiFolderDefaultStroke';
-import { PiSparkleAI02Stroke } from '@/components/icons/pika/PiSparkleAI02Stroke';
-import { CustomInstructionsButton } from '../CustomInstructionsButton';
 import type { ConversationSummary } from '../types';
 import { SidebarIconButton, SidebarItem, SidebarSectionHeader } from './SidebarItem';
 import { WorkspaceList } from './WorkspaceList';
@@ -96,19 +94,6 @@ export function AppSidebar({ activeChatId, runningChatId = null, onCollapse }: A
               label="Files"
               tone={location.pathname.startsWith('/my-files') ? 'active' : 'default'}
               onClick={() => void navigate('/my-files')}
-            />
-            <CustomInstructionsButton
-              align="start"
-              trigger={
-                <div>
-                  <SidebarItem
-                    hug
-                    fluidKey="nav-instructions"
-                    icon={<PiSparkleAI02Stroke />}
-                    label="Custom instructions"
-                  />
-                </div>
-              }
             />
           </nav>
         </FluidList>
