@@ -73,7 +73,7 @@ export function TokenUsagePage() {
               {summary?.breakdown.map((row, i) => (
                 <tr
                   key={`${row.type}-${row.provider}-${row.model}-${i}`}
-                  className="border-t border-border"
+                  className="border-t border-border-default"
                 >
                   <Td>
                     <TypeBadge type={row.type} />
@@ -114,7 +114,7 @@ export function TokenUsagePage() {
                 </MessageRow>
               )}
               {perUser.map((u) => (
-                <tr key={u.userId} className="border-t border-border">
+                <tr key={u.userId} className="border-t border-border-default">
                   <Td>
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium">{u.userName ?? u.userEmail ?? '—'}</span>
@@ -170,7 +170,7 @@ export function TokenUsagePage() {
                 </MessageRow>
               )}
               {recent.map((row) => (
-                <tr key={row.id} className="border-t border-border">
+                <tr key={row.id} className="border-t border-border-default">
                   <Td muted>{formatRelativeTime(new Date(row.createdAt))}</Td>
                   <Td>
                     <span className="truncate font-medium">
@@ -213,7 +213,7 @@ function TableSection({
         <h2 className="text-label-14 font-semibold">{title}</h2>
         <p className="text-label-13 text-text-secondary">{note}</p>
       </div>
-      <div className="overflow-hidden rounded-[16px] border border-border">
+      <div className="overflow-hidden rounded-[16px] border border-border-default">
         <div className="scrollbar-thin overflow-x-auto">{children}</div>
       </div>
     </section>
@@ -233,7 +233,7 @@ function MessageRow({
     <tr>
       <td
         colSpan={colSpan}
-        className={`border-t border-border px-5 text-center text-text-secondary ${tall ? 'py-10' : 'py-6'}`}
+        className={`border-t border-border-default px-5 text-center text-text-secondary ${tall ? 'py-10' : 'py-6'}`}
       >
         {children}
       </td>
@@ -264,7 +264,7 @@ function ProgressBar({ fraction }: { fraction: number }) {
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="flex flex-col rounded-[16px] border border-border px-[18px] py-4">
+    <div className="flex flex-col rounded-[16px] border border-border-default px-[18px] py-4">
       <p className="text-label-13 font-medium text-text-secondary">{label}</p>
       <p className="mt-1 text-[24px] leading-8 font-semibold text-text tabular-nums">{value}</p>
       {sub && <p className="mt-0.5 text-label-12 text-text-placeholder">{sub}</p>}

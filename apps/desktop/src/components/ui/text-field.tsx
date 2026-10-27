@@ -71,7 +71,7 @@ export function TextField({
           'flex w-full items-center gap-2 border transition-[border-color,box-shadow]',
           controlSize[size],
           disabled
-            ? 'border-border bg-bg-subtle'
+            ? 'border-border-default bg-bg-subtle'
             : error
               ? 'border-danger bg-bg-panel shadow-[0_0_0_3px_var(--color-danger-subtle)]'
               : 'border-border-input bg-bg-panel hover:border-border-hover focus-within:border-focus-ring focus-within:shadow-[0_0_0_3px_var(--color-selection)] focus-within:hover:border-focus-ring',

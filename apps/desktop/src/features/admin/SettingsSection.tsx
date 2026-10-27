@@ -18,10 +18,10 @@ export function SettingsSection({
   return (
     <section className={cn('mb-7 flex flex-col gap-2.5', className)}>
       {title && <h2 className="text-label-14 font-semibold">{title}</h2>}
-      <div className="overflow-hidden rounded-[16px] border border-border">
+      <div className="overflow-hidden rounded-[16px] border border-border-default">
         {rows.map((row, i) => (
           <Fragment key={i}>
-            {i > 0 && <div className="h-px bg-border" />}
+            {i > 0 && <div className="h-px bg-border-default" />}
             {row}
           </Fragment>
         ))}

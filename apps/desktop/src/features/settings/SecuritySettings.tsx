@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { Loader2, Monitor, Smartphone, Globe } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { PiLaptopStroke } from '@/components/icons/pika/PiLaptopStroke';
+import { PiIphoneStroke } from '@/components/icons/pika/PiIphoneStroke';
+import { PiGlobeStroke } from '@/components/icons/pika/PiGlobeStroke';
+import type { ComponentType } from 'react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import { apiAuth } from '@/lib/api-auth';
@@ -161,7 +164,7 @@ function SessionsSection() {
           return (
             <div key={s.id} className="flex items-center gap-3 py-3 pr-4 pl-5">
               <span className="grid size-8 shrink-0 place-items-center rounded-full bg-bg-subtle text-text-secondary">
-                <Icon className="size-4" strokeWidth={1.5} />
+                <Icon size={16} />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-label-14 font-medium">
@@ -186,7 +189,7 @@ function SessionsSection() {
                       { onSuccess: refresh, onSettled: () => setPendingId(null) },
                     );
                   }}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {busy && <Loader2 className="size-3.5 animate-spin" />}
                   {busy ? 'Signing out…' : 'Sign out'}
@@ -202,7 +205,7 @@ function SessionsSection() {
             type="button"
             disabled={revokeOthers.isPending}
             onClick={() => revokeOthers.mutate(undefined, { onSuccess: refresh })}
-            className="cursor-pointer rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-danger-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-danger-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {revokeOthers.isPending ? 'Signing out…' : 'Sign out of all other sessions'}
           </button>
@@ -212,11 +215,11 @@ function SessionsSection() {
   );
 }
 
-function deviceIcon(ua: string | null): LucideIcon {
-  if (!ua) return Globe;
-  if (/electron|diguro/i.test(ua)) return Monitor;
-  if (/mobile|iphone|android|ipad/i.test(ua)) return Smartphone;
-  return Globe;
+function deviceIcon(ua: string | null): ComponentType<{ size?: number; className?: string }> {
+  if (!ua) return PiGlobeStroke;
+  if (/electron|diguro/i.test(ua)) return PiLaptopStroke;
+  if (/mobile|iphone|android|ipad/i.test(ua)) return PiIphoneStroke;
+  return PiGlobeStroke;
 }
 
 function describeUserAgent(ua: string | null): string {

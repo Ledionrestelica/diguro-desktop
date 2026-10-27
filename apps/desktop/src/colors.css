@@ -113,6 +113,8 @@
   --color-text-link: var(--color-blue-11);
   --color-text-on-solid: var(--color-white);
 
+  /* Figma border/default: strokes on cards, rows and dividers. */
+  --color-border-default: var(--color-gray-4);
   --color-border-input: var(--color-gray-a7);
   --color-border-hover: var(--color-gray-a8);
   --color-focus-ring: var(--color-iris-8);

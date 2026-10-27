@@ -34,7 +34,11 @@ export function SettingsLayout() {
   }
   if (!me.data) return <Navigate to="/chat" replace />;
 
-  const crumb = settingsCrumb(location.pathname, me.data.activeWorkspace?.name);
+  const crumb = settingsCrumb(
+    location.pathname,
+    me.data.activeWorkspace?.name,
+    me.data.organization?.name,
+  );
 
   return (
     <AdminSaveContext.Provider value={saveCtx}>
@@ -53,6 +57,7 @@ export function SettingsLayout() {
 function settingsCrumb(
   pathname: string,
   workspaceName: string | undefined,
+  organizationName: string | undefined,
 ): { title: string; description?: string } {
   const page = pathname.replace(/^\/settings\/?/, '');
   const crumbs: Record<string, { title: string; description?: string }> = {
@@ -68,8 +73,8 @@ function settingsCrumb(
       description: 'Files only members of this workspace can see and chat with.',
     },
     'organization/general': {
-      title: 'Organization',
-      description: "Your organization's name, brand and limits.",
+      title: organizationName ?? 'Organization',
+      description: `Make it feel like ${organizationName ?? 'your organization'}. Changes apply to everyone in your organization.`,
     },
     'organization/members': {
       title: 'Members',

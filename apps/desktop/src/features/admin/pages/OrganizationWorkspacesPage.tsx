@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Loader2, Plus, Trash2, UserPlus, Users } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { PiChevronDownStroke } from '@/components/icons/pika/PiChevronDownStroke';
+import { PiChevronRightStroke } from '@/components/icons/pika/PiChevronRightStroke';
+import { PiPlusDefaultStroke } from '@/components/icons/pika/PiPlusDefaultStroke';
+import { PiDeleteDustbin02Stroke } from '@/components/icons/pika/PiDeleteDustbin02Stroke';
+import { PiUserPlusStroke } from '@/components/icons/pika/PiUserPlusStroke';
+import { PiUserTwoStroke } from '@/components/icons/pika/PiUserTwoStroke';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
 import { TextField } from '@/components/ui/text-field';
@@ -86,16 +92,16 @@ export function OrganizationWorkspacesPage() {
           className={cn(
             'flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] px-3 py-[7px] text-label-13 font-medium outline-none transition-[opacity,background-color] focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]',
             createOpen
-              ? 'border border-border bg-bg-panel text-text hover:bg-hover'
+              ? 'border border-border-default bg-bg-panel text-text hover:bg-hover'
               : 'bg-primary text-text-on-solid hover:opacity-90',
           )}
         >
-          <Plus className="size-4" strokeWidth={1.5} />
+          <PiPlusDefaultStroke className="size-4" />
           New workspace
         </button>
       </div>
 
-      <section className="divide-y divide-border overflow-hidden rounded-[16px] border border-border">
+      <section className="divide-y divide-border-default overflow-hidden rounded-[16px] border border-border-default">
         {createOpen && (
           <div className="flex flex-col gap-3 bg-bg-subtle px-5 py-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -145,7 +151,7 @@ export function OrganizationWorkspacesPage() {
                     setCreateOpen(false);
                     resetCreateForm();
                   }}
-                  className="cursor-pointer rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]"
+                  className="cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]"
                 >
                   Cancel
                 </button>
@@ -170,7 +176,7 @@ export function OrganizationWorkspacesPage() {
         )}
 
         {workspaces.length > 0 && (
-          <ul className="flex flex-col divide-y divide-border">
+          <ul className="flex flex-col divide-y divide-border-default">
             {workspaces.map((ws) => (
               <li key={ws.id}>
                 <button
@@ -183,7 +189,7 @@ export function OrganizationWorkspacesPage() {
                     {ws.logoUrl ? (
                       <img src={ws.logoUrl} alt="" className="size-9 object-cover" />
                     ) : (
-                      <Users className="size-4" strokeWidth={1.5} />
+                      <PiUserTwoStroke className="size-4" />
                     )}
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -193,15 +199,9 @@ export function OrganizationWorkspacesPage() {
                     </p>
                   </div>
                   {expandedId === ws.id ? (
-                    <ChevronDown
-                      className="size-4 shrink-0 text-text-placeholder"
-                      strokeWidth={1.5}
-                    />
+                    <PiChevronDownStroke className="size-4 shrink-0 text-text-placeholder" />
                   ) : (
-                    <ChevronRight
-                      className="size-4 shrink-0 text-text-placeholder"
-                      strokeWidth={1.5}
-                    />
+                    <PiChevronRightStroke className="size-4 shrink-0 text-text-placeholder" />
                   )}
                 </button>
 
@@ -288,7 +288,7 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
     'h-8 cursor-pointer rounded-[10px] border border-border-input bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)] disabled:cursor-not-allowed disabled:opacity-60';
 
   return (
-    <div className="border-t border-border bg-bg-subtle py-4 pr-4 pl-5">
+    <div className="border-t border-border-default bg-bg-subtle py-4 pr-4 pl-5">
       <div className="flex items-center justify-between gap-4">
         <p className="text-label-14 font-semibold text-text">Members</p>
         <button
@@ -297,15 +297,15 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
             setShowAdd((v) => !v);
             setError(null);
           }}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]"
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]"
         >
-          <UserPlus className="size-4" strokeWidth={1.5} />
+          <PiUserPlusStroke className="size-4" />
           Add member
         </button>
       </div>
 
       {showAdd && (
-        <div className="mt-3 flex flex-col gap-3 rounded-[12px] border border-border bg-bg-panel p-3 sm:flex-row sm:items-end">
+        <div className="mt-3 flex flex-col gap-3 rounded-[12px] border border-border-default bg-bg-panel p-3 sm:flex-row sm:items-end">
           <label className="flex min-w-0 flex-1 flex-col gap-1.5">
             <span className="text-label-13 font-medium text-text">User</span>
             <select
@@ -359,7 +359,7 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
                 setSelectedUserId('');
                 setError(null);
               }}
-              className="cursor-pointer rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]"
+              className="cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]"
             >
               Cancel
             </button>
@@ -369,14 +369,14 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
 
       {error && <p className="mt-2 text-label-12 text-danger-text">{error}</p>}
 
-      <div className="mt-3 overflow-hidden rounded-[12px] border border-border bg-bg-panel">
+      <div className="mt-3 overflow-hidden rounded-[12px] border border-border-default bg-bg-panel">
         {membersQuery.isLoading && (
           <p className="px-4 py-6 text-center text-label-14 text-text-secondary">Loading…</p>
         )}
         {!membersQuery.isLoading && members.length === 0 && (
           <p className="px-4 py-6 text-center text-label-14 text-text-secondary">No members yet.</p>
         )}
-        <ul className="flex flex-col divide-y divide-border">
+        <ul className="flex flex-col divide-y divide-border-default">
           {members.map((m) => (
             <li key={m.memberId} className="flex items-center gap-3 px-4 py-3">
               <div className="grid size-8 shrink-0 place-items-center rounded-full bg-gray-4 text-label-12 font-medium text-text">
@@ -400,9 +400,9 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
                 type="button"
                 onClick={() => handleRemove(m.memberId)}
                 disabled={removeMember.isPending}
-                className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-danger-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-danger-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <Trash2 className="size-4" strokeWidth={1.5} />
+                <PiDeleteDustbin02Stroke className="size-4" />
                 Remove
               </button>
             </li>

@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { Check, Copy, Loader2, Mail, Trash2, UserPlus, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { PiCheckTickSingleStroke } from '@/components/icons/pika/PiCheckTickSingleStroke';
+import { PiCopyDefaultStroke } from '@/components/icons/pika/PiCopyDefaultStroke';
+import { PiEnvelopeDefaultStroke } from '@/components/icons/pika/PiEnvelopeDefaultStroke';
+import { PiDeleteDustbin02Stroke } from '@/components/icons/pika/PiDeleteDustbin02Stroke';
+import { PiUserPlusStroke } from '@/components/icons/pika/PiUserPlusStroke';
+import { PiMultipleCrossCancelDefaultStroke } from '@/components/icons/pika/PiMultipleCrossCancelDefaultStroke';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
 import { TextField } from '@/components/ui/text-field';
@@ -120,12 +126,12 @@ export function MembersPage() {
             }}
             className={primaryButton}
           >
-            <UserPlus className="size-4" strokeWidth={1.5} />
+            <PiUserPlusStroke className="size-4" />
             Invite member
           </button>
         </div>
 
-        <div className="overflow-hidden rounded-[16px] border border-border">
+        <div className="overflow-hidden rounded-[16px] border border-border-default">
           <div className="scrollbar-thin overflow-x-auto">
             <table className="w-full min-w-[720px] text-label-14">
               <thead className="text-label-12 text-text-placeholder">
@@ -143,7 +149,7 @@ export function MembersPage() {
                   <tr>
                     <td
                       colSpan={4}
-                      className="border-t border-border px-5 py-6 text-center text-text-secondary"
+                      className="border-t border-border-default px-5 py-6 text-center text-text-secondary"
                     >
                       Loading…
                     </td>
@@ -153,7 +159,7 @@ export function MembersPage() {
                   <tr>
                     <td
                       colSpan={4}
-                      className="border-t border-border px-5 py-10 text-center text-text-secondary"
+                      className="border-t border-border-default px-5 py-10 text-center text-text-secondary"
                     >
                       No members yet.
                     </td>
@@ -163,7 +169,7 @@ export function MembersPage() {
                   const isSelf = u.id === myUserId;
                   const locked = isSelf || u.role === 'superadmin';
                   return (
-                    <tr key={u.id} className="border-t border-border">
+                    <tr key={u.id} className="border-t border-border-default">
                       <Td>
                         <div className="flex items-center gap-2.5">
                           <span className="grid size-7 shrink-0 place-items-center rounded-full bg-gray-4 text-label-12 font-semibold text-text">
@@ -201,7 +207,7 @@ export function MembersPage() {
                           onClick={() => handleRemove(u.id)}
                           className={cn(secondaryButton, 'text-danger-text')}
                         >
-                          <Trash2 className="size-3.5" strokeWidth={1.5} />
+                          <PiDeleteDustbin02Stroke className="size-3.5" />
                           Remove
                         </button>
                       </Td>
@@ -219,10 +225,11 @@ export function MembersPage() {
           <div className="flex min-w-0 flex-col gap-0.5">
             <h2 className="text-label-14 font-semibold">Pending invitations</h2>
             <p className="text-label-13 text-text-secondary">
-              Copy the invite link and send it to the recipient. Links expire in 14 days.
+              Copy the invite link and send it to the recipient. Links expire in 14
+              days.
             </p>
           </div>
-          <div className="overflow-hidden rounded-[16px] border border-border">
+          <div className="overflow-hidden rounded-[16px] border border-border-default">
             <div className="scrollbar-thin overflow-x-auto">
               <table className="w-full min-w-[720px] text-label-14">
                 <thead className="text-label-12 text-text-placeholder">
@@ -237,7 +244,7 @@ export function MembersPage() {
                 </thead>
                 <tbody>
                   {invites.map((i) => (
-                    <tr key={i.id} className="border-t border-border">
+                    <tr key={i.id} className="border-t border-border-default">
                       <Td>
                         <span className="font-medium">{i.email}</span>
                       </Td>
@@ -256,12 +263,12 @@ export function MembersPage() {
                           >
                             {copied === i.token ? (
                               <>
-                                <Check className="size-3.5" strokeWidth={1.5} />
+                                <PiCheckTickSingleStroke className="size-3.5" />
                                 Copied
                               </>
                             ) : (
                               <>
-                                <Copy className="size-3.5" strokeWidth={1.5} />
+                                <PiCopyDefaultStroke className="size-3.5" />
                                 Copy link
                               </>
                             )}
@@ -272,7 +279,7 @@ export function MembersPage() {
                             disabled={inviteRevoke.isPending}
                             className={cn(secondaryButton, 'text-danger-text')}
                           >
-                            <X className="size-3.5" strokeWidth={1.5} />
+                            <PiMultipleCrossCancelDefaultStroke className="size-3.5" />
                             Revoke
                           </button>
                         </div>
@@ -288,12 +295,12 @@ export function MembersPage() {
 
       {showDialog && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-6">
-          <div className="w-full max-w-md rounded-[16px] border border-border bg-bg-panel p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-[16px] border border-border-default bg-bg-panel p-6 shadow-xl">
             {!createdInvite ? (
               <>
                 <div className="flex items-start gap-3">
                   <div className="grid size-9 shrink-0 place-items-center rounded-full bg-bg-subtle text-text-secondary">
-                    <Mail className="size-4" strokeWidth={1.5} />
+                    <PiEnvelopeDefaultStroke className="size-4" />
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <p className="text-label-14 font-semibold text-text">Invite a new member</p>
@@ -361,7 +368,7 @@ export function MembersPage() {
                       createdInvite.emailSent ? 'text-success-text' : 'text-warning-text',
                     )}
                   >
-                    <Check className="size-4" strokeWidth={1.5} />
+                    <PiCheckTickSingleStroke className="size-4" />
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <p className="text-label-14 font-semibold text-text">
@@ -376,8 +383,8 @@ export function MembersPage() {
                         </>
                       ) : (
                         <>
-                          {createdInvite.emailError ?? 'Email not sent.'} Copy the link below and
-                          send it to{' '}
+                          {createdInvite.emailError ?? 'Email not sent.'} Copy the
+                          link below and send it to{' '}
                           <span className="font-medium text-text">{createdInvite.email}</span>. It
                           expires in 14 days.
                         </>
@@ -386,7 +393,7 @@ export function MembersPage() {
                   </div>
                 </div>
 
-                <div className="mt-5 rounded-[10px] border border-border bg-bg-subtle px-3 py-2.5">
+                <div className="mt-5 rounded-[10px] border border-border-default bg-bg-subtle px-3 py-2.5">
                   <p className="font-mono text-label-12 break-all text-text-secondary">
                     {createdInvite.acceptUrl}
                   </p>
@@ -412,12 +419,12 @@ export function MembersPage() {
                   >
                     {copied === createdInvite.token ? (
                       <>
-                        <Check className="size-3.5" strokeWidth={1.5} />
+                        <PiCheckTickSingleStroke className="size-3.5" />
                         Copied
                       </>
                     ) : (
                       <>
-                        <Copy className="size-3.5" strokeWidth={1.5} />
+                        <PiCopyDefaultStroke className="size-3.5" />
                         Copy link
                       </>
                     )}
@@ -436,10 +443,10 @@ const primaryButton =
   'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
 
 const secondaryButton =
-  'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
+  'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
 
 const selectClass =
-  'h-8 cursor-pointer rounded-[10px] border border-border-input bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)] disabled:cursor-not-allowed disabled:border-border disabled:bg-bg-subtle disabled:text-text-secondary';
+  'h-8 cursor-pointer rounded-[10px] border border-border-input bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)] disabled:cursor-not-allowed disabled:border-border-default disabled:bg-bg-subtle disabled:text-text-secondary';
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);

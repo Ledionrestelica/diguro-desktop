@@ -1,10 +1,14 @@
-import type { ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
-import type { LucideIcon } from 'lucide-react';
+import type { ComponentType, ReactNode } from 'react';
+import { Link, useMatch } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { FluidList, useFluidItem } from '@/components/fluid/FluidList';
 import { PiArrowLeftStroke } from '@/components/icons/pika/PiArrowLeftStroke';
 
-/** The settings sidebar (Figma "Settings sidebar"): back link, title, groups. */
+/**
+ * The settings sidebar (Figma "Settings sidebar"): back link, title, groups.
+ * Rows behave like the chat sidebar's: one hover fill springs between them
+ * and the current page keeps the gray-3 fill.
+ */
 export function SettingsNav({
   backLabel,
   onBack,
@@ -17,7 +21,7 @@ export function SettingsNav({
   children: ReactNode;
 }) {
   return (
-    <aside className="flex h-full w-[288px] shrink-0 flex-col overflow-y-auto px-4 pt-5 pb-5">
+    <aside className="flex h-full w-[288px] shrink-0 flex-col overflow-y-auto px-4 pt-5 pb-5 font-inter">
       <button
         type="button"
         onClick={onBack}
@@ -30,15 +34,18 @@ export function SettingsNav({
         <p className="text-[20px] leading-7 font-semibold">Settings</p>
         {subtitle && <p className="truncate text-label-13 text-text-secondary">{subtitle}</p>}
       </div>
-      {children}
+      <FluidList highlightClassName="rounded-[16px]">{children}</FluidList>
     </aside>
   );
 }
 
 export function SettingsNavGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <p className="px-2.5 pt-[18px] pb-1 text-label-12 font-medium text-text-placeholder">
+    <div className="flex flex-col gap-1">
+      <p
+        data-fluid-ignore
+        className="px-2.5 pt-[18px] pb-1 text-label-12 font-medium text-text-placeholder"
+      >
         {label}
       </p>
       {children}
@@ -52,21 +59,34 @@ export function SettingsNavLink({
   label,
 }: {
   to: string;
-  icon: LucideIcon;
+  icon: ComponentType<{ size?: number; className?: string }>;
   label: string;
 }) {
+  const active = useMatch({ path: to, end: false }) !== null;
+  const fluidItem = useFluidItem(to);
   return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        cn(
-          'flex items-center gap-2.5 rounded-[10px] px-2.5 py-[7px] text-label-14 font-medium outline-none transition-colors focus-visible:shadow-[0_0_0_2px_var(--color-text)]',
-          isActive ? 'bg-gray-3 text-text' : 'text-text-secondary hover:bg-hover hover:text-text',
-        )
-      }
+    <div
+      ref={fluidItem.ref}
+      data-fluid-selected={active ? '' : undefined}
+      className={cn(
+        'relative flex h-9 w-full items-center rounded-[16px] transition-colors',
+        active
+          ? 'bg-gray-3 text-text'
+          : fluidItem.fluid
+            ? 'text-text-secondary data-[fluid-hover-active]:text-text'
+            : 'text-text-secondary hover:bg-hover hover:text-text',
+      )}
     >
-      <Icon className="size-4 shrink-0" strokeWidth={1.5} />
-      <span className="truncate">{label}</span>
-    </NavLink>
+      <Link
+        to={to}
+        aria-current={active ? 'page' : undefined}
+        className="flex h-full min-w-0 flex-1 items-center gap-2.5 rounded-[16px] pr-3 pl-2.5 outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+      >
+        <span className="flex size-4 shrink-0 items-center justify-center">
+          <Icon size={16} />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-label-14 font-medium">{label}</span>
+      </Link>
+    </div>
   );
 }

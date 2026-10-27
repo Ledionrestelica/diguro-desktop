@@ -221,7 +221,7 @@ function AvatarUploader({
           type="button"
           onClick={() => !busy && fileInputRef.current?.click()}
           disabled={busy}
-          className="cursor-pointer rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {busy ? 'Uploading…' : hasPhoto ? 'Change' : 'Upload photo'}
         </button>

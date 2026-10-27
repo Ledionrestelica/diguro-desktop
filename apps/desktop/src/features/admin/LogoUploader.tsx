@@ -126,22 +126,22 @@ export function LogoUploader({
           onClick={openPicker}
           disabled={busy}
           aria-label={hasLogo ? 'Change logo' : 'Upload logo'}
-          className="group relative size-[104px] shrink-0 cursor-pointer rounded-[24px] outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed"
+          className="group relative size-[104px] shrink-0 cursor-pointer rounded-full outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed"
         >
-          <span className="grid size-full place-items-center overflow-hidden rounded-[24px] border border-border bg-bg-subtle">
+          <span className="grid size-full place-items-center overflow-hidden rounded-full border border-border-default bg-bg-subtle">
             {displaySrc ? (
               <img src={displaySrc} alt="" className="size-full object-cover" />
             ) : (
               <WorkspaceGlyph seed={glyphSeed} size={48} />
             )}
             {busy && (
-              <span className="absolute inset-0 grid place-items-center rounded-[24px] bg-bg-panel/60 backdrop-blur-sm">
+              <span className="absolute inset-0 grid place-items-center rounded-full bg-bg-panel/60 backdrop-blur-sm">
                 <Loader2 className="size-5 animate-spin text-text-secondary" />
               </span>
             )}
           </span>
           {!busy && (
-            <span className="absolute -right-2 -bottom-2 grid size-8 place-items-center rounded-full border border-border bg-bg-panel text-text shadow-[0_2px_6px_rgba(16,24,40,0.12)] transition-transform group-hover:scale-105">
+            <span className="absolute right-0 bottom-0 grid size-8 place-items-center rounded-full border border-border-default bg-bg-panel text-text shadow-[0_2px_6px_rgba(16,24,40,0.12)] transition-transform group-hover:scale-105">
               <PiUploadUpStroke size={16} />
             </span>
           )}
@@ -151,14 +151,14 @@ export function LogoUploader({
           <p className="text-copy-14 font-semibold">{label}</p>
           <p className="text-label-13 text-text-secondary">{description}</p>
           <p className="text-label-12 text-text-placeholder">
-            PNG, JPG, WEBP, SVG or GIF · square works best · up to 10 MB
+            PNG, JPG, WEBP, SVG or GIF · square, at least 256 × 256 px · up to 10 MB
           </p>
           <div className="mt-2 flex items-center gap-1">
             <button
               type="button"
               onClick={openPicker}
               disabled={busy}
-              className="flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border bg-bg-panel py-[7px] pr-3 pl-2.5 text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel py-[7px] pr-3 pl-2.5 text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <PiUploadUpStroke size={16} />
               {busy ? 'Uploading…' : hasLogo ? 'Change logo' : 'Upload logo'}

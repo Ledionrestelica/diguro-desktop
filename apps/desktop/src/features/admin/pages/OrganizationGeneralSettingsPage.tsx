@@ -3,11 +3,14 @@ import { trpc } from '@/lib/trpc';
 import { useAdminSave } from '../admin-save-context';
 import { AdminPageBody } from '../AdminPageBody';
 import { LogoUploader } from '../LogoUploader';
+import { BrandPreview } from '../BrandPreview';
 import { SettingsRow, SettingsSection } from '../SettingsSection';
 import { Input } from '@/components/ui/input';
 
 /**
- * General tab for the organization (tenant). Edits name, slug, logo.
+ * Settings · Organization · General (Figma "… v2 (Brand) - Use this"): logo
+ * with a live preview of how members see it, the name, the read-only
+ * address, and plan limits.
  * Gated server-side by organizationAdminProcedure — superadmins and
  * organization_admins pass.
  */
@@ -17,19 +20,17 @@ export function OrganizationGeneralSettingsPage() {
   const presign = trpc.adminOrganization.logoPresignUpload.useMutation();
   const utils = trpc.useUtils();
 
+  const workspaces = trpc.adminOrganization.workspacesList.useQuery();
   const [name, setName] = useState('');
-  const [slug, setSlug] = useState('');
 
   useEffect(() => {
-    if (!orgQuery.data) return;
-    setName(orgQuery.data.name);
-    setSlug(orgQuery.data.slug);
+    if (orgQuery.data) setName(orgQuery.data.name);
   }, [orgQuery.data]);
 
-  const dirty = useMemo(() => {
-    if (!orgQuery.data) return false;
-    return name !== orgQuery.data.name || slug !== orgQuery.data.slug;
-  }, [orgQuery.data, name, slug]);
+  const dirty = useMemo(
+    () => !!orgQuery.data && name.trim().length > 0 && name !== orgQuery.data.name,
+    [orgQuery.data, name],
+  );
 
   const saveAction = useMemo(
     () => ({
@@ -39,10 +40,7 @@ export function OrganizationGeneralSettingsPage() {
       onSave: () => {
         if (!orgQuery.data) return;
         update.mutate(
-          {
-            ...(name !== orgQuery.data.name ? { name } : {}),
-            ...(slug !== orgQuery.data.slug ? { slug } : {}),
-          },
+          { name },
           {
             onSuccess: () => {
               void utils.adminOrganization.organizationGet.invalidate();
@@ -52,7 +50,7 @@ export function OrganizationGeneralSettingsPage() {
         );
       },
     }),
-    [orgQuery.data, name, slug, dirty, update, utils],
+    [orgQuery.data, name, dirty, update, utils],
   );
   useAdminSave(saveAction);
 
@@ -99,18 +97,20 @@ export function OrganizationGeneralSettingsPage() {
           }}
           onChanged={onLogoChanged}
         />
+        <BrandPreview
+          name={org.name}
+          logoUrl={org.logoUrl}
+          glyphSeed={org.id}
+          workspaceNames={(workspaces.data ?? []).map((w) => w.name)}
+        />
       </SettingsSection>
 
       <SettingsSection title="Details">
-        <SettingsRow label="Name" hint="Shown on the workspace picker and in invites.">
+        <SettingsRow label="Name">
           <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 w-[260px]" />
         </SettingsRow>
-        <SettingsRow label="Address" hint="Lowercase letters, numbers and dashes. Used in links.">
-          <Input
-            value={slug}
-            onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-            className="h-8 w-[260px]"
-          />
+        <SettingsRow label="Address" hint="Used in invite links.">
+          <Input value={org.slug} disabled readOnly className="h-8 w-[260px]" />
         </SettingsRow>
       </SettingsSection>
 
@@ -118,9 +118,9 @@ export function OrganizationGeneralSettingsPage() {
         title="Plan limits"
         note="Need more room? Contact us and we'll raise your limits."
       >
-        <LimitRow label="Members" current={org.userCount} cap={org.maxUsers} />
-        <LimitRow label="Workspaces" current={org.workspaceCount} cap={org.maxWorkspaces} />
+        <LimitRow label="Seats" current={org.userCount} cap={org.maxUsers} />
         <LimitRow label="Files per workspace" current={null} cap={org.maxResourcesPerWorkspace} />
+        <LimitRow label="Workspaces" current={org.workspaceCount} cap={org.maxWorkspaces} />
       </SettingsSection>
 
       {update.error && (

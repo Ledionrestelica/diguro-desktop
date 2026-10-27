@@ -1,16 +1,14 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import {
-  ChevronRight,
-  FileText,
-  FolderPlus,
-  Folder as FolderIcon,
-  Home,
-  Loader2,
-  RefreshCw,
-  Search,
-  Trash2,
-  Upload,
-} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { PiChevronRightStroke } from '@/components/icons/pika/PiChevronRightStroke';
+import { PiFileTextStroke } from '@/components/icons/pika/PiFileTextStroke';
+import { PiFolderPlusStroke } from '@/components/icons/pika/PiFolderPlusStroke';
+import { PiFolderDefaultStroke } from '@/components/icons/pika/PiFolderDefaultStroke';
+import { PiHomeDefaultStroke } from '@/components/icons/pika/PiHomeDefaultStroke';
+import { PiRefreshStroke } from '@/components/icons/pika/PiRefreshStroke';
+import { PiSearchDefaultStroke } from '@/components/icons/pika/PiSearchDefaultStroke';
+import { PiDeleteDustbin02Stroke } from '@/components/icons/pika/PiDeleteDustbin02Stroke';
+import { PiUploadUpStroke } from '@/components/icons/pika/PiUploadUpStroke';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -302,10 +300,7 @@ export function OrganizationFilesPage() {
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative w-60">
-              <Search
-                strokeWidth={1.5}
-                className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-text-placeholder"
-              />
+              <PiSearchDefaultStroke className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-text-placeholder" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -319,7 +314,7 @@ export function OrganizationFilesPage() {
                 onClick={() => setNewFolderOpen(true)}
                 className={SECONDARY_BUTTON}
               >
-                <FolderPlus strokeWidth={1.5} className="size-4" />
+                <PiFolderPlusStroke className="size-4" />
                 New folder
               </button>
               <button
@@ -327,7 +322,7 @@ export function OrganizationFilesPage() {
                 onClick={() => dirInputRef.current?.click()}
                 className={SECONDARY_BUTTON}
               >
-                <FolderIcon strokeWidth={1.5} className="size-4" />
+                <PiFolderDefaultStroke className="size-4" />
                 Upload folder
               </button>
               <button
@@ -336,7 +331,7 @@ export function OrganizationFilesPage() {
                 disabled={initiate.isPending}
                 className={PRIMARY_BUTTON}
               >
-                <Upload strokeWidth={1.5} className="size-4" />
+                <PiUploadUpStroke className="size-4" />
                 Upload files
               </button>
             </div>
@@ -434,14 +429,14 @@ export function OrganizationFilesPage() {
             {subfolders.map((f) => (
               <div
                 key={f.id}
-                className="group flex items-center gap-1 rounded-[12px] border border-border py-1.5 pr-1.5 pl-3 transition-colors hover:bg-hover"
+                className="group flex items-center gap-1 rounded-[12px] border border-border-default py-1.5 pr-1.5 pl-3 transition-colors hover:bg-hover"
               >
                 <button
                   type="button"
                   onClick={() => setCurrentFolderId(f.id)}
                   className="flex min-w-0 flex-1 items-center gap-2.5 py-1 text-left outline-none"
                 >
-                  <FolderIcon strokeWidth={1.5} className="size-4 shrink-0 text-text-secondary" />
+                  <PiFolderDefaultStroke className="size-4 shrink-0 text-text-secondary" />
                   <div className="flex min-w-0 flex-col">
                     <span className="truncate text-label-14 font-medium text-text">{f.name}</span>
                     <span className="text-label-12 text-text-secondary">Folder</span>
@@ -455,7 +450,7 @@ export function OrganizationFilesPage() {
                   title="Delete folder"
                   className={cn(ICON_BUTTON, 'hover:text-danger-text')}
                 >
-                  <Trash2 strokeWidth={1.5} className="size-4" />
+                  <PiDeleteDustbin02Stroke className="size-4" />
                 </button>
               </div>
             ))}
@@ -465,7 +460,7 @@ export function OrganizationFilesPage() {
         <section
           className={cn(
             'overflow-hidden rounded-[16px] border transition-colors',
-            isDraggingOver ? 'border-focus-ring bg-selected' : 'border-border',
+            isDraggingOver ? 'border-focus-ring bg-selected' : 'border-border-default',
           )}
         >
           <div className="scrollbar-thin overflow-x-auto">
@@ -483,7 +478,7 @@ export function OrganizationFilesPage() {
               </thead>
               <tbody>
                 {pendingUploads.map((p) => (
-                  <tr key={p.id} className="border-t border-border">
+                  <tr key={p.id} className="border-t border-border-default">
                     <td className="px-5 py-3">
                       <FileCell name={p.name} meta="Uploading…" />
                     </td>
@@ -501,7 +496,7 @@ export function OrganizationFilesPage() {
                   <tr>
                     <td
                       colSpan={3}
-                      className="border-t border-border px-5 py-6 text-center text-text-secondary"
+                      className="border-t border-border-default px-5 py-6 text-center text-text-secondary"
                     >
                       Loading…
                     </td>
@@ -513,7 +508,7 @@ export function OrganizationFilesPage() {
                   subfolders.length === 0 &&
                   pendingUploads.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="border-t border-border px-5 py-10 text-center">
+                      <td colSpan={3} className="border-t border-border-default px-5 py-10 text-center">
                         <p className="font-medium text-text">
                           {isSearching ? 'No files match your search' : 'This folder is empty'}
                         </p>
@@ -531,7 +526,7 @@ export function OrganizationFilesPage() {
                     <tr>
                       <td
                         colSpan={3}
-                        className="border-t border-border px-5 py-6 text-center text-label-13 text-text-secondary"
+                        className="border-t border-border-default px-5 py-6 text-center text-label-13 text-text-secondary"
                       >
                         No files in this folder yet.
                       </td>
@@ -542,7 +537,7 @@ export function OrganizationFilesPage() {
                   const isReplacing = replacingResourceId === file.id;
                   const version = file.versionNumber ?? null;
                   return (
-                    <tr key={file.id} className="border-t border-border">
+                    <tr key={file.id} className="border-t border-border-default">
                       <td className="px-5 py-3">
                         <FileCell
                           name={file.name}
@@ -575,7 +570,7 @@ export function OrganizationFilesPage() {
                             {isReplacing ? (
                               <Loader2 strokeWidth={1.5} className="size-4 animate-spin" />
                             ) : (
-                              <RefreshCw strokeWidth={1.5} className="size-4" />
+                              <PiRefreshStroke className="size-4" />
                             )}
                           </button>
                           <button
@@ -586,7 +581,7 @@ export function OrganizationFilesPage() {
                             title="Remove"
                             className={cn(ICON_BUTTON, 'hover:text-danger-text')}
                           >
-                            <Trash2 strokeWidth={1.5} className="size-4" />
+                            <PiDeleteDustbin02Stroke className="size-4" />
                           </button>
                         </div>
                       </td>
@@ -606,7 +601,7 @@ const PRIMARY_BUTTON =
   'inline-flex items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
 
 const SECONDARY_BUTTON =
-  'inline-flex items-center gap-1.5 rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
+  'inline-flex items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
 
 const ICON_BUTTON =
   'grid size-8 shrink-0 place-items-center rounded-[8px] text-text-secondary outline-none transition-colors hover:bg-hover hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
@@ -615,7 +610,7 @@ function FileCell({ name, meta, badge }: { name: string; meta: string; badge?: R
   return (
     <div className="flex min-w-0 items-center gap-3">
       <div className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-bg-subtle">
-        <FileText strokeWidth={1.5} className="size-4 text-text-secondary" />
+        <PiFileTextStroke className="size-4 text-text-secondary" />
       </div>
       <div className="flex min-w-0 flex-col">
         <div className="flex min-w-0 items-center gap-2">
@@ -647,14 +642,14 @@ function Breadcrumb({
           trail.length === 0 ? 'font-medium text-text' : 'text-text-secondary',
         )}
       >
-        <Home strokeWidth={1.5} className="size-3.5" />
+        <PiHomeDefaultStroke className="size-3.5" />
         All files
       </button>
       {trail.map((f, i) => {
         const isLast = i === trail.length - 1;
         return (
           <span key={f.id} className="flex items-center gap-0.5">
-            <ChevronRight strokeWidth={1.5} className="size-3.5 text-text-placeholder" />
+            <PiChevronRightStroke className="size-3.5 text-text-placeholder" />
             {isLast ? (
               <span className="px-2 py-1 font-medium text-text">{f.name}</span>
             ) : (

@@ -35,7 +35,7 @@ export function AuditLogPage() {
         </select>
       </div>
 
-      <section className="overflow-hidden rounded-[16px] border border-border">
+      <section className="overflow-hidden rounded-[16px] border border-border-default">
         <div className="scrollbar-thin overflow-x-auto">
           <table className="w-full min-w-[820px] text-label-14">
             <thead className="text-label-12 text-text-placeholder">
@@ -52,7 +52,7 @@ export function AuditLogPage() {
                 <tr>
                   <td
                     colSpan={5}
-                    className="border-t border-border px-5 py-6 text-center text-text-secondary"
+                    className="border-t border-border-default px-5 py-6 text-center text-text-secondary"
                   >
                     Loading…
                   </td>
@@ -62,14 +62,14 @@ export function AuditLogPage() {
                 <tr>
                   <td
                     colSpan={5}
-                    className="border-t border-border px-5 py-10 text-center text-text-secondary"
+                    className="border-t border-border-default px-5 py-10 text-center text-text-secondary"
                   >
                     No events match this filter.
                   </td>
                 </tr>
               )}
               {rows.map((r) => (
-                <tr key={r.id} className="border-t border-border align-top">
+                <tr key={r.id} className="border-t border-border-default align-top">
                   <Td muted>{formatRelativeTime(new Date(r.createdAt))}</Td>
                   <Td>
                     <span className="font-medium whitespace-nowrap">
