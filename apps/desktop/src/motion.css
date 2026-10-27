@@ -311,11 +311,51 @@
   }
 }
 
+/* Settings: the invite window fades its backdrop in and grows its panel
+ * from 96% (entry only, it stays centred). Buttons press down to 97%, like
+ * the send button. */
+.modal-scrim {
+  transition: opacity 200ms var(--motion-ease-out);
+}
+
+.modal-panel {
+  transition:
+    opacity 200ms var(--motion-ease-out),
+    transform 200ms var(--motion-ease-out);
+}
+
+@starting-style {
+  .modal-scrim {
+    opacity: 0;
+  }
+  .modal-panel {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.press-scale {
+  transition:
+    transform 160ms var(--motion-ease-out),
+    opacity 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.press-scale:not(:disabled):active {
+  transform: scale(0.97);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .press-scale:not(:disabled):active {
+    transform: none;
+  }
+
   @starting-style {
     .enter-rise,
     .enter-pop,
-    .preview-panel {
+    .preview-panel,
+    .modal-panel {
       transform: none;
     }
   }

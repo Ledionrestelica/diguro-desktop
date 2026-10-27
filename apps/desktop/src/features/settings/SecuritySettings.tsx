@@ -108,7 +108,7 @@ function ChangePasswordSection() {
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="cursor-pointer rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
+                className="press-scale cursor-pointer rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {pending ? 'Updating…' : 'Update password'}
               </button>
@@ -189,7 +189,7 @@ function SessionsSection() {
                       { onSuccess: refresh, onSettled: () => setPendingId(null) },
                     );
                   }}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="press-scale flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {busy && <Loader2 className="size-3.5 animate-spin" />}
                   {busy ? 'Signing out…' : 'Sign out'}
@@ -205,7 +205,7 @@ function SessionsSection() {
             type="button"
             disabled={revokeOthers.isPending}
             onClick={() => revokeOthers.mutate(undefined, { onSuccess: refresh })}
-            className="cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-danger-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="press-scale cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-danger-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {revokeOthers.isPending ? 'Signing out…' : 'Sign out of all other sessions'}
           </button>

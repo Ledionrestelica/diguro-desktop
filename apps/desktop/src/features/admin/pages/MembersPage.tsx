@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { PiCheckTickSingleStroke } from '@/components/icons/pika/PiCheckTickSingleStroke';
 import { PiCopyDefaultStroke } from '@/components/icons/pika/PiCopyDefaultStroke';
@@ -41,6 +41,24 @@ export function MembersPage() {
   } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  function closeDialog() {
+    setShowDialog(false);
+    setCreatedInvite(null);
+  }
+
+  // Escape closes the invite window, like Cancel.
+  useEffect(() => {
+    if (!showDialog) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowDialog(false);
+        setCreatedInvite(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showDialog]);
 
   const users = usersQuery.data ?? [];
   const invites = (invitesQuery.data ?? []).filter((i) => i.status === 'pending');
@@ -225,8 +243,7 @@ export function MembersPage() {
           <div className="flex min-w-0 flex-col gap-0.5">
             <h2 className="text-label-14 font-semibold">Pending invitations</h2>
             <p className="text-label-13 text-text-secondary">
-              Copy the invite link and send it to the recipient. Links expire in 14
-              days.
+              Copy the invite link and send it to the recipient. Links expire in 14 days.
             </p>
           </div>
           <div className="overflow-hidden rounded-[16px] border border-border-default">
@@ -261,17 +278,8 @@ export function MembersPage() {
                             onClick={() => copyInviteLink(i.token, i.acceptUrl)}
                             className={secondaryButton}
                           >
-                            {copied === i.token ? (
-                              <>
-                                <PiCheckTickSingleStroke className="size-3.5" />
-                                Copied
-                              </>
-                            ) : (
-                              <>
-                                <PiCopyDefaultStroke className="size-3.5" />
-                                Copy link
-                              </>
-                            )}
+                            <CopyIcon copied={copied === i.token} />
+                            {copied === i.token ? 'Copied' : 'Copy link'}
                           </button>
                           <button
                             type="button"
@@ -294,8 +302,18 @@ export function MembersPage() {
       )}
 
       {showDialog && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-6">
-          <div className="w-full max-w-md rounded-[16px] border border-border-default bg-bg-panel p-6 shadow-xl">
+        <div
+          className="modal-scrim fixed inset-0 z-50 grid place-items-center bg-black/30 p-6"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeDialog();
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="invite-dialog-title"
+            className="modal-panel w-full max-w-md rounded-[16px] border border-border-default bg-bg-panel p-6 shadow-xl"
+          >
             {!createdInvite ? (
               <>
                 <div className="flex items-start gap-3">
@@ -303,7 +321,9 @@ export function MembersPage() {
                     <PiEnvelopeDefaultStroke className="size-4" />
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <p className="text-label-14 font-semibold text-text">Invite a new member</p>
+                    <p id="invite-dialog-title" className="text-label-14 font-semibold text-text">
+                      Invite a new member
+                    </p>
                     <p className="text-label-13 text-text-secondary">
                       We’ll create a link you can send to them. It expires in 14 days.
                     </p>
@@ -339,11 +359,7 @@ export function MembersPage() {
                 </div>
 
                 <div className="mt-6 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowDialog(false)}
-                    className={secondaryButton}
-                  >
+                  <button type="button" onClick={closeDialog} className={secondaryButton}>
                     Cancel
                   </button>
                   <button
@@ -360,18 +376,18 @@ export function MembersPage() {
                 </div>
               </>
             ) : (
-              <>
+              <div className="enter-rise">
                 <div className="flex items-start gap-3">
                   <div
                     className={cn(
-                      'grid size-9 shrink-0 place-items-center rounded-full bg-bg-subtle',
+                      'enter-pop grid size-9 shrink-0 place-items-center rounded-full bg-bg-subtle',
                       createdInvite.emailSent ? 'text-success-text' : 'text-warning-text',
                     )}
                   >
                     <PiCheckTickSingleStroke className="size-4" />
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <p className="text-label-14 font-semibold text-text">
+                    <p id="invite-dialog-title" className="text-label-14 font-semibold text-text">
                       {createdInvite.emailSent ? 'Invitation sent' : 'Invitation ready'}
                     </p>
                     <p className="text-label-13 text-text-secondary">
@@ -383,8 +399,8 @@ export function MembersPage() {
                         </>
                       ) : (
                         <>
-                          {createdInvite.emailError ?? 'Email not sent.'} Copy the
-                          link below and send it to{' '}
+                          {createdInvite.emailError ?? 'Email not sent.'} Copy the link below and
+                          send it to{' '}
                           <span className="font-medium text-text">{createdInvite.email}</span>. It
                           expires in 14 days.
                         </>
@@ -400,14 +416,7 @@ export function MembersPage() {
                 </div>
 
                 <div className="mt-6 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowDialog(false);
-                      setCreatedInvite(null);
-                    }}
-                    className={secondaryButton}
-                  >
+                  <button type="button" onClick={closeDialog} className={secondaryButton}>
                     Close
                   </button>
                   <button
@@ -417,20 +426,11 @@ export function MembersPage() {
                     }
                     className={primaryButton}
                   >
-                    {copied === createdInvite.token ? (
-                      <>
-                        <PiCheckTickSingleStroke className="size-3.5" />
-                        Copied
-                      </>
-                    ) : (
-                      <>
-                        <PiCopyDefaultStroke className="size-3.5" />
-                        Copy link
-                      </>
-                    )}
+                    <CopyIcon copied={copied === createdInvite.token} />
+                    {copied === createdInvite.token ? 'Copied' : 'Copy link'}
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -440,10 +440,10 @@ export function MembersPage() {
 }
 
 const primaryButton =
-  'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
+  'press-scale inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40';
 
 const secondaryButton =
-  'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
+  'press-scale inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40';
 
 const selectClass =
   'h-8 cursor-pointer rounded-[10px] border border-border-input bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)] disabled:cursor-not-allowed disabled:border-border-default disabled:bg-bg-subtle disabled:text-text-secondary';
@@ -491,5 +491,26 @@ function Td({
     >
       {children}
     </td>
+  );
+}
+
+/** Copy and check share one cell and cross-fade, like the copy button under
+ *  chat messages. */
+function CopyIcon({ copied }: { copied: boolean }) {
+  return (
+    <span className="grid *:col-start-1 *:row-start-1">
+      <PiCopyDefaultStroke
+        className={cn(
+          'size-3.5 transition-[opacity,scale] duration-100 ease-out motion-reduce:scale-100',
+          copied ? 'scale-80 opacity-0' : 'scale-100 opacity-100',
+        )}
+      />
+      <PiCheckTickSingleStroke
+        className={cn(
+          'size-3.5 transition-[opacity,scale] duration-150 ease-(--motion-ease-out) motion-reduce:scale-100',
+          copied ? 'scale-100 opacity-100' : 'scale-80 opacity-0',
+        )}
+      />
+    </span>
   );
 }

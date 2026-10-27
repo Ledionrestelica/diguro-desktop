@@ -368,7 +368,7 @@ export function WorkspaceFilesPage() {
         </div>
 
         {newFolderOpen && !isSearching && (
-          <div className="flex items-center gap-2">
+          <div className="enter-rise flex items-center gap-2">
             <Input
               autoFocus
               value={newFolderName}
@@ -405,7 +405,7 @@ export function WorkspaceFilesPage() {
         )}
 
         {uploadError && (
-          <div className="rounded-[10px] bg-danger-subtle px-3 py-2 text-label-13 text-danger-text">
+          <div className="enter-rise rounded-[10px] bg-danger-subtle px-3 py-2 text-label-13 text-danger-text">
             {uploadError}
           </div>
         )}
@@ -502,7 +502,10 @@ export function WorkspaceFilesPage() {
                   subfolders.length === 0 &&
                   pendingUploads.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="border-t border-border-default px-5 py-10 text-center">
+                      <td
+                        colSpan={3}
+                        className="border-t border-border-default px-5 py-10 text-center"
+                      >
                         <p className="font-medium text-text">
                           {isSearching ? 'No files match your search' : 'This folder is empty'}
                         </p>
@@ -592,13 +595,13 @@ export function WorkspaceFilesPage() {
 }
 
 const PRIMARY_BUTTON =
-  'inline-flex items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
+  'press-scale inline-flex items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40';
 
 const SECONDARY_BUTTON =
-  'inline-flex items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
+  'press-scale inline-flex items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40';
 
 const ICON_BUTTON =
-  'grid size-8 shrink-0 place-items-center rounded-[8px] text-text-secondary outline-none transition-colors hover:bg-hover hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
+  'grid size-8 shrink-0 place-items-center rounded-[8px] text-text-secondary outline-none transition-colors hover:bg-hover hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40';
 
 function FileCell({ name, meta, badge }: { name: string; meta: string; badge?: ReactNode }) {
   return (

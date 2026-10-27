@@ -25,7 +25,7 @@ export function SettingsNav({
       <button
         type="button"
         onClick={onBack}
-        className="flex w-fit cursor-pointer items-center gap-2 rounded-[8px] px-2.5 py-1.5 text-label-14 font-medium text-text-secondary outline-none transition-colors hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+        className="press-scale flex w-fit cursor-pointer items-center gap-2 rounded-[8px] px-2.5 py-1.5 text-label-14 font-medium text-text-secondary outline-none transition-colors hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
       >
         <PiArrowLeftStroke size={16} />
         {backLabel}
@@ -44,7 +44,7 @@ export function SettingsNavGroup({ label, children }: { label: string; children:
     <div className="flex flex-col gap-1">
       <p
         data-fluid-ignore
-        className="px-2.5 pt-[18px] pb-1 text-label-12 font-medium text-text-placeholder"
+        className="truncate px-2.5 pt-[18px] pb-1 text-label-12 font-medium text-text-placeholder"
       >
         {label}
       </p>

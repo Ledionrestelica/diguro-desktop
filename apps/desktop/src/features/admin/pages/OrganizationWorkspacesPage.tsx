@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { PiChevronDownStroke } from '@/components/icons/pika/PiChevronDownStroke';
 import { PiChevronRightStroke } from '@/components/icons/pika/PiChevronRightStroke';
 import { PiPlusDefaultStroke } from '@/components/icons/pika/PiPlusDefaultStroke';
 import { PiDeleteDustbin02Stroke } from '@/components/icons/pika/PiDeleteDustbin02Stroke';
@@ -10,6 +9,7 @@ import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
 import { TextField } from '@/components/ui/text-field';
 import { AdminPageBody } from '../AdminPageBody';
+import { Collapsible } from '@/features/chat/trace/Collapsible';
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER';
 
@@ -39,6 +39,8 @@ export function OrganizationWorkspacesPage() {
   const workspacesQuery = trpc.adminOrganization.workspacesList.useQuery();
   const workspaceCreate = trpc.adminOrganization.workspaceCreate.useMutation();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Panels stay mounted once opened, so closing one animates too.
+  const [openedIds, setOpenedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [createOpen, setCreateOpen] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [draftSlug, setDraftSlug] = useState('');
@@ -90,10 +92,10 @@ export function OrganizationWorkspacesPage() {
             }
           }}
           className={cn(
-            'flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] px-3 py-[7px] text-label-13 font-medium outline-none transition-[opacity,background-color] focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]',
+            'press-scale flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] px-3 py-[7px] text-label-13 font-medium outline-none transition-[opacity,background-color] focus-visible:shadow-[0_0_0_2px_var(--color-text)]',
             createOpen
               ? 'border border-border-default bg-bg-panel text-text hover:bg-hover'
-              : 'bg-primary text-text-on-solid hover:opacity-90',
+              : 'press-scale bg-primary text-text-on-solid hover:opacity-90',
           )}
         >
           <PiPlusDefaultStroke className="size-4" />
@@ -138,7 +140,7 @@ export function OrganizationWorkspacesPage() {
                     !(draftSlug.trim() || slugify(draftName)) ||
                     workspaceCreate.isPending
                   }
-                  className="flex cursor-pointer items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="press-scale flex cursor-pointer items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {workspaceCreate.isPending && (
                     <Loader2 className="size-3.5 animate-spin" strokeWidth={1.5} />
@@ -151,7 +153,7 @@ export function OrganizationWorkspacesPage() {
                     setCreateOpen(false);
                     resetCreateForm();
                   }}
-                  className="cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]"
+                  className="press-scale cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
                 >
                   Cancel
                 </button>
@@ -182,7 +184,10 @@ export function OrganizationWorkspacesPage() {
                 <button
                   type="button"
                   aria-expanded={expandedId === ws.id}
-                  onClick={() => setExpandedId((prev) => (prev === ws.id ? null : ws.id))}
+                  onClick={() => {
+                    setOpenedIds((prev) => new Set(prev).add(ws.id));
+                    setExpandedId((prev) => (prev === ws.id ? null : ws.id));
+                  }}
                   className="flex w-full cursor-pointer items-center gap-3 py-3 pr-4 pl-5 text-left outline-none transition-colors hover:bg-hover focus-visible:bg-hover"
                 >
                   <div className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-[10px] bg-gray-4 text-text-secondary">
@@ -198,14 +203,19 @@ export function OrganizationWorkspacesPage() {
                       {ws.memberCount} member{ws.memberCount === 1 ? '' : 's'} · {ws.slug}
                     </p>
                   </div>
-                  {expandedId === ws.id ? (
-                    <PiChevronDownStroke className="size-4 shrink-0 text-text-placeholder" />
-                  ) : (
-                    <PiChevronRightStroke className="size-4 shrink-0 text-text-placeholder" />
-                  )}
+                  <PiChevronRightStroke
+                    className={cn(
+                      'size-4 shrink-0 text-text-placeholder transition-transform duration-200 ease-(--motion-ease-out)',
+                      expandedId === ws.id && 'rotate-90',
+                    )}
+                  />
                 </button>
 
-                {expandedId === ws.id && <WorkspaceMembersPanel workspaceId={ws.id} />}
+                <Collapsible open={expandedId === ws.id} fast>
+                  {(expandedId === ws.id || openedIds.has(ws.id)) && (
+                    <WorkspaceMembersPanel workspaceId={ws.id} />
+                  )}
+                </Collapsible>
               </li>
             ))}
           </ul>
@@ -297,7 +307,7 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
             setShowAdd((v) => !v);
             setError(null);
           }}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]"
+          className="press-scale inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
         >
           <PiUserPlusStroke className="size-4" />
           Add member
@@ -345,7 +355,7 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
               type="button"
               onClick={() => void handleAdd()}
               disabled={!selectedUserId || addMember.isPending}
-              className="flex cursor-pointer items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="press-scale flex cursor-pointer items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {addMember.isPending && (
                 <Loader2 className="size-3.5 animate-spin" strokeWidth={1.5} />
@@ -359,7 +369,7 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
                 setSelectedUserId('');
                 setError(null);
               }}
-              className="cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]"
+              className="press-scale cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
             >
               Cancel
             </button>
@@ -400,7 +410,7 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
                 type="button"
                 onClick={() => handleRemove(m.memberId)}
                 disabled={removeMember.isPending}
-                className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-danger-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
+                className="press-scale inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-danger-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <PiDeleteDustbin02Stroke className="size-4" />
                 Remove

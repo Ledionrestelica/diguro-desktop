@@ -40,7 +40,7 @@ export function SettingsFrame({
                   onClick={save.onSave}
                   disabled={save.disabled || save.pending}
                   className={cn(
-                    'shrink-0 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]',
+                    'press-scale shrink-0 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity focus-visible:shadow-[0_0_0_2px_var(--color-text)]',
                     save.disabled || save.pending
                       ? 'cursor-not-allowed opacity-40'
                       : 'hover:opacity-90',
