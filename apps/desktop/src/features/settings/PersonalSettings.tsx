@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Trash2, Upload } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { PiUploadUpStroke } from '@/components/icons/pika/PiUploadUpStroke';
 import { trpc } from '@/lib/trpc';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { SettingsRow, SettingsSection } from '@/features/admin/SettingsSection';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPT = 'image/png,image/jpeg,image/webp,image/gif';
 
 /**
- * Personal settings tab — edits the signed-in user's own profile (avatar +
+ * Settings · Account · Profile — edits the signed-in user's own profile (avatar +
  * display name). Email is shown read-only; changing the login email is an
  * auth-verification flow, not a plain profile edit. Persists via
  * `me.updateProfile` / `me.avatarPresignUpload`.
@@ -42,69 +43,69 @@ export function PersonalSettings() {
   }
 
   if (profile.isLoading) {
-    return <p className="text-sm text-zinc-500">Loading…</p>;
+    return <p className="text-label-13 text-text-secondary">Loading…</p>;
   }
   if (profile.error || !profile.data) {
     return (
-      <p className="text-sm text-red-600">
+      <p className="text-label-13 text-danger-text">
         {profile.error?.message ?? 'Could not load your profile.'}
       </p>
     );
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <AvatarUploader
-        imageUrl={profile.data.image}
-        name={profile.data.name}
-        email={profile.data.email}
-        onPresign={async (file) =>
-          presign.mutateAsync({
-            filename: file.name,
-            contentType: file.type,
-            contentLength: file.size,
-          })
-        }
-        onCommit={async (url) => {
-          await update.mutateAsync({ image: url });
-        }}
-        onChanged={invalidate}
-      />
-
-      <Section
-        label="Full name"
-        hint="Shown to your workspace and on your messages."
-      >
-        <div className="flex max-w-[420px] items-center gap-2">
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value.slice(0, 120))}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleSaveName();
-              }
+    <>
+      <SettingsSection title="About you">
+        <SettingsRow label="Photo" hint="Shown next to your messages and files.">
+          <AvatarUploader
+            imageUrl={profile.data.image}
+            name={profile.data.name}
+            email={profile.data.email}
+            onPresign={async (file) =>
+              presign.mutateAsync({
+                filename: file.name,
+                contentType: file.type,
+                contentLength: file.size,
+              })
+            }
+            onCommit={async (url) => {
+              await update.mutateAsync({ image: url });
             }}
+            onChanged={invalidate}
           />
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleSaveName}
-            disabled={!dirty || update.isPending}
-          >
-            {update.isPending ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
-      </Section>
-
-      <Section label="Email" hint="Used to sign in. Contact an admin to change it.">
-        <Input value={profile.data.email} readOnly disabled className="max-w-[420px]" />
-      </Section>
+        </SettingsRow>
+        <SettingsRow label="Full name" hint="Shown to your workspace and on your messages.">
+          <div className="flex items-center gap-2">
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value.slice(0, 120))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSaveName();
+                }
+              }}
+              className="h-8 w-[220px]"
+            />
+            <button
+              type="button"
+              onClick={handleSaveName}
+              disabled={!dirty || update.isPending}
+              className="cursor-pointer rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {update.isPending ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </SettingsRow>
+        <SettingsRow label="Email" hint="Used to sign in. Ask an admin to change it.">
+          <span className="text-copy-14 text-text-secondary">{profile.data.email}</span>
+        </SettingsRow>
+      </SettingsSection>
 
       {update.isError && (
-        <p className="text-sm text-red-600">Couldn’t save — please try again.</p>
+        <p className="text-label-13 text-danger-text">Couldn’t save. Please try again.</p>
       )}
-    </div>
+    </>
   );
 }
 
@@ -190,16 +191,17 @@ function AvatarUploader({
     }
   }
 
+  const hasPhoto = !!(imageUrl || localPreview);
+
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium text-black">Profile photo</p>
-      <div className="flex items-center gap-4">
+    <div className="flex flex-col items-end gap-1.5">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => !busy && fileInputRef.current?.click()}
           disabled={busy}
           aria-label="Change profile photo"
-          className="group relative grid size-[72px] shrink-0 place-items-center overflow-hidden rounded-full border border-zinc-200 bg-zinc-100 text-lg font-medium text-zinc-700"
+          className="group relative mr-1 grid size-10 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full bg-gray-4 text-label-14 font-semibold text-text outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
         >
           {displaySrc ? (
             <img src={displaySrc} alt="" className="size-full object-cover" />
@@ -209,42 +211,29 @@ function AvatarUploader({
           <span
             className={cn(
               'absolute inset-0 grid place-items-center bg-black/40 text-white opacity-0 transition-opacity',
-              !busy && 'group-hover:opacity-100',
+              busy ? 'opacity-100' : 'group-hover:opacity-100',
             )}
           >
-            {busy ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : (
-              <Upload className="size-5" />
-            )}
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <PiUploadUpStroke size={16} />}
           </span>
         </button>
-
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => !busy && fileInputRef.current?.click()}
-              disabled={busy}
-            >
-              {busy ? 'Uploading…' : 'Upload photo'}
-            </Button>
-            {(imageUrl || localPreview) && !busy && (
-              <button
-                type="button"
-                onClick={() => void clearAvatar()}
-                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-red-600"
-              >
-                <Trash2 className="size-3.5" />
-                Remove
-              </button>
-            )}
-          </div>
-          <p className="text-xs text-zinc-500">PNG, JPG, WEBP, or GIF, up to 10MB.</p>
-        </div>
-
+        <button
+          type="button"
+          onClick={() => !busy && fileInputRef.current?.click()}
+          disabled={busy}
+          className="cursor-pointer rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {busy ? 'Uploading…' : hasPhoto ? 'Change' : 'Upload photo'}
+        </button>
+        {hasPhoto && !busy && (
+          <button
+            type="button"
+            onClick={() => void clearAvatar()}
+            className="cursor-pointer rounded-[10px] px-2.5 py-[7px] text-label-13 font-medium text-text-secondary outline-none transition-colors hover:text-danger-text focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+          >
+            Remove
+          </button>
+        )}
         <input
           ref={fileInputRef}
           type="file"
@@ -257,28 +246,8 @@ function AvatarUploader({
           }}
         />
       </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-label-12 text-danger-text">{error}</p>}
     </div>
-  );
-}
-
-function Section({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-2">
-      <div>
-        <p className="text-sm font-medium text-black">{label}</p>
-        {hint && <p className="text-sm text-zinc-500">{hint}</p>}
-      </div>
-      {children}
-    </section>
   );
 }
 

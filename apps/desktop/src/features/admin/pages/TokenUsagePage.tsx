@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { trpc } from '@/lib/trpc';
-import { AdminPageBody } from '../AdminLayout';
+import { AdminPageBody } from '../AdminPageBody';
 
 /**
  * Org-admin dashboard for AI spend. Data is aggregated month-to-date

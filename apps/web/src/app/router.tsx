@@ -15,7 +15,6 @@ import { NewWorkspaceWizardPage } from '@/features/workspaces/NewWorkspaceWizard
 import { PersonalFilesPage } from '@/features/files/PersonalFilesPage';
 import { AcceptInvitePage } from '@/features/invitations/AcceptInvitePage';
 import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage';
-import { OrganizationAdminLayout } from '@/features/admin/OrganizationAdminLayout';
 import { OrganizationGeneralSettingsPage } from '@/features/admin/pages/OrganizationGeneralSettingsPage';
 import { OrganizationFilesPage } from '@/features/admin/pages/OrganizationFilesPage';
 import { OrganizationWorkspacesPage } from '@/features/admin/pages/OrganizationWorkspacesPage';
@@ -23,9 +22,17 @@ import { WorkspaceFilesPage } from '@/features/admin/pages/WorkspaceFilesPage';
 import { TokenUsagePage } from '@/features/admin/pages/TokenUsagePage';
 import { AuditLogPage } from '@/features/admin/pages/AuditLogPage';
 import { MembersPage } from '@/features/admin/pages/MembersPage';
-import { AdminLayout } from '@/features/admin/AdminLayout';
+import { SettingsLayout } from '@/features/admin/SettingsLayout';
+import {
+  RequireOrganizationAdmin,
+  RequireWorkspaceAdmin,
+} from '@/features/admin/RequireSettingsAccess';
+import { LegacyAdminRedirect } from '@/features/admin/LegacyAdminRedirect';
+import {
+  ProfileSettingsPage,
+  SecuritySettingsPage,
+} from '@/features/admin/pages/AccountSettingsPages';
 import { GeneralSettingsPage } from '@/features/admin/pages/GeneralSettingsPage';
-import { StubPage } from '@/features/admin/pages/StubPage';
 import { PlatformAdminLayout } from '@/features/admin/PlatformAdminLayout';
 import { PlatformDashboardPage } from '@/features/admin/pages/PlatformDashboardPage';
 import { PlatformOrganizationsPage } from '@/features/admin/pages/PlatformOrganizationsPage';
@@ -95,9 +102,8 @@ function RouteErrorBoundary() {
     <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center">
       <p className="text-lg font-medium text-zinc-800">Something went wrong</p>
       <p className="max-w-md text-sm text-zinc-500">
-        Try refreshing the page. If this keeps happening, check if any browser
-        extensions (translation tools, ad blockers, screen recorders) might be
-        interfering.
+        Try refreshing the page. If this keeps happening, check if any browser extensions
+        (translation tools, ad blockers, screen recorders) might be interfering.
       </p>
       <button
         type="button"
@@ -163,91 +169,39 @@ export const router = createBrowserRouter([
       },
 
       {
-        path: '/admin/organization',
-        element: <OrganizationAdminLayout />,
+        path: '/settings',
+        element: <SettingsLayout />,
         children: [
-          {
-            index: true,
-            element: <Navigate to="/admin/organization/general" replace />,
-          },
-          { path: 'general', element: <OrganizationGeneralSettingsPage /> },
-          { path: 'members', element: <MembersPage /> },
-          { path: 'workspaces', element: <OrganizationWorkspacesPage /> },
-          { path: 'files', element: <OrganizationFilesPage /> },
-          { path: 'token-usage', element: <TokenUsagePage /> },
-          { path: 'audit-log', element: <AuditLogPage /> },
-          {
-            path: 'billing',
-            element: (
-              <StubPage
-                title="Billing"
-                description="Plan, invoices, and payment method."
-                eta="Coming with v1.1"
-              />
-            ),
-          },
-        ],
-      },
-
-      {
-        path: '/admin',
-        element: <AdminLayout />,
-        children: [
-          {
-            index: true,
-            element: <Navigate to="/admin/workspace/general" replace />,
-          },
+          { index: true, element: <Navigate to="/settings/profile" replace /> },
+          { path: 'profile', element: <ProfileSettingsPage /> },
+          { path: 'security', element: <SecuritySettingsPage /> },
           {
             path: 'workspace',
+            element: <RequireWorkspaceAdmin />,
             children: [
-              {
-                index: true,
-                element: <Navigate to="/admin/workspace/general" replace />,
-              },
+              { index: true, element: <Navigate to="/settings/workspace/general" replace /> },
               { path: 'general', element: <GeneralSettingsPage /> },
               { path: 'files', element: <WorkspaceFilesPage /> },
-              {
-                path: 'ai-customization',
-                element: (
-                  <StubPage
-                    title="AI Customization"
-                    description="Tone, system prompt, and allowed model list for this workspace."
-                    eta="Coming with v1.1"
-                  />
-                ),
-              },
-              {
-                path: 'users',
-                element: (
-                  <StubPage
-                    title="Users"
-                    description="List, invite, and manage roles for members of this workspace."
-                    eta="Next up"
-                  />
-                ),
-              },
-              {
-                path: 'profile',
-                element: (
-                  <StubPage
-                    title="Profile"
-                    description="Edit your personal account details."
-                  />
-                ),
-              },
-              {
-                path: 'preferences',
-                element: (
-                  <StubPage
-                    title="Preferences"
-                    description="Keyboard shortcuts, theme, language."
-                  />
-                ),
-              },
+            ],
+          },
+          {
+            path: 'organization',
+            element: <RequireOrganizationAdmin />,
+            children: [
+              { index: true, element: <Navigate to="/settings/organization/general" replace /> },
+              { path: 'general', element: <OrganizationGeneralSettingsPage /> },
+              { path: 'members', element: <MembersPage /> },
+              { path: 'workspaces', element: <OrganizationWorkspacesPage /> },
+              { path: 'files', element: <OrganizationFilesPage /> },
+              { path: 'usage', element: <TokenUsagePage /> },
+              { path: 'audit-log', element: <AuditLogPage /> },
             ],
           },
         ],
       },
+      // The workspace and organization admin pages moved under /settings.
+      { path: '/admin/workspace/*', element: <LegacyAdminRedirect /> },
+      { path: '/admin/organization/*', element: <LegacyAdminRedirect /> },
 
       { path: '*', element: <NotFoundRedirect /> },
     ],

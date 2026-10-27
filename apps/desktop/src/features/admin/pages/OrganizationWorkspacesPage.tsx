@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
-import { AdminPageBody } from '../AdminLayout';
+import { AdminPageBody } from '../AdminPageBody';
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER';
 

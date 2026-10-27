@@ -2,8 +2,16 @@ import { createHashRouter, Navigate } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import { ChatLayout } from '@/features/chat/ChatLayout';
 import { ChatPage } from '@/features/chat/ChatPage';
-import { AdminLayout } from '@/features/admin/AdminLayout';
-import { OrganizationAdminLayout } from '@/features/admin/OrganizationAdminLayout';
+import { SettingsLayout } from '@/features/admin/SettingsLayout';
+import {
+  RequireOrganizationAdmin,
+  RequireWorkspaceAdmin,
+} from '@/features/admin/RequireSettingsAccess';
+import { LegacyAdminRedirect } from '@/features/admin/LegacyAdminRedirect';
+import {
+  ProfileSettingsPage,
+  SecuritySettingsPage,
+} from '@/features/admin/pages/AccountSettingsPages';
 import { PlatformAdminLayout } from '@/features/admin/PlatformAdminLayout';
 import { GeneralSettingsPage } from '@/features/admin/pages/GeneralSettingsPage';
 import { OrganizationGeneralSettingsPage } from '@/features/admin/pages/OrganizationGeneralSettingsPage';
@@ -19,7 +27,6 @@ import { PlatformOrganizationsPage } from '@/features/admin/pages/PlatformOrgani
 import { PlatformOrganizationDetailPage } from '@/features/admin/pages/PlatformOrganizationDetailPage';
 import { PlatformUsersPage } from '@/features/admin/pages/PlatformUsersPage';
 import { AcceptInvitePage } from '@/features/invitations/AcceptInvitePage';
-import { StubPage } from '@/features/admin/pages/StubPage';
 import { WorkspacePickerPage } from '@/features/workspaces/WorkspacePickerPage';
 import { NewWorkspaceWizardPage } from '@/features/workspaces/NewWorkspaceWizardPage';
 
@@ -33,7 +40,7 @@ import { NewWorkspaceWizardPage } from '@/features/workspaces/NewWorkspaceWizard
  * Top-level layouts:
  *   - WorkspacePickerPage at /workspaces (full screen)
  *   - ChatLayout for /chat/*
- *   - AdminLayout for /admin/workspace/* (role-gated internally)
+ *   - SettingsLayout for /settings/* (sections role-gated internally)
  */
 /**
  * Role-aware landing for `/`. Superadmins go to the platform overview;
@@ -64,8 +71,8 @@ export const router = createHashRouter([
   // Back-compat redirects for older links.
   { path: '/orgs', element: <Navigate to="/workspaces" replace /> },
   { path: '/orgs/new', element: <Navigate to="/workspaces/new" replace /> },
-  { path: '/admin/company/*', element: <Navigate to="/admin/workspace/general" replace /> },
-  { path: '/admin/org/*', element: <Navigate to="/admin/workspace/general" replace /> },
+  { path: '/admin/company/*', element: <Navigate to="/settings" replace /> },
+  { path: '/admin/org/*', element: <Navigate to="/settings" replace /> },
 
   {
     path: '/chat',
@@ -86,110 +93,37 @@ export const router = createHashRouter([
     ],
   },
   {
-    path: '/admin/organization',
-    element: <OrganizationAdminLayout />,
+    path: '/settings',
+    element: <SettingsLayout />,
     children: [
-      { index: true, element: <Navigate to="/admin/organization/general" replace /> },
-      { path: 'general', element: <OrganizationGeneralSettingsPage /> },
-      { path: 'members', element: <MembersPage /> },
-      { path: 'workspaces', element: <OrganizationWorkspacesPage /> },
-      { path: 'files', element: <OrganizationFilesPage /> },
-      { path: 'token-usage', element: <TokenUsagePage /> },
-      { path: 'audit-log', element: <AuditLogPage /> },
-      {
-        path: 'billing',
-        element: (
-          <StubPage
-            title="Billing"
-            description="Plan, invoices, and payment method."
-            eta="Coming with v1.1"
-          />
-        ),
-      },
-    ],
-  },
-  {
-    path: '/admin',
-    element: <AdminLayout />,
-    children: [
-      { index: true, element: <Navigate to="/admin/workspace/general" replace /> },
+      { index: true, element: <Navigate to="/settings/profile" replace /> },
+      { path: 'profile', element: <ProfileSettingsPage /> },
+      { path: 'security', element: <SecuritySettingsPage /> },
       {
         path: 'workspace',
+        element: <RequireWorkspaceAdmin />,
         children: [
-          { index: true, element: <Navigate to="/admin/workspace/general" replace /> },
+          { index: true, element: <Navigate to="/settings/workspace/general" replace /> },
           { path: 'general', element: <GeneralSettingsPage /> },
           { path: 'files', element: <WorkspaceFilesPage /> },
-          {
-            path: 'ai-customization',
-            element: (
-              <StubPage
-                title="AI Customization"
-                description="Tone, system prompt, and allowed model list for this workspace."
-                eta="Coming with v1.1"
-              />
-            ),
-          },
-          {
-            path: 'users',
-            element: (
-              <StubPage
-                title="Users"
-                description="List, invite, and manage roles for members of this workspace."
-                eta="Next up"
-              />
-            ),
-          },
-          {
-            path: 'token-usage',
-            element: (
-              <StubPage
-                title="Token Usage"
-                description="Spend across AI requests in this workspace."
-                eta="Ships with usage tracking"
-              />
-            ),
-          },
-          {
-            path: 'integration',
-            element: (
-              <StubPage
-                title="Integration"
-                description="Connect SSO, Slack, and third-party document sources."
-              />
-            ),
-          },
-          {
-            path: 'profile',
-            element: (
-              <StubPage title="Profile" description="Edit your personal account details." />
-            ),
-          },
-          {
-            path: 'preferences',
-            element: (
-              <StubPage
-                title="Preferences"
-                description="Keyboard shortcuts, theme, language."
-              />
-            ),
-          },
-          {
-            path: 'notifications',
-            element: (
-              <StubPage title="Notifications" description="Email and in-app alert controls." />
-            ),
-          },
-          {
-            path: 'api-keys',
-            element: (
-              <StubPage
-                title="API Keys"
-                description="Personal access tokens for scripting against the Diguro API."
-              />
-            ),
-          },
+        ],
+      },
+      {
+        path: 'organization',
+        element: <RequireOrganizationAdmin />,
+        children: [
+          { index: true, element: <Navigate to="/settings/organization/general" replace /> },
+          { path: 'general', element: <OrganizationGeneralSettingsPage /> },
+          { path: 'members', element: <MembersPage /> },
+          { path: 'workspaces', element: <OrganizationWorkspacesPage /> },
+          { path: 'files', element: <OrganizationFilesPage /> },
+          { path: 'usage', element: <TokenUsagePage /> },
+          { path: 'audit-log', element: <AuditLogPage /> },
         ],
       },
     ],
   },
+  // The workspace and organization admin pages moved under /settings.
+  { path: '/admin/workspace/*', element: <LegacyAdminRedirect /> },
+  { path: '/admin/organization/*', element: <LegacyAdminRedirect /> },
 ]);

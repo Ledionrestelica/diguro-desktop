@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import { apiAuth } from '@/lib/api-auth';
 import { useAuth } from '@/app/auth-context';
-import { SettingsDialog } from '@/features/settings/SettingsDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,16 +24,8 @@ export function UserFooter({ compact = false }: { compact?: boolean }) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const me = trpc.health.me.useQuery();
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const data = me.data;
-  const wsRole = data?.activeWorkspace?.myRole;
-  const canAdminWorkspace =
-    data?.role === 'superadmin' ||
-    data?.role === 'organization_admin' ||
-    wsRole === 'OWNER' ||
-    wsRole === 'ADMIN';
-  const canAdminOrg = data?.role === 'organization_admin' || data?.role === 'superadmin';
   const subtitle = [ROLE_LABEL[data?.role ?? 'user'], data?.activeWorkspace?.name]
     .filter(Boolean)
     .join(' · ');
@@ -54,17 +44,7 @@ export function UserFooter({ compact = false }: { compact?: boolean }) {
       <DropdownMenuItem onSelect={() => void navigate('/workspaces')}>
         Switch workspace
       </DropdownMenuItem>
-      {canAdminWorkspace && (
-        <DropdownMenuItem onSelect={() => void navigate('/admin/workspace/general')}>
-          Workspace settings
-        </DropdownMenuItem>
-      )}
-      {canAdminOrg && (
-        <DropdownMenuItem onSelect={() => void navigate('/admin/organization/general')}>
-          Organization settings
-        </DropdownMenuItem>
-      )}
-      <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>Settings</DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => void navigate('/settings')}>Settings</DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={() => void handleSignOut()}>Sign out</DropdownMenuItem>
     </DropdownMenuContent>
@@ -83,7 +63,6 @@ export function UserFooter({ compact = false }: { compact?: boolean }) {
           </DropdownMenuTrigger>
           {menu}
         </DropdownMenu>
-        <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       </>
     );
   }
@@ -108,7 +87,6 @@ export function UserFooter({ compact = false }: { compact?: boolean }) {
           {menu}
         </DropdownMenu>
       </div>
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>
   );
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
-import { AdminPageBody } from '../AdminLayout';
+import { AdminPageBody } from '../AdminPageBody';
 
 /**
  * Org-admin audit log. Every security-relevant action (resource upload /

@@ -4,26 +4,23 @@ import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import { apiAuth } from '@/lib/api-auth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
+import { TextField } from '@/components/ui/text-field';
+import { SettingsRow, SettingsSection } from '@/features/admin/SettingsSection';
 
 const MIN_PASSWORD_LEN = 8;
 
 /**
- * Security settings tab — change password + active-session management.
+ * Settings · Account · Security — change password + active-session management.
  * Sessions are backed by `me.sessionsList` / `me.revokeSession` /
  * `me.revokeOtherSessions`; the password change goes through Better-Auth's
  * `/change-password` endpoint via `apiAuth` (same path as sign-in/out).
  */
 export function SecuritySettings() {
   return (
-    <div className="flex flex-col gap-8">
+    <>
       <ChangePasswordSection />
-      <div className="h-px bg-zinc-100" />
       <SessionsSection />
-    </div>
+    </>
   );
 }
 
@@ -39,10 +36,7 @@ function ChangePasswordSection() {
   const tooShort = next.length > 0 && next.length < MIN_PASSWORD_LEN;
   const mismatch = confirm.length > 0 && next !== confirm;
   const canSubmit =
-    current.length > 0 &&
-    next.length >= MIN_PASSWORD_LEN &&
-    next === confirm &&
-    !pending;
+    current.length > 0 && next.length >= MIN_PASSWORD_LEN && next === confirm && !pending;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,77 +51,69 @@ function ChangePasswordSection() {
       toast.success('Password updated');
       if (revokeOthers) void utils.me.sessionsList.invalidate();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Could not change password.',
-      );
+      setError(err instanceof Error ? err.message : 'Could not change password.');
     } finally {
       setPending(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div>
-        <p className="text-sm font-medium text-black">Change password</p>
-        <p className="text-sm text-zinc-500">
-          Use at least {MIN_PASSWORD_LEN} characters.
-        </p>
-      </div>
-
-      <div className="flex max-w-[420px] flex-col gap-3">
-        <Field label="Current password">
-          <Input
-            type="password"
-            autoComplete="current-password"
-            value={current}
-            onChange={(e) => setCurrent(e.target.value)}
-          />
-        </Field>
-        <Field label="New password">
-          <Input
-            type="password"
-            autoComplete="new-password"
-            value={next}
-            onChange={(e) => setNext(e.target.value)}
-            aria-invalid={tooShort}
-          />
-          {tooShort && (
-            <p className="text-xs text-red-600">
-              Must be at least {MIN_PASSWORD_LEN} characters.
-            </p>
-          )}
-        </Field>
-        <Field label="Confirm new password">
-          <Input
-            type="password"
-            autoComplete="new-password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            aria-invalid={mismatch}
-          />
-          {mismatch && (
-            <p className="text-xs text-red-600">Passwords don’t match.</p>
-          )}
-        </Field>
-
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-600">
-          <input
-            type="checkbox"
-            checked={revokeOthers}
-            onChange={(e) => setRevokeOthers(e.target.checked)}
-            className="size-4 rounded border-zinc-300"
-          />
-          Sign out other devices
-        </label>
-      </div>
-
-      <div>
-        <Button type="submit" size="sm" disabled={!canSubmit}>
-          {pending ? 'Updating…' : 'Update password'}
-        </Button>
-      </div>
-
-      {error && <p className="text-sm text-red-600">{error}</p>}
+    <form onSubmit={handleSubmit}>
+      <SettingsSection title="Password">
+        <SettingsRow
+          label="Change password"
+          hint={`Use at least ${MIN_PASSWORD_LEN} characters.`}
+          stacked
+        >
+          <div className="flex max-w-[360px] flex-col gap-3">
+            <TextField
+              label="Current password"
+              size="sm"
+              type="password"
+              autoComplete="current-password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+            />
+            <TextField
+              label="New password"
+              size="sm"
+              type="password"
+              autoComplete="new-password"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              error={tooShort ? `Must be at least ${MIN_PASSWORD_LEN} characters.` : null}
+            />
+            <TextField
+              label="Confirm new password"
+              size="sm"
+              type="password"
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              error={mismatch ? 'Passwords don’t match.' : null}
+            />
+            <label className="flex cursor-pointer items-center gap-2 text-label-13 text-text-secondary">
+              <input
+                type="checkbox"
+                checked={revokeOthers}
+                onChange={(e) => setRevokeOthers(e.target.checked)}
+                className="size-4 rounded border-border-input accent-[var(--color-primary)]"
+              />
+              Sign out my other devices
+            </label>
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                type="submit"
+                disabled={!canSubmit}
+                className="cursor-pointer rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {pending ? 'Updating…' : 'Update password'}
+              </button>
+              {error && <p className="text-label-13 text-danger-text">{error}</p>}
+            </div>
+          </div>
+        </SettingsRow>
+      </SettingsSection>
     </form>
   );
 }
@@ -145,11 +131,11 @@ function SessionsSection() {
   }
 
   if (sessions.isLoading) {
-    return <p className="text-sm text-zinc-500">Loading sessions…</p>;
+    return <p className="text-label-13 text-text-secondary">Loading sessions…</p>;
   }
   if (sessions.error || !sessions.data) {
     return (
-      <p className="text-sm text-red-600">
+      <p className="text-label-13 text-danger-text">
         {sessions.error?.message ?? 'Could not load your sessions.'}
       </p>
     );
@@ -159,57 +145,37 @@ function SessionsSection() {
   const otherCount = list.filter((s) => !s.isCurrent).length;
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-black">Active sessions</p>
-          <p className="text-sm text-zinc-500">
-            Devices and browsers currently signed in to your account.
-          </p>
-        </div>
-        {otherCount > 0 && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={revokeOthers.isPending}
-            onClick={() =>
-              revokeOthers.mutate(undefined, { onSuccess: refresh })
-            }
-          >
-            {revokeOthers.isPending ? 'Signing out…' : 'Sign out others'}
-          </Button>
-        )}
-      </div>
-
-      <ul className="flex flex-col gap-2">
+    <>
+      <SettingsSection
+        title="Active sessions"
+        note={
+          revoke.isError || revokeOthers.isError
+            ? 'Couldn’t sign that device out. Please try again.'
+            : 'Devices and browsers signed in to your account.'
+        }
+        className="mb-3"
+      >
         {list.map((s) => {
           const Icon = deviceIcon(s.userAgent);
           const busy = pendingId === s.id && revoke.isPending;
           return (
-            <li
-              key={s.id}
-              className="flex items-center gap-3 rounded-[10px] border border-zinc-200 bg-white px-4 py-3"
-            >
-              <div className="grid size-9 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-600">
-                <Icon className="size-4" />
-              </div>
+            <div key={s.id} className="flex items-center gap-3 py-3 pr-4 pl-5">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-bg-subtle text-text-secondary">
+                <Icon className="size-4" strokeWidth={1.5} />
+              </span>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-medium text-zinc-900">
-                    {describeUserAgent(s.userAgent)}
-                  </p>
-                  {s.isCurrent && (
-                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                      This device
-                    </span>
-                  )}
-                </div>
-                <p className="truncate text-xs text-zinc-500">
+                <p className="truncate text-label-14 font-medium">
+                  {describeUserAgent(s.userAgent)}
+                </p>
+                <p className="truncate text-label-13 text-text-secondary">
                   {s.ipAddress || 'Unknown IP'} · Signed in {formatDate(s.createdAt)}
                 </p>
               </div>
-              {!s.isCurrent && (
+              {s.isCurrent ? (
+                <span className="rounded-[6px] bg-bg-subtle px-2 py-0.5 text-label-12 font-medium text-success-text">
+                  This device
+                </span>
+              ) : (
                 <button
                   type="button"
                   disabled={busy}
@@ -220,39 +186,29 @@ function SessionsSection() {
                       { onSuccess: refresh, onSettled: () => setPendingId(null) },
                     );
                   }}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-zinc-600 transition-colors',
-                    busy ? 'opacity-60' : 'hover:bg-zinc-100 hover:text-red-600',
-                  )}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {busy ? <Loader2 className="size-3.5 animate-spin" /> : null}
-                  {busy ? 'Revoking…' : 'Revoke'}
+                  {busy && <Loader2 className="size-3.5 animate-spin" />}
+                  {busy ? 'Signing out…' : 'Sign out'}
                 </button>
               )}
-            </li>
+            </div>
           );
         })}
-      </ul>
-
-      {(revoke.isError || revokeOthers.isError) && (
-        <p className="text-sm text-red-600">Couldn’t revoke — please try again.</p>
+      </SettingsSection>
+      {otherCount > 0 && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            disabled={revokeOthers.isPending}
+            onClick={() => revokeOthers.mutate(undefined, { onSuccess: refresh })}
+            className="cursor-pointer rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-danger-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {revokeOthers.isPending ? 'Signing out…' : 'Sign out of all other sessions'}
+          </button>
+        </div>
       )}
-    </div>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <Label className="text-sm text-zinc-700">{label}</Label>
-      {children}
-    </div>
+    </>
   );
 }
 
@@ -267,21 +223,29 @@ function describeUserAgent(ua: string | null): string {
   if (!ua) return 'Unknown device';
   if (/electron|diguro/i.test(ua)) return 'Diguro desktop app';
 
-  const browser =
-    /edg\//i.test(ua) ? 'Edge'
-    : /opr\//i.test(ua) ? 'Opera'
-    : /chrome/i.test(ua) ? 'Chrome'
-    : /firefox/i.test(ua) ? 'Firefox'
-    : /safari/i.test(ua) ? 'Safari'
-    : 'Browser';
+  const browser = /edg\//i.test(ua)
+    ? 'Edge'
+    : /opr\//i.test(ua)
+      ? 'Opera'
+      : /chrome/i.test(ua)
+        ? 'Chrome'
+        : /firefox/i.test(ua)
+          ? 'Firefox'
+          : /safari/i.test(ua)
+            ? 'Safari'
+            : 'Browser';
 
-  const os =
-    /windows/i.test(ua) ? 'Windows'
-    : /mac os|macintosh/i.test(ua) ? 'macOS'
-    : /android/i.test(ua) ? 'Android'
-    : /iphone|ipad|ios/i.test(ua) ? 'iOS'
-    : /linux/i.test(ua) ? 'Linux'
-    : null;
+  const os = /windows/i.test(ua)
+    ? 'Windows'
+    : /mac os|macintosh/i.test(ua)
+      ? 'macOS'
+      : /android/i.test(ua)
+        ? 'Android'
+        : /iphone|ipad|ios/i.test(ua)
+          ? 'iOS'
+          : /linux/i.test(ua)
+            ? 'Linux'
+            : null;
 
   return os ? `${browser} on ${os}` : browser;
 }

@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Trash2, Upload } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
+import { PiUploadUpStroke } from '@/components/icons/pika/PiUploadUpStroke';
 import { WorkspaceGlyph } from '@/features/workspaces/WorkspaceGlyph';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml,image/gif';
 
 /**
- * Generic logo uploader — matches the Figma layout (238×171 card, 50px
- * gradient placeholder centered in the top 133px, full-width "Upload logo"
- * button along the bottom). Agnostic about whether it's uploading an org,
- * company, or user logo: the caller passes two async functions that
+ * Generic logo uploader (Figma "Settings · Organization · General · v2"):
+ * a large logo tile with an upload badge, where the logo shows, file
+ * requirements, and Upload / Remove. Agnostic about whether it's uploading
+ * an org or workspace logo: the caller passes two async functions that
  * drive the two-step flow (presign → PUT → commit).
  */
 export interface PresignedLogoUpload {
@@ -35,6 +35,9 @@ export interface LogoUploaderProps {
   onCommit: (url: string | null) => Promise<void>;
   /** Called after any successful write so the caller can invalidate caches. */
   onChanged: () => void;
+  label?: string;
+  /** Where the logo appears, shown under the label. */
+  description?: string;
 }
 
 export function LogoUploader({
@@ -43,6 +46,8 @@ export function LogoUploader({
   onPresign,
   onCommit,
   onChanged,
+  label = 'Logo',
+  description = 'Shown in the sidebar, on the sign-in page and in invite emails.',
 }: LogoUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
@@ -111,74 +116,78 @@ export function LogoUploader({
     }
   }
 
+  const hasLogo = !!(logoUrl || localPreview);
+
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium leading-5 text-black">Organization logo</p>
+    <div className="flex flex-col gap-3 p-5">
+      <div className="flex items-center gap-6">
+        <button
+          type="button"
+          onClick={openPicker}
+          disabled={busy}
+          aria-label={hasLogo ? 'Change logo' : 'Upload logo'}
+          className="group relative size-[104px] shrink-0 cursor-pointer rounded-[24px] outline-none focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed"
+        >
+          <span className="grid size-full place-items-center overflow-hidden rounded-[24px] border border-border bg-bg-subtle">
+            {displaySrc ? (
+              <img src={displaySrc} alt="" className="size-full object-cover" />
+            ) : (
+              <WorkspaceGlyph seed={glyphSeed} size={48} />
+            )}
+            {busy && (
+              <span className="absolute inset-0 grid place-items-center rounded-[24px] bg-bg-panel/60 backdrop-blur-sm">
+                <Loader2 className="size-5 animate-spin text-text-secondary" />
+              </span>
+            )}
+          </span>
+          {!busy && (
+            <span className="absolute -right-2 -bottom-2 grid size-8 place-items-center rounded-full border border-border bg-bg-panel text-text shadow-[0_2px_6px_rgba(16,24,40,0.12)] transition-transform group-hover:scale-105">
+              <PiUploadUpStroke size={16} />
+            </span>
+          )}
+        </button>
 
-      <div className="flex items-start gap-4">
-        <div className="flex flex-col items-stretch gap-2">
-          <div className="relative h-[171px] w-[238px] overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
-            <div className="flex h-[133px] items-center justify-center">
-              {displaySrc ? (
-                <img
-                  src={displaySrc}
-                  alt="Logo"
-                  className="size-[70px] rounded-full object-cover"
-                />
-              ) : (
-                <WorkspaceGlyph seed={glyphSeed} size={50} />
-              )}
-              {busy && (
-                <div className="absolute inset-x-0 top-0 flex h-[133px] items-center justify-center bg-white/60 backdrop-blur-sm">
-                  <Loader2 className="size-5 animate-spin text-zinc-500" />
-                </div>
-              )}
-            </div>
-
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="text-copy-14 font-semibold">{label}</p>
+          <p className="text-label-13 text-text-secondary">{description}</p>
+          <p className="text-label-12 text-text-placeholder">
+            PNG, JPG, WEBP, SVG or GIF · square works best · up to 10 MB
+          </p>
+          <div className="mt-2 flex items-center gap-1">
             <button
               type="button"
               onClick={openPicker}
               disabled={busy}
-              className={cn(
-                'flex h-[38px] w-full items-center justify-center gap-2 border-t border-zinc-200 bg-white text-sm font-medium text-zinc-800 transition-colors',
-                busy ? 'cursor-not-allowed opacity-60' : 'hover:bg-zinc-50',
-              )}
+              className="flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border bg-bg-panel py-[7px] pr-3 pl-2.5 text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {busy ? 'Uploading…' : 'Upload logo'}
-              {!busy && <Upload className="size-4" />}
+              <PiUploadUpStroke size={16} />
+              {busy ? 'Uploading…' : hasLogo ? 'Change logo' : 'Upload logo'}
             </button>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ACCEPT}
-              hidden
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void handleFile(f);
-                e.target.value = '';
-              }}
-            />
+            {hasLogo && !busy && (
+              <button
+                type="button"
+                onClick={() => void clearLogo()}
+                className="cursor-pointer rounded-[10px] px-3 py-[7px] text-label-13 font-medium text-text-secondary outline-none transition-colors hover:text-danger-text focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+              >
+                Remove
+              </button>
+            )}
           </div>
-
-          <p className="text-sm font-medium leading-5 text-zinc-500">
-            Recommended size 1:1, up to 10MB
-          </p>
         </div>
-
-        {(logoUrl || localPreview) && !busy && (
-          <button
-            type="button"
-            onClick={() => void clearLogo()}
-            className="inline-flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-red-600"
-          >
-            <Trash2 className="size-3.5" />
-            Remove
-          </button>
-        )}
       </div>
 
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPT}
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void handleFile(f);
+          e.target.value = '';
+        }}
+      />
+      {error && <p className="text-label-12 text-danger-text">{error}</p>}
     </div>
   );
 }

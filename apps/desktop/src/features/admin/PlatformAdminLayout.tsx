@@ -8,7 +8,7 @@ import {
   type AdminSaveAction,
   type AdminSaveContextValue,
 } from './admin-save-context';
-import { AdminPageBody } from './AdminLayout';
+import { AdminPageBody } from './AdminPageBody';
 
 /**
  * Gate + shell for every /admin/platform/* route.

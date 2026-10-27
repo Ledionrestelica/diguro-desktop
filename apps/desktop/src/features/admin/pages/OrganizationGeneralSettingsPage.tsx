@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminSave } from '../admin-save-context';
-import { AdminPageBody } from '../AdminLayout';
+import { AdminPageBody } from '../AdminPageBody';
 import { LogoUploader } from '../LogoUploader';
+import { SettingsRow, SettingsSection } from '../SettingsSection';
+import { Input } from '@/components/ui/input';
 
 /**
  * General tab for the organization (tenant). Edits name, slug, logo.
@@ -55,12 +57,16 @@ export function OrganizationGeneralSettingsPage() {
   useAdminSave(saveAction);
 
   if (orgQuery.isLoading) {
-    return <AdminPageBody>Loading…</AdminPageBody>;
+    return (
+      <AdminPageBody>
+        <p className="text-label-13 text-text-secondary">Loading…</p>
+      </AdminPageBody>
+    );
   }
   if (orgQuery.error || !orgQuery.data) {
     return (
       <AdminPageBody>
-        <p className="text-sm text-red-600">
+        <p className="text-label-13 text-danger-text">
           {orgQuery.error?.message ?? 'Could not load organization.'}
         </p>
       </AdminPageBody>
@@ -76,7 +82,7 @@ export function OrganizationGeneralSettingsPage() {
 
   return (
     <AdminPageBody>
-      <div className="flex flex-col gap-8">
+      <SettingsSection title="Brand">
         <LogoUploader
           logoUrl={org.logoUrl}
           glyphSeed={org.id}
@@ -93,124 +99,58 @@ export function OrganizationGeneralSettingsPage() {
           }}
           onChanged={onLogoChanged}
         />
+      </SettingsSection>
 
-        <Field
-          label="Organization name"
-          hint="The tenant name. Shown on the workspace picker and wherever the organization is referenced."
-        >
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full max-w-[420px] rounded-[10px] border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-800 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.04)] outline-none focus:border-zinc-400"
-          />
-        </Field>
-
-        <Field
-          label="Slug"
-          hint="Lowercase, dashes allowed. Used in URLs and internal references."
-        >
-          <input
+      <SettingsSection title="Details">
+        <SettingsRow label="Name" hint="Shown on the workspace picker and in invites.">
+          <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 w-[260px]" />
+        </SettingsRow>
+        <SettingsRow label="Address" hint="Lowercase letters, numbers and dashes. Used in links.">
+          <Input
             value={slug}
-            onChange={(e) =>
-              setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
-            }
-            className="w-full max-w-[420px] rounded-[10px] border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-800 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.04)] outline-none focus:border-zinc-400"
+            onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+            className="h-8 w-[260px]"
           />
-        </Field>
+        </SettingsRow>
+      </SettingsSection>
 
-        <LimitsCard org={org} />
+      <SettingsSection
+        title="Plan limits"
+        note="Need more room? Contact us and we'll raise your limits."
+      >
+        <LimitRow label="Members" current={org.userCount} cap={org.maxUsers} />
+        <LimitRow label="Workspaces" current={org.workspaceCount} cap={org.maxWorkspaces} />
+        <LimitRow label="Files per workspace" current={null} cap={org.maxResourcesPerWorkspace} />
+      </SettingsSection>
 
-        {update.error && (
-          <p className="text-sm text-red-600">
-            {(update.error as { message: string }).message}
-          </p>
-        )}
-      </div>
+      {update.error && (
+        <p className="text-label-13 text-danger-text">
+          {(update.error as { message: string }).message}
+        </p>
+      )}
     </AdminPageBody>
   );
 }
 
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-2">
-      <div>
-        <p className="text-sm font-medium text-black">{label}</p>
-        {hint && <p className="text-sm font-medium text-zinc-600">{hint}</p>}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function LimitsCard({
-  org,
-}: {
-  org: {
-    maxUsers: number;
-    maxWorkspaces: number;
-    maxResourcesPerWorkspace: number;
-    userCount: number;
-    workspaceCount: number;
-  };
-}) {
-  return (
-    <section className="flex flex-col gap-3">
-      <div>
-        <p className="text-sm font-medium text-black">Plan limits</p>
-        <p className="text-sm font-medium text-zinc-600">
-          Contact us to raise these.
-        </p>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <LimitTile label="Users" current={org.userCount} cap={org.maxUsers} />
-        <LimitTile
-          label="Workspaces"
-          current={org.workspaceCount}
-          cap={org.maxWorkspaces}
-        />
-        <LimitTile
-          label="Files per workspace"
-          current={null}
-          cap={org.maxResourcesPerWorkspace}
-        />
-      </div>
-    </section>
-  );
-}
-
-function LimitTile({
-  label,
-  current,
-  cap,
-}: {
-  label: string;
-  current: number | null;
-  cap: number;
-}) {
+function LimitRow({ label, current, cap }: { label: string; current: number | null; cap: number }) {
   const pct = current !== null ? Math.min(100, Math.round((current / cap) * 100)) : 0;
   return (
-    <div className="rounded-[10px] border border-zinc-200 bg-white p-4 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.04)]">
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-zinc-900">
-        {current ?? '—'}
-        <span className="text-sm font-normal text-zinc-500"> / {cap}</span>
-      </p>
-      {current !== null && (
-        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-zinc-100">
-          <div
-            className="h-full rounded-full bg-zinc-800 transition-all"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      )}
-    </div>
+    <SettingsRow label={label}>
+      <div className="flex items-center gap-3">
+        {current !== null && (
+          <div className="h-1.5 w-40 overflow-hidden rounded-full bg-gray-3">
+            <div
+              className={
+                pct > 85 ? 'h-full rounded-full bg-warning' : 'h-full rounded-full bg-primary'
+              }
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        )}
+        <span className="w-[72px] text-right text-label-13 font-medium text-text-secondary tabular-nums">
+          {current !== null ? `${current} of ${cap}` : `Up to ${cap}`}
+        </span>
+      </div>
+    </SettingsRow>
   );
 }

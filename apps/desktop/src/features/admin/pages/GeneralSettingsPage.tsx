@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminSave } from '../admin-save-context';
-import { AdminPageBody } from '../AdminLayout';
+import { AdminPageBody } from '../AdminPageBody';
 import { LogoUploader } from '../LogoUploader';
+import { SettingsRow, SettingsSection } from '../SettingsSection';
+import { Input } from '@/components/ui/input';
 
 /**
  * General tab — edits the ACTIVE WORKSPACE's branding (name, description,
@@ -27,8 +29,7 @@ export function GeneralSettingsPage() {
   const dirty = useMemo(() => {
     if (!wsQuery.data) return false;
     return (
-      name !== wsQuery.data.name ||
-      (description || null) !== (wsQuery.data.description ?? null)
+      name !== wsQuery.data.name || (description || null) !== (wsQuery.data.description ?? null)
     );
   }, [wsQuery.data, name, description]);
 
@@ -62,12 +63,16 @@ export function GeneralSettingsPage() {
   useAdminSave(saveAction);
 
   if (wsQuery.isLoading) {
-    return <AdminPageBody>Loading…</AdminPageBody>;
+    return (
+      <AdminPageBody>
+        <p className="text-label-13 text-text-secondary">Loading…</p>
+      </AdminPageBody>
+    );
   }
   if (wsQuery.error || !wsQuery.data) {
     return (
       <AdminPageBody>
-        <p className="text-sm text-red-600">
+        <p className="text-label-13 text-danger-text">
           {wsQuery.error?.message ?? 'Could not load workspace.'}
         </p>
       </AdminPageBody>
@@ -84,10 +89,12 @@ export function GeneralSettingsPage() {
 
   return (
     <AdminPageBody>
-      <div className="flex flex-col gap-8">
+      <SettingsSection title="Details">
         <LogoUploader
           logoUrl={ws.logoUrl}
           glyphSeed={ws.id}
+          label="Icon"
+          description="Shown in the sidebar, on the workspace picker and on its files."
           onPresign={async (file) => {
             const res = await presign.mutateAsync({
               filename: file.name,
@@ -101,105 +108,37 @@ export function GeneralSettingsPage() {
           }}
           onChanged={onLogoChanged}
         />
-
-        <Field label="Workspace name" hint="Displayed in the top bar and the workspace picker.">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full max-w-[420px] rounded-[10px] border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-800 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.04)] outline-none focus:border-zinc-400"
-          />
-        </Field>
-
-        <Field label="Description" hint="Shown on the workspace picker and to new members.">
+        <SettingsRow label="Name" hint="Shown in the sidebar and the workspace picker.">
+          <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 w-[260px]" />
+        </SettingsRow>
+        <SettingsRow
+          label="Description"
+          hint="Helps the assistant and new members understand what this workspace is for."
+          stacked
+        >
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value.slice(0, 500))}
             rows={3}
             placeholder="What is this workspace for?"
-            className="w-full max-w-[520px] resize-none rounded-[10px] border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-800 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.04)] outline-none focus:border-zinc-400"
+            className="w-full resize-none rounded-[10px] border border-border-input bg-bg-panel px-3 py-2.5 text-copy-14 text-text outline-none transition-[border-color,box-shadow] placeholder:text-text-placeholder hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)]"
           />
-        </Field>
+        </SettingsRow>
+      </SettingsSection>
 
-        <LimitsCard workspace={ws} />
+      <SettingsSection title="Plan limits" note="Ask your organization admin to raise these.">
+        <SettingsRow label="Files">
+          <span className="text-label-13 font-medium text-text-secondary tabular-nums">
+            Up to {ws.maxResources}
+          </span>
+        </SettingsRow>
+      </SettingsSection>
 
-        {update.error && (
-          <p className="text-sm text-red-600">
-            {(update.error as { message: string }).message}
-          </p>
-        )}
-      </div>
-    </AdminPageBody>
-  );
-}
-
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-2">
-      <div>
-        <p className="text-sm font-medium text-black">{label}</p>
-        {hint && <p className="text-sm font-medium text-zinc-600">{hint}</p>}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function LimitsCard({
-  workspace,
-}: {
-  workspace: {
-    maxResources: number;
-    memberCount: number;
-  };
-}) {
-  return (
-    <section className="flex flex-col gap-3">
-      <div>
-        <p className="text-sm font-medium text-black">Plan limits</p>
-        <p className="text-sm font-medium text-zinc-600">
-          Contact your organization admin to raise these.
+      {update.error && (
+        <p className="text-label-13 text-danger-text">
+          {(update.error as { message: string }).message}
         </p>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <LimitTile label="Files" current={null} cap={workspace.maxResources} />
-      </div>
-    </section>
-  );
-}
-
-function LimitTile({
-  label,
-  current,
-  cap,
-}: {
-  label: string;
-  current: number | null;
-  cap: number;
-}) {
-  const pct = current !== null ? Math.min(100, Math.round((current / cap) * 100)) : 0;
-  return (
-    <div className="rounded-[10px] border border-zinc-200 bg-white p-4 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.04)]">
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-zinc-900">
-        {current ?? '—'}
-        <span className="text-sm font-normal text-zinc-500"> / {cap}</span>
-      </p>
-      {current !== null && (
-        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-zinc-100">
-          <div
-            className="h-full rounded-full bg-zinc-800 transition-all"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
       )}
-    </div>
+    </AdminPageBody>
   );
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Check, Copy, Loader2, Mail, Trash2, UserPlus, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
-import { AdminPageBody } from '../AdminLayout';
+import { AdminPageBody } from '../AdminPageBody';
 
 /**
  * Members tab — current users + pending invitations. Admin can create new

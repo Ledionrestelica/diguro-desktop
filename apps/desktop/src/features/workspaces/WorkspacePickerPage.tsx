@@ -58,7 +58,7 @@ export function WorkspacePickerPage() {
                 {canCreate ? (
                   <button
                     type="button"
-                    onClick={() => void navigate('/admin/organization/general')}
+                    onClick={() => void navigate('/settings/organization/general')}
                     title="Manage organization"
                     className="group inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
                   >

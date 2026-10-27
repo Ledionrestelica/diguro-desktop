@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect } from 'react';
 
 /**
- * Lets child pages register a "Save" action for the AdminLayout's sticky
- * top bar. Keeps the Save button in one place (consistent design) while
+ * Lets child pages register a "Save" action for the settings page
+ * header. Keeps the Save button in one place (consistent design) while
  * delegating its behavior per-page.
  */
 export interface AdminSaveAction {

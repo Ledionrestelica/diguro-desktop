@@ -1,11 +1,9 @@
-import { useState } from 'react';
 import { Building2, LogOut, LucideRotate3d, Menu, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiAuth } from '@/lib/api-auth';
 import { useAuth } from '@/app/auth-context';
 import { trpc } from '@/lib/trpc';
 import { CustomInstructionsButton } from './CustomInstructionsButton';
-import { SettingsDialog } from '@/features/settings/SettingsDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +24,6 @@ export function TopBar({ onMenuClick }: TopBarProps = {}) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const me = trpc.health.me.useQuery();
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   async function handleSignOut() {
     await apiAuth.signOut();
@@ -121,7 +118,7 @@ export function TopBar({ onMenuClick }: TopBarProps = {}) {
             {canAdmin && (
               <DropdownMenuItem
                 className="cursor-pointer"
-                onSelect={() => void navigate('/admin/workspace/general')}
+                onSelect={() => void navigate('/settings/workspace/general')}
               >
                 <Building2 className="size-4" />
                 Workspace settings
@@ -130,7 +127,7 @@ export function TopBar({ onMenuClick }: TopBarProps = {}) {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="cursor-pointer"
-              onSelect={() => setSettingsOpen(true)}
+              onSelect={() => void navigate('/settings')}
             >
               <Settings className="size-4" />
               Settings
@@ -145,7 +142,6 @@ export function TopBar({ onMenuClick }: TopBarProps = {}) {
       </div>
     </header>
 
-    <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>
   );
 }
