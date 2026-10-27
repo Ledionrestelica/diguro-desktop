@@ -2,25 +2,28 @@ import { useId, type ComponentProps, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * Design-system text input (Figma "Input" component). Label above, optional
- * leading icon, helper or error text below. Sizes: sm 32 · md 36 · lg 44.
+ * Design-system text input (Figma "Input" component on the Input page).
+ * Optional label and description above, optional icons inside, hint or
+ * error text below. Sizes: sm 32 · md 36 · lg 44.
  */
 
 type Size = 'sm' | 'md' | 'lg';
 
-// Label is Label/13 on sm/md and Label/14 on lg, as in the Figma component.
 const controlSize: Record<Size, string> = {
-  sm: 'h-8 px-2.5 text-label-14',
-  md: 'h-9 px-3 text-label-14',
-  lg: 'h-11 px-3.5 text-label-16',
+  sm: 'h-8 rounded-[10px] px-2.5 text-copy-14',
+  md: 'h-9 rounded-[10px] px-3 text-copy-14',
+  lg: 'h-11 rounded-[12px] px-3.5 text-copy-16',
 };
 
 type TextFieldProps = Omit<ComponentProps<'input'>, 'size'> & {
   label: string;
-  /** Keep the label for screen readers only. */
+  /** Keep the label for screen readers only (Figma "Without title"). */
   hideLabel?: boolean;
+  /** Second line under the label (Figma "With title and description"). */
+  description?: ReactNode;
   size?: Size;
   icon?: ReactNode;
+  trailing?: ReactNode;
   helper?: ReactNode;
   error?: string | null;
   controlClassName?: string;
@@ -30,8 +33,10 @@ type TextFieldProps = Omit<ComponentProps<'input'>, 'size'> & {
 export function TextField({
   label,
   hideLabel = false,
+  description,
   size = 'md',
   icon,
+  trailing,
   helper,
   error,
   className,
@@ -44,33 +49,43 @@ export function TextField({
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const describedBy = error || helper ? `${inputId}-hint` : undefined;
+  const iconSize = size === 'lg' ? '[&_svg]:size-5' : '[&_svg]:size-4';
 
   return (
     <div className={cn('flex w-full flex-col gap-1.5', className)}>
-      <label
-        htmlFor={inputId}
-        className={cn(
-          'font-medium text-text',
-          size === 'lg' ? 'text-label-14' : 'text-label-13',
-          hideLabel && 'sr-only',
+      <div className={cn('flex flex-col gap-0.5', hideLabel && 'sr-only')}>
+        <label
+          htmlFor={inputId}
+          className={cn('text-label-14 font-medium', disabled ? 'text-gray-8' : 'text-text')}
+        >
+          {label}
+        </label>
+        {description && (
+          <p className={cn('text-label-13', disabled ? 'text-gray-8' : 'text-text-secondary')}>
+            {description}
+          </p>
         )}
-      >
-        {label}
-      </label>
+      </div>
       <div
         className={cn(
-          'flex w-full items-center gap-2 rounded-[8px] border bg-bg-panel transition-[border-color,box-shadow]',
+          'flex w-full items-center gap-2 border transition-[border-color,box-shadow]',
           controlSize[size],
           disabled
             ? 'border-border bg-bg-subtle'
             : error
-              ? 'border-danger shadow-[0_0_0_3px_var(--color-danger-subtle)]'
-              : 'border-border-input hover:border-border-hover focus-within:border-focus-ring focus-within:shadow-[0_0_0_3px_var(--color-selection)] focus-within:hover:border-focus-ring',
+              ? 'border-danger bg-bg-panel shadow-[0_0_0_3px_var(--color-danger-subtle)]'
+              : 'border-border-input bg-bg-panel hover:border-border-hover focus-within:border-focus-ring focus-within:shadow-[0_0_0_3px_var(--color-selection)] focus-within:hover:border-focus-ring',
           controlClassName,
         )}
       >
         {icon && (
-          <span className="flex size-5 shrink-0 items-center justify-center text-text-secondary [&_svg]:size-5">
+          <span
+            className={cn(
+              'flex shrink-0 items-center justify-center',
+              disabled ? 'text-gray-8' : 'text-text-placeholder',
+              iconSize,
+            )}
+          >
             {icon}
           </span>
         )}
@@ -80,18 +95,29 @@ export function TextField({
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
           className={cn(
-            'min-w-0 flex-1 bg-transparent font-medium text-text outline-none placeholder:text-text-placeholder disabled:cursor-not-allowed disabled:text-text-placeholder',
+            'min-w-0 flex-1 bg-transparent text-text outline-none placeholder:text-text-placeholder disabled:cursor-not-allowed disabled:text-gray-8',
             inputClassName,
           )}
           {...props}
         />
+        {trailing && (
+          <span
+            className={cn(
+              'flex shrink-0 items-center justify-center',
+              disabled ? 'text-gray-8' : 'text-text-placeholder',
+              iconSize,
+            )}
+          >
+            {trailing}
+          </span>
+        )}
       </div>
       {(error || helper) && (
         <p
           id={describedBy}
           className={cn(
             'text-label-12',
-            error ? 'text-danger-text' : disabled ? 'text-text-placeholder' : 'text-text-secondary',
+            error ? 'text-danger-text' : disabled ? 'text-gray-8' : 'text-text-secondary',
           )}
         >
           {error || helper}
