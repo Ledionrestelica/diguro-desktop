@@ -295,7 +295,7 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
   }
 
   const selectClass =
-    'h-8 cursor-pointer rounded-[10px] border border-border-input bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)] disabled:cursor-not-allowed disabled:opacity-60';
+    'h-8 cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)] disabled:cursor-not-allowed disabled:opacity-60';
 
   return (
     <div className="border-t border-border-default bg-bg-subtle py-4 pr-4 pl-5">

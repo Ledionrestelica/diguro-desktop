@@ -26,7 +26,7 @@ export function AuditLogPage() {
         <select
           value={action}
           onChange={(e) => setAction(e.target.value)}
-          className="h-8 shrink-0 cursor-pointer rounded-[10px] border border-border-input bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)]"
+          className="h-8 shrink-0 cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)]"
         >
           <option value="">All actions</option>
           <option value="resource.uploaded">File uploaded</option>
