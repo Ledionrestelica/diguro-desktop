@@ -24,26 +24,22 @@ export function TokenUsagePage() {
 
   return (
     <AdminPageBody>
-      <div className="flex flex-col gap-6">
-        <section className="rounded-[12px] border border-zinc-200 bg-white p-6">
-          <p className="text-sm font-medium leading-5 text-black">
-            Spend this month
-          </p>
-          <p className="mt-1 text-sm text-zinc-500">
-            {monthLabel} · UTC · updated in real time
-          </p>
-
-          <div className="mt-6 grid grid-cols-4 gap-4">
+      <div className="flex flex-col gap-7">
+        <section className="flex flex-col gap-2.5">
+          <div className="flex items-baseline justify-between gap-4">
+            <h2 className="text-label-14 font-semibold">Spend this month</h2>
+            <p className="text-label-12 text-text-placeholder">
+              {monthLabel} · UTC · updated in real time
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat
               label="Total cost"
               value={formatUsd(summary?.totalCostMicrodollars ?? 0)}
-              highlight
+              sub={monthLabel}
             />
             <Stat label="Calls" value={(summary?.totalCalls ?? 0).toLocaleString()} />
-            <Stat
-              label="Input tokens"
-              value={(summary?.totalPromptTokens ?? 0).toLocaleString()}
-            />
+            <Stat label="Input tokens" value={(summary?.totalPromptTokens ?? 0).toLocaleString()} />
             <Stat
               label="Output tokens"
               value={(summary?.totalCompletionTokens ?? 0).toLocaleString()}
@@ -51,20 +47,12 @@ export function TokenUsagePage() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
-          <div className="flex items-center justify-between border-b border-zinc-100 p-6">
-            <div>
-              <p className="text-sm font-medium leading-5 text-black">
-                Breakdown by model
-              </p>
-              <p className="mt-1 text-sm text-zinc-500">
-                Sorted by cost. Every call from every user, grouped by provider + model.
-              </p>
-            </div>
-          </div>
-          <div className="scrollbar-thin overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
+        <TableSection
+          title="Breakdown by model"
+          note="Sorted by cost. Every call from every user, grouped by provider and model."
+        >
+          <table className="w-full min-w-[760px] text-label-14">
+            <thead className="text-label-12 text-text-placeholder">
               <tr>
                 <Th>Type</Th>
                 <Th>Provider</Th>
@@ -76,27 +64,21 @@ export function TokenUsagePage() {
               </tr>
             </thead>
             <tbody>
-              {summaryQuery.isLoading && (
-                <tr>
-                  <td colSpan={7} className="px-6 py-6 text-center text-zinc-500">
-                    Loading…
-                  </td>
-                </tr>
+              {summaryQuery.isLoading && <MessageRow colSpan={7}>Loading…</MessageRow>}
+              {!summaryQuery.isLoading && summary?.breakdown.length === 0 && (
+                <MessageRow colSpan={7} tall>
+                  No usage yet this month.
+                </MessageRow>
               )}
-              {!summaryQuery.isLoading &&
-                summary?.breakdown.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-10 text-center text-zinc-500">
-                      No usage yet this month.
-                    </td>
-                  </tr>
-                )}
               {summary?.breakdown.map((row, i) => (
-                <tr key={`${row.type}-${row.provider}-${row.model}-${i}`} className="border-t border-zinc-100">
+                <tr
+                  key={`${row.type}-${row.provider}-${row.model}-${i}`}
+                  className="border-t border-border"
+                >
                   <Td>
                     <TypeBadge type={row.type} />
                   </Td>
-                  <Td>{row.provider}</Td>
+                  <Td muted>{row.provider}</Td>
                   <Td mono>{row.model}</Td>
                   <Td align="right">{row.calls.toLocaleString()}</Td>
                   <Td align="right">{row.promptTokens.toLocaleString()}</Td>
@@ -108,24 +90,14 @@ export function TokenUsagePage() {
               ))}
             </tbody>
           </table>
-          </div>
-        </section>
+        </TableSection>
 
-        <section className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
-          <div className="flex items-center justify-between border-b border-zinc-100 p-6">
-            <div>
-              <p className="text-sm font-medium leading-5 text-black">
-                Per-seat usage
-              </p>
-              <p className="mt-1 text-sm text-zinc-500">
-                Each seat has its own AI budget this month. Users past 80% are
-                highlighted; past 100% get blocked from new chats.
-              </p>
-            </div>
-          </div>
-          <div className="scrollbar-thin overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
+        <TableSection
+          title="Per-seat usage"
+          note="Each seat has its own AI budget this month. Users past 80% are highlighted; past 100% get blocked from new chats."
+        >
+          <table className="w-full min-w-[760px] text-label-14">
+            <thead className="text-label-12 text-text-placeholder">
               <tr>
                 <Th>User</Th>
                 <Th align="right">Used</Th>
@@ -135,32 +107,22 @@ export function TokenUsagePage() {
               </tr>
             </thead>
             <tbody>
-              {perUserQuery.isLoading && (
-                <tr>
-                  <td colSpan={5} className="px-6 py-6 text-center text-zinc-500">
-                    Loading…
-                  </td>
-                </tr>
-              )}
+              {perUserQuery.isLoading && <MessageRow colSpan={5}>Loading…</MessageRow>}
               {!perUserQuery.isLoading && perUser.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-zinc-500">
-                    No members yet.
-                  </td>
-                </tr>
+                <MessageRow colSpan={5} tall>
+                  No members yet.
+                </MessageRow>
               )}
               {perUser.map((u) => (
-                <tr key={u.userId} className="border-t border-zinc-100">
+                <tr key={u.userId} className="border-t border-border">
                   <Td>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-zinc-900">
-                        {u.userName ?? u.userEmail ?? '—'}
-                      </span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium">{u.userName ?? u.userEmail ?? '—'}</span>
                       {u.userName && u.userEmail && (
-                        <span className="text-xs text-zinc-500">{u.userEmail}</span>
+                        <span className="text-label-12 text-text-secondary">{u.userEmail}</span>
                       )}
                       {u.hasCustomCap && (
-                        <span className="mt-0.5 text-[10px] uppercase tracking-wide text-amber-600">
+                        <span className="mt-0.5 w-fit rounded-[6px] bg-bg-subtle px-2 py-0.5 text-label-12 font-medium text-warning-text">
                           Custom cap
                         </span>
                       )}
@@ -169,34 +131,27 @@ export function TokenUsagePage() {
                   <Td align="right" bold>
                     {formatUsd(u.usedMicrodollars)}
                   </Td>
-                  <Td align="right">{formatUsd(u.capMicrodollars)}</Td>
+                  <Td align="right" muted>
+                    {formatUsd(u.capMicrodollars)}
+                  </Td>
                   <Td>
                     <ProgressBar fraction={u.fractionUsed} />
                   </Td>
                   <Td align="right">
-                    {formatUsd(
-                      Math.max(0, u.capMicrodollars - u.usedMicrodollars),
-                    )}
+                    {formatUsd(Math.max(0, u.capMicrodollars - u.usedMicrodollars))}
                   </Td>
                 </tr>
               ))}
             </tbody>
           </table>
-          </div>
-        </section>
+        </TableSection>
 
-        <section className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
-          <div className="flex items-center justify-between border-b border-zinc-100 p-6">
-            <div>
-              <p className="text-sm font-medium leading-5 text-black">Recent activity</p>
-              <p className="mt-1 text-sm text-zinc-500">
-                The 50 most recent API calls across your organization.
-              </p>
-            </div>
-          </div>
-          <div className="scrollbar-thin overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
+        <TableSection
+          title="Recent activity"
+          note="The 50 most recent API calls across your organization."
+        >
+          <table className="w-full min-w-[760px] text-label-14">
+            <thead className="text-label-12 text-text-placeholder">
               <tr>
                 <Th>When</Th>
                 <Th>User</Th>
@@ -208,25 +163,19 @@ export function TokenUsagePage() {
               </tr>
             </thead>
             <tbody>
-              {recentQuery.isLoading && (
-                <tr>
-                  <td colSpan={7} className="px-6 py-6 text-center text-zinc-500">
-                    Loading…
-                  </td>
-                </tr>
-              )}
+              {recentQuery.isLoading && <MessageRow colSpan={7}>Loading…</MessageRow>}
               {!recentQuery.isLoading && recent.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-zinc-500">
-                    No recent activity.
-                  </td>
-                </tr>
+                <MessageRow colSpan={7} tall>
+                  No recent activity.
+                </MessageRow>
               )}
               {recent.map((row) => (
-                <tr key={row.id} className="border-t border-zinc-100">
-                  <Td>{formatRelativeTime(new Date(row.createdAt))}</Td>
+                <tr key={row.id} className="border-t border-border">
+                  <Td muted>{formatRelativeTime(new Date(row.createdAt))}</Td>
                   <Td>
-                    <span className="truncate">{row.userName ?? row.userEmail ?? '—'}</span>
+                    <span className="truncate font-medium">
+                      {row.userName ?? row.userEmail ?? '—'}
+                    </span>
                   </Td>
                   <Td>
                     <TypeBadge type={row.type} />
@@ -243,10 +192,52 @@ export function TokenUsagePage() {
               ))}
             </tbody>
           </table>
-          </div>
-        </section>
+        </TableSection>
       </div>
     </AdminPageBody>
+  );
+}
+
+function TableSection({
+  title,
+  note,
+  children,
+}: {
+  title: string;
+  note: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-0.5">
+        <h2 className="text-label-14 font-semibold">{title}</h2>
+        <p className="text-label-13 text-text-secondary">{note}</p>
+      </div>
+      <div className="overflow-hidden rounded-[16px] border border-border">
+        <div className="scrollbar-thin overflow-x-auto">{children}</div>
+      </div>
+    </section>
+  );
+}
+
+function MessageRow({
+  colSpan,
+  tall,
+  children,
+}: {
+  colSpan: number;
+  tall?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <tr>
+      <td
+        colSpan={colSpan}
+        className={`border-t border-border px-5 text-center text-text-secondary ${tall ? 'py-10' : 'py-6'}`}
+      >
+        {children}
+      </td>
+    </tr>
   );
 }
 
@@ -254,22 +245,15 @@ function ProgressBar({ fraction }: { fraction: number }) {
   const pct = Math.min(1, Math.max(0, fraction));
   const isOver = fraction >= 1;
   const isWarn = fraction >= 0.8;
-  const color = isOver
-    ? 'bg-red-500'
-    : isWarn
-      ? 'bg-amber-500'
-      : 'bg-emerald-500';
+  const color = isOver ? 'bg-danger' : isWarn ? 'bg-warning' : 'bg-primary';
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
-        <div
-          className={`h-full ${color}`}
-          style={{ width: `${pct * 100}%` }}
-        />
+    <div className="flex items-center gap-3">
+      <div className="h-1.5 min-w-[80px] flex-1 overflow-hidden rounded-full bg-gray-3">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct * 100}%` }} />
       </div>
       <span
-        className={`min-w-[40px] text-right text-xs font-medium ${
-          isOver ? 'text-red-600' : isWarn ? 'text-amber-700' : 'text-zinc-600'
+        className={`min-w-[40px] text-right text-label-13 font-medium tabular-nums ${
+          isOver ? 'text-danger-text' : isWarn ? 'text-warning-text' : 'text-text-secondary'
         }`}
       >
         {Math.round(fraction * 100)}%
@@ -278,42 +262,19 @@ function ProgressBar({ fraction }: { fraction: number }) {
   );
 }
 
-function Stat({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
+function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div
-      className={
-        highlight
-          ? 'rounded-[10px] border border-black/10 bg-zinc-50 p-4'
-          : 'rounded-[10px] border border-zinc-200 p-4'
-      }
-    >
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-semibold text-zinc-900">{value}</p>
+    <div className="flex flex-col rounded-[16px] border border-border px-[18px] py-4">
+      <p className="text-label-13 font-medium text-text-secondary">{label}</p>
+      <p className="mt-1 text-[24px] leading-8 font-semibold text-text tabular-nums">{value}</p>
+      {sub && <p className="mt-0.5 text-label-12 text-text-placeholder">{sub}</p>}
     </div>
   );
 }
 
-function Th({
-  children,
-  align,
-}: {
-  children: React.ReactNode;
-  align?: 'right';
-}) {
+function Th({ children, align }: { children: React.ReactNode; align?: 'right' }) {
   return (
-    <th
-      className={`px-6 py-3 ${align === 'right' ? 'text-right' : 'text-left'} font-medium`}
-    >
+    <th className={`px-5 py-2.5 font-medium ${align === 'right' ? 'text-right' : 'text-left'}`}>
       {children}
     </th>
   );
@@ -324,17 +285,24 @@ function Td({
   align,
   mono,
   bold,
+  muted,
 }: {
   children: React.ReactNode;
   align?: 'right';
   mono?: boolean;
   bold?: boolean;
+  muted?: boolean;
 }) {
   const cls = [
-    'px-6 py-3 text-zinc-700',
-    align === 'right' ? 'text-right' : '',
-    mono ? 'font-mono text-[13px]' : '',
-    bold ? 'font-semibold text-zinc-900' : '',
+    'px-5 py-3',
+    align === 'right' ? 'text-right tabular-nums' : '',
+    mono
+      ? 'font-mono text-label-13 text-text-secondary'
+      : bold
+        ? 'font-semibold text-text'
+        : muted
+          ? 'text-text-secondary'
+          : 'text-text',
   ]
     .filter(Boolean)
     .join(' ');
@@ -342,12 +310,11 @@ function Td({
 }
 
 function TypeBadge({ type }: { type: string }) {
-  const color = typeColor(type);
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${color}`}
+      className={`inline-flex items-center rounded-[6px] bg-bg-subtle px-2 py-0.5 text-label-12 font-medium ${typeColor(type)}`}
     >
-      {type}
+      {type.toLowerCase()}
     </span>
   );
 }
@@ -355,19 +322,17 @@ function TypeBadge({ type }: { type: string }) {
 function typeColor(type: string): string {
   switch (type) {
     case 'CHAT':
-      return 'border-violet-200 bg-violet-50 text-violet-700';
+      return 'text-info-text';
     case 'EMBED':
-      return 'border-sky-200 bg-sky-50 text-sky-700';
+      return 'text-success-text';
     case 'RERANK':
-      return 'border-amber-200 bg-amber-50 text-amber-700';
+      return 'text-warning-text';
     case 'OCR':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+      return 'text-success-text';
     case 'CONTEXTUALIZE':
-      return 'border-indigo-200 bg-indigo-50 text-indigo-700';
-    case 'TITLE':
-      return 'border-zinc-200 bg-zinc-50 text-zinc-600';
+      return 'text-info-text';
     default:
-      return 'border-zinc-200 bg-zinc-50 text-zinc-600';
+      return 'text-text-secondary';
   }
 }
 

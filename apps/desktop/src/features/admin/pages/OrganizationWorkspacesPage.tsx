@@ -1,15 +1,8 @@
 import { useState } from 'react';
-import {
-  ChevronDown,
-  ChevronRight,
-  Loader2,
-  Plus,
-  Trash2,
-  UserPlus,
-  Users,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, Plus, Trash2, UserPlus, Users } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
+import { TextField } from '@/components/ui/text-field';
 import { AdminPageBody } from '../AdminPageBody';
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER';
@@ -76,64 +69,61 @@ export function OrganizationWorkspacesPage() {
 
   return (
     <AdminPageBody>
-      <section className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
-        <div className="flex items-start justify-between gap-4 border-b border-zinc-100 p-6">
-          <div>
-            <p className="text-sm font-medium leading-5 text-black">
-              All workspaces
-            </p>
-            <p className="mt-1 text-sm text-zinc-500">
-              Click a workspace to manage who has access to it.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (createOpen) {
-                setCreateOpen(false);
-                resetCreateForm();
-              } else {
-                setCreateOpen(true);
-              }
-            }}
-            className="flex items-center gap-2 rounded-[10px] bg-black px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
-          >
-            <Plus className="size-4" />
-            New workspace
-          </button>
-        </div>
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <p className="text-label-13 text-text-secondary">
+          Open a workspace to manage who has access to it.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            if (createOpen) {
+              setCreateOpen(false);
+              resetCreateForm();
+            } else {
+              setCreateOpen(true);
+            }
+          }}
+          className={cn(
+            'flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] px-3 py-[7px] text-label-13 font-medium outline-none transition-[opacity,background-color] focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]',
+            createOpen
+              ? 'border border-border bg-bg-panel text-text hover:bg-hover'
+              : 'bg-primary text-text-on-solid hover:opacity-90',
+          )}
+        >
+          <Plus className="size-4" strokeWidth={1.5} />
+          New workspace
+        </button>
+      </div>
 
+      <section className="divide-y divide-border overflow-hidden rounded-[16px] border border-border">
         {createOpen && (
-          <div className="border-b border-zinc-100 bg-zinc-50/60 px-6 py-4">
+          <div className="flex flex-col gap-3 bg-bg-subtle px-5 py-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="flex-1">
-                <label className="text-xs font-medium text-zinc-600">Name</label>
-                <input
-                  autoFocus
-                  value={draftName}
-                  onChange={(e) => {
-                    setDraftName(e.target.value);
-                    if (!slugTouched) setDraftSlug(slugify(e.target.value));
-                  }}
-                  placeholder="e.g. Marketing"
-                  className="mt-1 w-full rounded-[8px] border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="text-xs font-medium text-zinc-600">
-                  Slug
-                </label>
-                <input
-                  value={draftSlug}
-                  onChange={(e) => {
-                    setSlugTouched(true);
-                    setDraftSlug(e.target.value);
-                  }}
-                  placeholder="marketing"
-                  className="mt-1 w-full rounded-[8px] border border-zinc-200 bg-white px-3 py-2 font-mono text-sm outline-none focus:border-zinc-400"
-                />
-              </div>
-              <div className="flex items-center gap-2">
+              <TextField
+                label="Name"
+                size="sm"
+                autoFocus
+                value={draftName}
+                onChange={(e) => {
+                  setDraftName(e.target.value);
+                  if (!slugTouched) setDraftSlug(slugify(e.target.value));
+                }}
+                placeholder="e.g. Marketing"
+                className="flex-1"
+              />
+              <TextField
+                label="Slug"
+                size="sm"
+                value={draftSlug}
+                onChange={(e) => {
+                  setSlugTouched(true);
+                  setDraftSlug(e.target.value);
+                }}
+                placeholder="marketing"
+                className="flex-1"
+                inputClassName="font-mono text-label-13"
+              />
+              <div className="flex shrink-0 items-center gap-2">
                 <button
                   type="button"
                   onClick={() => void handleCreate()}
@@ -142,15 +132,10 @@ export function OrganizationWorkspacesPage() {
                     !(draftSlug.trim() || slugify(draftName)) ||
                     workspaceCreate.isPending
                   }
-                  className={cn(
-                    'flex h-10 items-center gap-2 rounded-[8px] bg-black px-4 text-sm font-medium text-white transition-colors',
-                    !draftName.trim() || workspaceCreate.isPending
-                      ? 'cursor-not-allowed opacity-60'
-                      : 'hover:bg-zinc-800',
-                  )}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {workspaceCreate.isPending && (
-                    <Loader2 className="size-4 animate-spin" />
+                    <Loader2 className="size-3.5 animate-spin" strokeWidth={1.5} />
                   )}
                   Create
                 </button>
@@ -160,75 +145,71 @@ export function OrganizationWorkspacesPage() {
                     setCreateOpen(false);
                     resetCreateForm();
                   }}
-                  className="h-10 rounded-[8px] border border-zinc-200 bg-white px-4 text-sm text-zinc-700 hover:bg-zinc-50"
+                  className="cursor-pointer rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]"
                 >
                   Cancel
                 </button>
               </div>
             </div>
-            {createError && (
-              <p className="mt-2 rounded-[8px] bg-red-50 px-3 py-2 text-xs text-red-700">
-                {createError}
-              </p>
-            )}
-            <p className="mt-2 text-xs text-zinc-500">
-              You'll be added as the workspace OWNER. You can invite the
-              rest of the team after it's created.
+            {createError && <p className="text-label-12 text-danger-text">{createError}</p>}
+            <p className="text-label-12 text-text-placeholder">
+              You’ll be added as the workspace owner. You can add the rest of the team after it’s
+              created.
             </p>
           </div>
         )}
 
         {workspacesQuery.isLoading && (
-          <p className="px-6 py-8 text-center text-sm text-zinc-500">Loading…</p>
+          <p className="px-5 py-6 text-center text-label-14 text-text-secondary">Loading…</p>
         )}
 
         {!workspacesQuery.isLoading && workspaces.length === 0 && (
-          <p className="px-6 py-14 text-center text-sm text-zinc-500">
+          <p className="px-5 py-10 text-center text-label-14 text-text-secondary">
             No workspaces yet.
           </p>
         )}
 
-        <ul className="flex flex-col">
-          {workspaces.map((ws) => (
-            <li key={ws.id} className="border-t border-zinc-100">
-              <button
-                type="button"
-                onClick={() =>
-                  setExpandedId((prev) => (prev === ws.id ? null : ws.id))
-                }
-                className="flex w-full items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-zinc-50"
-              >
-                {expandedId === ws.id ? (
-                  <ChevronDown className="size-4 text-zinc-400" />
-                ) : (
-                  <ChevronRight className="size-4 text-zinc-400" />
-                )}
-                <div className="grid size-10 place-items-center rounded-[8px] bg-zinc-100">
-                  {ws.logoUrl ? (
-                    <img
-                      src={ws.logoUrl}
-                      alt=""
-                      className="size-10 rounded-[8px] object-cover"
+        {workspaces.length > 0 && (
+          <ul className="flex flex-col divide-y divide-border">
+            {workspaces.map((ws) => (
+              <li key={ws.id}>
+                <button
+                  type="button"
+                  aria-expanded={expandedId === ws.id}
+                  onClick={() => setExpandedId((prev) => (prev === ws.id ? null : ws.id))}
+                  className="flex w-full cursor-pointer items-center gap-3 py-3 pr-4 pl-5 text-left outline-none transition-colors hover:bg-hover focus-visible:bg-hover"
+                >
+                  <div className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-[10px] bg-gray-4 text-text-secondary">
+                    {ws.logoUrl ? (
+                      <img src={ws.logoUrl} alt="" className="size-9 object-cover" />
+                    ) : (
+                      <Users className="size-4" strokeWidth={1.5} />
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <p className="truncate text-label-14 font-medium text-text">{ws.name}</p>
+                    <p className="truncate text-label-13 text-text-secondary">
+                      {ws.memberCount} member{ws.memberCount === 1 ? '' : 's'} · {ws.slug}
+                    </p>
+                  </div>
+                  {expandedId === ws.id ? (
+                    <ChevronDown
+                      className="size-4 shrink-0 text-text-placeholder"
+                      strokeWidth={1.5}
                     />
                   ) : (
-                    <Users className="size-4 text-zinc-500" />
+                    <ChevronRight
+                      className="size-4 shrink-0 text-text-placeholder"
+                      strokeWidth={1.5}
+                    />
                   )}
-                </div>
-                <div className="flex min-w-0 flex-col">
-                  <p className="truncate text-sm font-medium text-zinc-800">
-                    {ws.name}
-                  </p>
-                  <p className="text-xs text-zinc-500">{ws.slug}</p>
-                </div>
-                <span className="ml-auto text-xs text-zinc-500">
-                  {ws.memberCount} member{ws.memberCount === 1 ? '' : 's'}
-                </span>
-              </button>
+                </button>
 
-              {expandedId === ws.id && <WorkspaceMembersPanel workspaceId={ws.id} />}
-            </li>
-          ))}
-        </ul>
+                {expandedId === ws.id && <WorkspaceMembersPanel workspaceId={ws.id} />}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </AdminPageBody>
   );
@@ -303,34 +284,35 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
     );
   }
 
+  const selectClass =
+    'h-8 cursor-pointer rounded-[10px] border border-border-input bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)] disabled:cursor-not-allowed disabled:opacity-60';
+
   return (
-    <div className="border-t border-zinc-100 bg-zinc-50/60 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-          Members
-        </p>
+    <div className="border-t border-border bg-bg-subtle py-4 pr-4 pl-5">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-label-14 font-semibold text-text">Members</p>
         <button
           type="button"
           onClick={() => {
             setShowAdd((v) => !v);
             setError(null);
           }}
-          className="inline-flex items-center gap-1.5 rounded-[8px] border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]"
         >
-          <UserPlus className="size-3.5" />
+          <UserPlus className="size-4" strokeWidth={1.5} />
           Add member
         </button>
       </div>
 
       {showAdd && (
-        <div className="mt-3 flex items-end gap-2 rounded-[10px] border border-zinc-200 bg-white p-3">
-          <div className="flex-1">
-            <label className="text-xs font-medium text-zinc-600">User</label>
+        <div className="mt-3 flex flex-col gap-3 rounded-[12px] border border-border bg-bg-panel p-3 sm:flex-row sm:items-end">
+          <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span className="text-label-13 font-medium text-text">User</span>
             <select
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
               disabled={addableQuery.isLoading || addable.length === 0}
-              className="mt-1 w-full rounded-[8px] border border-zinc-200 bg-white px-2 py-1.5 text-sm outline-none disabled:opacity-60"
+              className={cn(selectClass, 'w-full')}
             >
               <option value="">
                 {addableQuery.isLoading
@@ -345,86 +327,70 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
                 </option>
               ))}
             </select>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-zinc-600">Role</label>
+          </label>
+          <label className="flex shrink-0 flex-col gap-1.5">
+            <span className="text-label-13 font-medium text-text">Role</span>
             <select
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value as Role)}
-              className="mt-1 rounded-[8px] border border-zinc-200 bg-white px-2 py-1.5 text-sm outline-none"
+              className={selectClass}
             >
               <option value="MEMBER">Member</option>
               <option value="ADMIN">Admin</option>
               <option value="OWNER">Owner</option>
             </select>
+          </label>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void handleAdd()}
+              disabled={!selectedUserId || addMember.isPending}
+              className="flex cursor-pointer items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {addMember.isPending && (
+                <Loader2 className="size-3.5 animate-spin" strokeWidth={1.5} />
+              )}
+              Add
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAdd(false);
+                setSelectedUserId('');
+                setError(null);
+              }}
+              className="cursor-pointer rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)]"
+            >
+              Cancel
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => void handleAdd()}
-            disabled={!selectedUserId || addMember.isPending}
-            className={cn(
-              'flex h-8 items-center gap-2 rounded-[8px] bg-black px-3 text-sm font-medium text-white transition-colors',
-              !selectedUserId || addMember.isPending
-                ? 'cursor-not-allowed opacity-60'
-                : 'hover:bg-zinc-800',
-            )}
-          >
-            {addMember.isPending && <Loader2 className="size-3.5 animate-spin" />}
-            Add
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setShowAdd(false);
-              setSelectedUserId('');
-              setError(null);
-            }}
-            className="h-8 rounded-[8px] border border-zinc-200 bg-white px-3 text-sm text-zinc-700 hover:bg-zinc-50"
-          >
-            Cancel
-          </button>
         </div>
       )}
 
-      {error && (
-        <p className="mt-2 rounded-[8px] bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <p className="mt-2 text-label-12 text-danger-text">{error}</p>}
 
-      <div className="mt-3 overflow-hidden rounded-[10px] border border-zinc-200 bg-white">
+      <div className="mt-3 overflow-hidden rounded-[12px] border border-border bg-bg-panel">
         {membersQuery.isLoading && (
-          <p className="px-4 py-6 text-center text-sm text-zinc-500">Loading…</p>
+          <p className="px-4 py-6 text-center text-label-14 text-text-secondary">Loading…</p>
         )}
         {!membersQuery.isLoading && members.length === 0 && (
-          <p className="px-4 py-6 text-center text-sm text-zinc-500">
-            No members yet.
-          </p>
+          <p className="px-4 py-6 text-center text-label-14 text-text-secondary">No members yet.</p>
         )}
-        <ul className="flex flex-col">
+        <ul className="flex flex-col divide-y divide-border">
           {members.map((m) => (
-            <li
-              key={m.memberId}
-              className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3 last:border-b-0"
-            >
-              <div className="grid size-8 place-items-center rounded-full bg-zinc-100 text-xs font-medium text-zinc-700">
+            <li key={m.memberId} className="flex items-center gap-3 px-4 py-3">
+              <div className="grid size-8 shrink-0 place-items-center rounded-full bg-gray-4 text-label-12 font-medium text-text">
                 {initials(m.email, m.name)}
               </div>
-              <div className="flex min-w-0 flex-col">
-                <p className="truncate text-sm font-medium text-zinc-800">
-                  {m.name || m.email}
-                </p>
-                {m.name && (
-                  <p className="truncate text-xs text-zinc-500">{m.email}</p>
-                )}
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <p className="truncate text-label-14 font-medium text-text">{m.name || m.email}</p>
+                {m.name && <p className="truncate text-label-13 text-text-secondary">{m.email}</p>}
               </div>
               <select
                 value={m.role}
-                onChange={(e) =>
-                  handleRoleChange(m.memberId, e.target.value as Role)
-                }
+                onChange={(e) => handleRoleChange(m.memberId, e.target.value as Role)}
                 disabled={setRole.isPending}
-                className="ml-auto rounded-[8px] border border-zinc-200 bg-white px-2 py-1 text-xs outline-none disabled:opacity-60"
+                className={cn(selectClass, 'shrink-0')}
               >
                 <option value="MEMBER">Member</option>
                 <option value="ADMIN">Admin</option>
@@ -434,9 +400,9 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
                 type="button"
                 onClick={() => handleRemove(m.memberId)}
                 disabled={removeMember.isPending}
-                className="inline-flex items-center gap-1.5 rounded-[8px] bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-danger-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <Trash2 className="size-3" />
+                <Trash2 className="size-4" strokeWidth={1.5} />
                 Remove
               </button>
             </li>

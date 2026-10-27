@@ -19,71 +19,78 @@ export function AuditLogPage() {
 
   return (
     <AdminPageBody>
-      <section className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
-        <div className="flex items-center justify-between gap-4 border-b border-zinc-100 p-6">
-          <div>
-            <p className="text-sm font-medium leading-5 text-black">Audit log</p>
-            <p className="mt-1 text-sm text-zinc-500">
-              Every resource and member change, newest first. Append-only.
-            </p>
-          </div>
-          <select
-            value={action}
-            onChange={(e) => setAction(e.target.value)}
-            className="h-10 rounded-[10px] border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none"
-          >
-            <option value="">All actions</option>
-            <option value="resource.uploaded">Resource uploaded</option>
-            <option value="resource.replaced">Resource replaced</option>
-            <option value="resource.deleted">Resource deleted</option>
-          </select>
-        </div>
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <p className="text-label-13 text-text-secondary">
+          Every file and member change, newest first. Events can’t be edited or removed.
+        </p>
+        <select
+          value={action}
+          onChange={(e) => setAction(e.target.value)}
+          className="h-8 shrink-0 cursor-pointer rounded-[10px] border border-border-input bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)]"
+        >
+          <option value="">All actions</option>
+          <option value="resource.uploaded">File uploaded</option>
+          <option value="resource.replaced">File replaced</option>
+          <option value="resource.deleted">File deleted</option>
+        </select>
+      </div>
 
+      <section className="overflow-hidden rounded-[16px] border border-border">
         <div className="scrollbar-thin overflow-x-auto">
-        <table className="w-full min-w-[820px] text-sm">
-          <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
-            <tr>
-              <Th>When</Th>
-              <Th>Actor</Th>
-              <Th>Action</Th>
-              <Th>Target</Th>
-              <Th>Details</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {query.isLoading && (
+          <table className="w-full min-w-[820px] text-label-14">
+            <thead className="text-label-12 text-text-placeholder">
               <tr>
-                <td colSpan={5} className="px-6 py-6 text-center text-zinc-500">
-                  Loading…
-                </td>
+                <Th>When</Th>
+                <Th>Who</Th>
+                <Th>Action</Th>
+                <Th>Target</Th>
+                <Th>Details</Th>
               </tr>
-            )}
-            {!query.isLoading && rows.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-zinc-500">
-                  No events match this filter.
-                </td>
-              </tr>
-            )}
-            {rows.map((r) => (
-              <tr key={r.id} className="border-t border-zinc-100 align-top">
-                <Td>{formatRelativeTime(new Date(r.createdAt))}</Td>
-                <Td>{r.userName ?? r.userEmail ?? '—'}</Td>
-                <Td>
-                  <ActionBadge action={r.action} />
-                </Td>
-                <Td mono>
-                  {r.targetType && r.targetId
-                    ? `${r.targetType}:${r.targetId.slice(0, 8)}…`
-                    : '—'}
-                </Td>
-                <Td>
-                  <MetadataPreview metadata={r.metadata} />
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {query.isLoading && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="border-t border-border px-5 py-6 text-center text-text-secondary"
+                  >
+                    Loading…
+                  </td>
+                </tr>
+              )}
+              {!query.isLoading && rows.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="border-t border-border px-5 py-10 text-center text-text-secondary"
+                  >
+                    No events match this filter.
+                  </td>
+                </tr>
+              )}
+              {rows.map((r) => (
+                <tr key={r.id} className="border-t border-border align-top">
+                  <Td muted>{formatRelativeTime(new Date(r.createdAt))}</Td>
+                  <Td>
+                    <span className="font-medium whitespace-nowrap">
+                      {r.userName ?? r.userEmail ?? '—'}
+                    </span>
+                  </Td>
+                  <Td>
+                    <ActionBadge action={r.action} />
+                  </Td>
+                  <Td mono>
+                    {r.targetType && r.targetId
+                      ? `${r.targetType}:${r.targetId.slice(0, 8)}…`
+                      : '—'}
+                  </Td>
+                  <Td>
+                    <MetadataPreview metadata={r.metadata} />
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
     </AdminPageBody>
@@ -91,25 +98,22 @@ export function AuditLogPage() {
 }
 
 function MetadataPreview({ metadata }: { metadata: unknown }) {
-  if (!metadata || typeof metadata !== 'object') return <span className="text-zinc-400">—</span>;
+  if (!metadata || typeof metadata !== 'object')
+    return <span className="text-text-placeholder">—</span>;
   const entries = Object.entries(metadata as Record<string, unknown>);
-  if (entries.length === 0) return <span className="text-zinc-400">—</span>;
+  if (entries.length === 0) return <span className="text-text-placeholder">—</span>;
   // Show up to 3 key/value pairs inline.
   const preview = entries.slice(0, 3).map(([k, v]) => {
-    const value =
-      typeof v === 'string' && v.length > 40 ? v.slice(0, 37) + '…' : String(v);
+    const value = typeof v === 'string' && v.length > 40 ? v.slice(0, 37) + '…' : String(v);
     return `${k}=${value}`;
   });
-  return (
-    <span className="font-mono text-[12px] text-zinc-500">{preview.join(' · ')}</span>
-  );
+  return <span className="font-mono text-label-12 text-text-secondary">{preview.join(' · ')}</span>;
 }
 
 function ActionBadge({ action }: { action: string }) {
-  const color = actionColor(action);
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${color}`}
+      className={`inline-flex items-center rounded-[6px] bg-bg-subtle px-2 py-0.5 text-label-12 font-medium ${actionColor(action)}`}
     >
       {action}
     </span>
@@ -117,26 +121,29 @@ function ActionBadge({ action }: { action: string }) {
 }
 
 function actionColor(action: string): string {
-  if (action.endsWith('.deleted')) return 'border-red-200 bg-red-50 text-red-700';
-  if (action.endsWith('.replaced')) return 'border-amber-200 bg-amber-50 text-amber-700';
-  if (action.endsWith('.uploaded') || action.endsWith('.created'))
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-  return 'border-zinc-200 bg-zinc-50 text-zinc-600';
+  if (action.endsWith('.deleted')) return 'text-danger-text';
+  if (action.endsWith('.replaced')) return 'text-warning-text';
+  if (action.endsWith('.uploaded') || action.endsWith('.created')) return 'text-success-text';
+  return 'text-text-secondary';
 }
 
 function Th({ children }: { children: React.ReactNode }) {
-  return <th className="px-6 py-3 text-left font-medium">{children}</th>;
+  return <th className="px-5 py-2.5 text-left font-medium">{children}</th>;
 }
 
 function Td({
   children,
   mono,
+  muted,
 }: {
   children: React.ReactNode;
   mono?: boolean;
+  muted?: boolean;
 }) {
   return (
-    <td className={`px-6 py-3 text-zinc-700 ${mono ? 'font-mono text-[13px]' : ''}`}>
+    <td
+      className={`px-5 py-3 ${mono ? 'font-mono text-label-13 text-text-secondary' : muted ? 'text-text-secondary' : 'text-text'}`}
+    >
       {children}
     </td>
   );

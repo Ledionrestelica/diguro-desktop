@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check, Copy, Loader2, Mail, Trash2, UserPlus, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
+import { TextField } from '@/components/ui/text-field';
 import { AdminPageBody } from '../AdminPageBody';
 
 /**
@@ -102,229 +103,239 @@ export function MembersPage() {
 
   return (
     <AdminPageBody>
-      <div className="flex flex-col gap-6">
-        {/* ─── Members list ─── */}
-        <section className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
-          <div className="flex items-center justify-between border-b border-zinc-100 p-6">
-            <div>
-              <p className="text-sm font-medium leading-5 text-black">Members</p>
-              <p className="mt-1 text-sm text-zinc-500">
-                Everyone with access to this organization.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setShowDialog(true);
-                setCreatedInvite(null);
-                setError(null);
-              }}
-              className="flex items-center gap-2 rounded-[10px] bg-black px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
-            >
-              <UserPlus className="size-4" />
-              Invite member
-            </button>
+      <section className="mb-7 flex flex-col gap-2.5">
+        <div className="flex items-end justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <h2 className="text-label-14 font-semibold">Members</h2>
+            <p className="text-label-13 text-text-secondary">
+              Everyone with access to this organization.
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowDialog(true);
+              setCreatedInvite(null);
+              setError(null);
+            }}
+            className={primaryButton}
+          >
+            <UserPlus className="size-4" strokeWidth={1.5} />
+            Invite member
+          </button>
+        </div>
 
+        <div className="overflow-hidden rounded-[16px] border border-border">
           <div className="scrollbar-thin overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
-              <tr>
-                <Th>Name</Th>
-                <Th>Email</Th>
-                <Th>Role</Th>
-                <Th align="right">Actions</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {usersQuery.isLoading && (
+            <table className="w-full min-w-[720px] text-label-14">
+              <thead className="text-label-12 text-text-placeholder">
                 <tr>
-                  <td colSpan={4} className="px-6 py-6 text-center text-zinc-500">
-                    Loading…
-                  </td>
-                </tr>
-              )}
-              {!usersQuery.isLoading && users.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-6 py-10 text-center text-zinc-500">
-                    No members yet.
-                  </td>
-                </tr>
-              )}
-              {users.map((u) => {
-                const isSelf = u.id === myUserId;
-                const locked = isSelf || u.role === 'superadmin';
-                return (
-                  <tr key={u.id} className="border-t border-zinc-100">
-                    <Td bold>
-                      {u.name}
-                      {isSelf && (
-                        <span className="ml-2 text-xs font-normal text-zinc-500">(you)</span>
-                      )}
-                    </Td>
-                    <Td>{u.email}</Td>
-                    <Td>
-                      <select
-                        value={u.role}
-                        disabled={locked || setRole.isPending}
-                        onChange={(e) =>
-                          handleChangeRole(u.id, e.target.value as 'user' | 'organization_admin')
-                        }
-                        className="rounded-[8px] border border-zinc-200 bg-white px-2 py-1 text-xs outline-none disabled:opacity-60"
-                      >
-                        <option value="user">User</option>
-                        <option value="organization_admin">Organization Admin</option>
-                        {u.role === 'superadmin' && (
-                          <option value="superadmin">Superadmin</option>
-                        )}
-                      </select>
-                    </Td>
-                    <Td align="right">
-                      <button
-                        type="button"
-                        disabled={locked || removeUser.isPending}
-                        onClick={() => handleRemove(u.id)}
-                        className="inline-flex items-center gap-1.5 rounded-[8px] bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        <Trash2 className="size-3" />
-                        Remove
-                      </button>
-                    </Td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          </div>
-        </section>
-
-        {/* ─── Pending invitations ─── */}
-        {invites.length > 0 && (
-          <section className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
-            <div className="flex items-center justify-between border-b border-zinc-100 p-6">
-              <div>
-                <p className="text-sm font-medium leading-5 text-black">
-                  Pending invitations
-                </p>
-                <p className="mt-1 text-sm text-zinc-500">
-                  Copy the invite link and send it to the recipient. Expires in 14 days.
-                </p>
-              </div>
-            </div>
-            <div className="scrollbar-thin overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
-              <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
-                <tr>
+                  <Th>Name</Th>
                   <Th>Email</Th>
                   <Th>Role</Th>
-                  <Th>Expires</Th>
-                  <Th align="right">Actions</Th>
+                  <Th align="right">
+                    <span className="sr-only">Actions</span>
+                  </Th>
                 </tr>
               </thead>
               <tbody>
-                {invites.map((i) => (
-                  <tr key={i.id} className="border-t border-zinc-100">
-                    <Td>{i.email}</Td>
-                    <Td>{i.role === 'organization_admin' ? 'Organization Admin' : 'User'}</Td>
-                    <Td>{formatRelativeFuture(new Date(i.expiresAt))}</Td>
-                    <Td align="right">
-                      <div className="inline-flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => copyInviteLink(i.token, i.acceptUrl)}
-                          className="inline-flex items-center gap-1.5 rounded-[8px] border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                        >
-                          {copied === i.token ? (
-                            <>
-                              <Check className="size-3" />
-                              Copied
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="size-3" />
-                              Copy link
-                            </>
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRevoke(i.id)}
-                          disabled={inviteRevoke.isPending}
-                          className="inline-flex items-center gap-1.5 rounded-[8px] bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:opacity-60"
-                        >
-                          <X className="size-3" />
-                          Revoke
-                        </button>
-                      </div>
-                    </Td>
+                {usersQuery.isLoading && (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="border-t border-border px-5 py-6 text-center text-text-secondary"
+                    >
+                      Loading…
+                    </td>
                   </tr>
-                ))}
+                )}
+                {!usersQuery.isLoading && users.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="border-t border-border px-5 py-10 text-center text-text-secondary"
+                    >
+                      No members yet.
+                    </td>
+                  </tr>
+                )}
+                {users.map((u) => {
+                  const isSelf = u.id === myUserId;
+                  const locked = isSelf || u.role === 'superadmin';
+                  return (
+                    <tr key={u.id} className="border-t border-border">
+                      <Td>
+                        <div className="flex items-center gap-2.5">
+                          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-gray-4 text-label-12 font-semibold text-text">
+                            {initials(u.name)}
+                          </span>
+                          <span className="truncate font-medium">{u.name}</span>
+                          {isSelf && (
+                            <span className="rounded-[6px] bg-bg-subtle px-2 py-0.5 text-label-12 font-medium text-text-secondary">
+                              You
+                            </span>
+                          )}
+                        </div>
+                      </Td>
+                      <Td muted>{u.email}</Td>
+                      <Td>
+                        <select
+                          value={u.role}
+                          disabled={locked || setRole.isPending}
+                          onChange={(e) =>
+                            handleChangeRole(u.id, e.target.value as 'user' | 'organization_admin')
+                          }
+                          className={selectClass}
+                        >
+                          <option value="user">User</option>
+                          <option value="organization_admin">Organization admin</option>
+                          {u.role === 'superadmin' && (
+                            <option value="superadmin">Superadmin</option>
+                          )}
+                        </select>
+                      </Td>
+                      <Td align="right">
+                        <button
+                          type="button"
+                          disabled={locked || removeUser.isPending}
+                          onClick={() => handleRemove(u.id)}
+                          className={cn(secondaryButton, 'text-danger-text')}
+                        >
+                          <Trash2 className="size-3.5" strokeWidth={1.5} />
+                          Remove
+                        </button>
+                      </Td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
-            </div>
-          </section>
-        )}
-      </div>
+          </div>
+        </div>
+      </section>
 
-      {/* ─── Invite dialog ─── */}
+      {invites.length > 0 && (
+        <section className="mb-7 flex flex-col gap-2.5">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <h2 className="text-label-14 font-semibold">Pending invitations</h2>
+            <p className="text-label-13 text-text-secondary">
+              Copy the invite link and send it to the recipient. Links expire in 14 days.
+            </p>
+          </div>
+          <div className="overflow-hidden rounded-[16px] border border-border">
+            <div className="scrollbar-thin overflow-x-auto">
+              <table className="w-full min-w-[720px] text-label-14">
+                <thead className="text-label-12 text-text-placeholder">
+                  <tr>
+                    <Th>Email</Th>
+                    <Th>Role</Th>
+                    <Th>Expires</Th>
+                    <Th align="right">
+                      <span className="sr-only">Actions</span>
+                    </Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invites.map((i) => (
+                    <tr key={i.id} className="border-t border-border">
+                      <Td>
+                        <span className="font-medium">{i.email}</span>
+                      </Td>
+                      <Td>
+                        <span className="inline-flex items-center rounded-[6px] bg-bg-subtle px-2 py-0.5 text-label-12 font-medium text-text-secondary">
+                          {i.role === 'organization_admin' ? 'Organization admin' : 'User'}
+                        </span>
+                      </Td>
+                      <Td muted>{formatRelativeFuture(new Date(i.expiresAt))}</Td>
+                      <Td align="right">
+                        <div className="inline-flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => copyInviteLink(i.token, i.acceptUrl)}
+                            className={secondaryButton}
+                          >
+                            {copied === i.token ? (
+                              <>
+                                <Check className="size-3.5" strokeWidth={1.5} />
+                                Copied
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="size-3.5" strokeWidth={1.5} />
+                                Copy link
+                              </>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRevoke(i.id)}
+                            disabled={inviteRevoke.isPending}
+                            className={cn(secondaryButton, 'text-danger-text')}
+                          >
+                            <X className="size-3.5" strokeWidth={1.5} />
+                            Revoke
+                          </button>
+                        </div>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      )}
+
       {showDialog && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-6">
-          <div className="w-full max-w-md rounded-[16px] border border-zinc-200 bg-white p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-[16px] border border-border bg-bg-panel p-6 shadow-xl">
             {!createdInvite ? (
               <>
                 <div className="flex items-start gap-3">
-                  <div className="grid size-10 place-items-center rounded-full bg-zinc-100 text-zinc-600">
-                    <Mail className="size-5" />
+                  <div className="grid size-9 shrink-0 place-items-center rounded-full bg-bg-subtle text-text-secondary">
+                    <Mail className="size-4" strokeWidth={1.5} />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-base font-semibold text-zinc-900">
-                      Invite a new member
-                    </p>
-                    <p className="mt-1 text-sm text-zinc-500">
-                      We'll generate a link you can send to them. Link expires in 14 days.
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <p className="text-label-14 font-semibold text-text">Invite a new member</p>
+                    <p className="text-label-13 text-text-secondary">
+                      We’ll create a link you can send to them. It expires in 14 days.
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-5 flex flex-col gap-4">
-                  <div>
-                    <label className="text-xs font-medium text-zinc-600">
-                      Email address
+                  <TextField
+                    label="Email address"
+                    autoFocus
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    error={error}
+                  />
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="invite-role" className="text-label-14 font-medium text-text">
+                      Role
                     </label>
-                    <input
-                      autoFocus
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="name@example.com"
-                      className="mt-1 w-full rounded-[10px] border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-zinc-600">Role</label>
                     <select
+                      id="invite-role"
                       value={inviteRole}
                       onChange={(e) =>
                         setInviteRole(e.target.value as 'user' | 'organization_admin')
                       }
-                      className="mt-1 w-full rounded-[10px] border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-400"
+                      className={cn(selectClass, 'h-9 w-full px-3 text-copy-14')}
                     >
                       <option value="user">User</option>
-                      <option value="organization_admin">Organization Admin</option>
+                      <option value="organization_admin">Organization admin</option>
                     </select>
                   </div>
-                  {error && (
-                    <p className="rounded-[8px] bg-red-50 px-3 py-2 text-xs text-red-700">
-                      {error}
-                    </p>
-                  )}
                 </div>
 
-                <div className="mt-6 flex items-center justify-end gap-3">
+                <div className="mt-6 flex items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setShowDialog(false)}
-                    className="rounded-[10px] border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                    className={secondaryButton}
                   >
                     Cancel
                   </button>
@@ -332,14 +343,11 @@ export function MembersPage() {
                     type="button"
                     onClick={() => void handleInvite()}
                     disabled={inviteCreate.isPending || !inviteEmail.trim()}
-                    className={cn(
-                      'flex items-center gap-2 rounded-[10px] bg-black px-4 py-2 text-sm font-medium text-white transition-colors',
-                      inviteCreate.isPending
-                        ? 'cursor-not-allowed opacity-70'
-                        : 'hover:bg-zinc-800',
-                    )}
+                    className={primaryButton}
                   >
-                    {inviteCreate.isPending && <Loader2 className="size-4 animate-spin" />}
+                    {inviteCreate.isPending && (
+                      <Loader2 className="size-3.5 animate-spin" strokeWidth={1.5} />
+                    )}
                     Create invitation
                   </button>
                 </div>
@@ -349,71 +357,67 @@ export function MembersPage() {
                 <div className="flex items-start gap-3">
                   <div
                     className={cn(
-                      'grid size-10 place-items-center rounded-full',
-                      createdInvite.emailSent
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-amber-100 text-amber-700',
+                      'grid size-9 shrink-0 place-items-center rounded-full bg-bg-subtle',
+                      createdInvite.emailSent ? 'text-success-text' : 'text-warning-text',
                     )}
                   >
-                    <Check className="size-5" />
+                    <Check className="size-4" strokeWidth={1.5} />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-base font-semibold text-zinc-900">
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <p className="text-label-14 font-semibold text-text">
                       {createdInvite.emailSent ? 'Invitation sent' : 'Invitation ready'}
                     </p>
-                    <p className="mt-1 text-sm text-zinc-500">
+                    <p className="text-label-13 text-text-secondary">
                       {createdInvite.emailSent ? (
                         <>
                           We emailed the invite to{' '}
-                          <span className="font-medium text-zinc-900">
-                            {createdInvite.email}
-                          </span>
-                          . Link also copyable below (expires in 14 days).
+                          <span className="font-medium text-text">{createdInvite.email}</span>. You
+                          can also copy the link below. It expires in 14 days.
                         </>
                       ) : (
                         <>
-                          {createdInvite.emailError ?? 'Email not sent.'} Copy the link
-                          below and send it to{' '}
-                          <span className="font-medium text-zinc-900">
-                            {createdInvite.email}
-                          </span>{' '}
-                          — it expires in 14 days.
+                          {createdInvite.emailError ?? 'Email not sent.'} Copy the link below and
+                          send it to{' '}
+                          <span className="font-medium text-text">{createdInvite.email}</span>. It
+                          expires in 14 days.
                         </>
                       )}
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-5 rounded-[10px] border border-zinc-200 bg-zinc-50 px-3 py-2.5">
-                  <p className="break-all font-mono text-xs text-zinc-700">
+                <div className="mt-5 rounded-[10px] border border-border bg-bg-subtle px-3 py-2.5">
+                  <p className="font-mono text-label-12 break-all text-text-secondary">
                     {createdInvite.acceptUrl}
                   </p>
                 </div>
 
-                <div className="mt-6 flex items-center justify-end gap-3">
+                <div className="mt-6 flex items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => {
                       setShowDialog(false);
                       setCreatedInvite(null);
                     }}
-                    className="rounded-[10px] border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                    className={secondaryButton}
                   >
                     Close
                   </button>
                   <button
                     type="button"
-                    onClick={() => void copyInviteLink(createdInvite.token, createdInvite.acceptUrl)}
-                    className="flex items-center gap-2 rounded-[10px] bg-black px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+                    onClick={() =>
+                      void copyInviteLink(createdInvite.token, createdInvite.acceptUrl)
+                    }
+                    className={primaryButton}
                   >
                     {copied === createdInvite.token ? (
                       <>
-                        <Check className="size-4" />
+                        <Check className="size-3.5" strokeWidth={1.5} />
                         Copied
                       </>
                     ) : (
                       <>
-                        <Copy className="size-4" />
+                        <Copy className="size-3.5" strokeWidth={1.5} />
                         Copy link
                       </>
                     )}
@@ -428,6 +432,22 @@ export function MembersPage() {
   );
 }
 
+const primaryButton =
+  'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
+
+const secondaryButton =
+  'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
+
+const selectClass =
+  'h-8 cursor-pointer rounded-[10px] border border-border-input bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)] disabled:cursor-not-allowed disabled:border-border disabled:bg-bg-subtle disabled:text-text-secondary';
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const first = parts[0]?.[0] ?? '';
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '';
+  return (first + last).toUpperCase() || '?';
+}
+
 function formatRelativeFuture(date: Date): string {
   const delta = (date.getTime() - Date.now()) / 1000;
   if (delta <= 0) return 'expired';
@@ -439,9 +459,7 @@ function formatRelativeFuture(date: Date): string {
 
 function Th({ children, align }: { children: React.ReactNode; align?: 'right' }) {
   return (
-    <th
-      className={`px-6 py-3 ${align === 'right' ? 'text-right' : 'text-left'} font-medium`}
-    >
+    <th className={cn('px-5 py-2.5 font-medium', align === 'right' ? 'text-right' : 'text-left')}>
       {children}
     </th>
   );
@@ -450,18 +468,21 @@ function Th({ children, align }: { children: React.ReactNode; align?: 'right' })
 function Td({
   children,
   align,
-  bold,
+  muted,
 }: {
   children: React.ReactNode;
   align?: 'right';
-  bold?: boolean;
+  muted?: boolean;
 }) {
-  const cls = [
-    'px-6 py-3 text-zinc-700',
-    align === 'right' ? 'text-right' : '',
-    bold ? 'font-medium text-zinc-900' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-  return <td className={cls}>{children}</td>;
+  return (
+    <td
+      className={cn(
+        'px-5 py-3',
+        align === 'right' && 'text-right',
+        muted ? 'text-text-secondary' : 'text-text',
+      )}
+    >
+      {children}
+    </td>
+  );
 }

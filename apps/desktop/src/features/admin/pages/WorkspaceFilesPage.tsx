@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ChevronRight,
   FileText,
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 import { AdminPageBody } from '../AdminPageBody';
 
 /**
@@ -25,12 +26,7 @@ import { AdminPageBody } from '../AdminPageBody';
  * new file features, this page should track them via the parallel
  * adminWorkspace endpoints.
  */
-const TRANSIENT_STATUSES = new Set([
-  'PENDING',
-  'EXTRACTING',
-  'CHUNKING',
-  'EMBEDDING',
-]);
+const TRANSIENT_STATUSES = new Set(['PENDING', 'EXTRACTING', 'CHUNKING', 'EMBEDDING']);
 
 interface FolderRow {
   id: string;
@@ -284,292 +280,345 @@ export function WorkspaceFilesPage() {
 
   return (
     <AdminPageBody>
-      <div className="flex flex-col gap-6">
-        <section
-          className={cn(
-            'overflow-hidden rounded-[12px] border bg-white transition-colors',
-            isDraggingOver ? 'border-black/60 ring-2 ring-black/20' : 'border-zinc-200',
-          )}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDraggingOver(true);
-          }}
-          onDragLeave={() => setIsDraggingOver(false)}
-          onDrop={handleDrop}
-        >
-          <div className="flex items-center justify-between gap-4 border-b border-zinc-100 p-6">
-            <div>
-              <p className="text-sm font-medium leading-5 text-black">Workspace files</p>
-              <p className="mt-1 text-sm font-medium leading-5 text-zinc-600">
-                PDF, DOCX, MD, TXT, CSV — up to 100 MB each. Visible only inside
-                this workspace. Drop folders to preserve your directory structure.
-              </p>
+      <div
+        className="flex flex-col gap-5"
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDraggingOver(true);
+        }}
+        onDragLeave={() => setIsDraggingOver(false)}
+        onDrop={handleDrop}
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-label-13 text-text-secondary">
+            PDF, DOCX, MD, TXT, CSV — up to 100 MB each. Visible only inside this workspace. Drop
+            folders to preserve your directory structure.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-60">
+              <Search
+                strokeWidth={1.5}
+                className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-text-placeholder"
+              />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search files"
+                className="h-8 pl-8 text-label-13"
+              />
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 items-center gap-1 rounded-[10px] border border-zinc-200 bg-white px-2 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.04)]">
-                <Search className="size-4 text-zinc-400" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search files"
-                  className="w-48 bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400"
-                />
-              </div>
+            <div className="ml-auto flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setNewFolderOpen(true)}
-                className="flex items-center gap-2 rounded-[10px] border border-zinc-200 bg-white px-3 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                className={SECONDARY_BUTTON}
               >
-                <FolderPlus className="size-4" />
+                <FolderPlus strokeWidth={1.5} className="size-4" />
                 New folder
               </button>
               <button
                 type="button"
                 onClick={() => dirInputRef.current?.click()}
-                className="flex items-center gap-2 rounded-[10px] border border-zinc-200 bg-white px-3 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                className={SECONDARY_BUTTON}
               >
-                <FolderIcon className="size-4" />
+                <FolderIcon strokeWidth={1.5} className="size-4" />
                 Upload folder
               </button>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={initiate.isPending}
-                className={cn(
-                  'flex items-center gap-2 rounded-[10px] bg-black px-4 py-2.5 text-sm font-medium text-white shadow-[0px_1px_2px_0px_rgba(16,24,40,0.04)] transition-colors',
-                  initiate.isPending
-                    ? 'cursor-not-allowed opacity-70'
-                    : 'hover:bg-zinc-800',
-                )}
+                className={PRIMARY_BUTTON}
               >
+                <Upload strokeWidth={1.5} className="size-4" />
                 Upload files
-                <Upload className="size-4" />
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                hidden
-                multiple
-                onChange={(e) => {
-                  void handleLooseFiles(e.target.files);
-                  e.target.value = '';
-                }}
-              />
-              <input
-                ref={dirInputRef}
-                type="file"
-                hidden
-                multiple
-                {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
-                onChange={(e) => {
-                  void handleDirectoryPick(e.target.files);
-                  e.target.value = '';
-                }}
-              />
-              <input
-                ref={replaceInputRef}
-                type="file"
-                hidden
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  const resourceId = pendingReplaceResourceId.current;
-                  pendingReplaceResourceId.current = null;
-                  e.target.value = '';
-                  if (file && resourceId) {
-                    void runReplace(resourceId, file);
-                  }
-                }}
-              />
             </div>
-          </div>
-
-          {!isSearching && (
-            <Breadcrumb
-              trail={breadcrumb}
-              onGoHome={() => setCurrentFolderId(null)}
-              onGoTo={(id) => setCurrentFolderId(id)}
+            <input
+              ref={fileInputRef}
+              type="file"
+              hidden
+              multiple
+              onChange={(e) => {
+                void handleLooseFiles(e.target.files);
+                e.target.value = '';
+              }}
             />
-          )}
+            <input
+              ref={dirInputRef}
+              type="file"
+              hidden
+              multiple
+              {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
+              onChange={(e) => {
+                void handleDirectoryPick(e.target.files);
+                e.target.value = '';
+              }}
+            />
+            <input
+              ref={replaceInputRef}
+              type="file"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                const resourceId = pendingReplaceResourceId.current;
+                pendingReplaceResourceId.current = null;
+                e.target.value = '';
+                if (file && resourceId) {
+                  void runReplace(resourceId, file);
+                }
+              }}
+            />
+          </div>
+        </div>
 
-          {newFolderOpen && !isSearching && (
-            <div className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50 px-6 py-3">
-              <input
-                autoFocus
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void handleCreateFolder();
-                  if (e.key === 'Escape') {
-                    setNewFolderOpen(false);
-                    setNewFolderName('');
-                  }
-                }}
-                placeholder="Folder name"
-                className="flex-1 rounded-[8px] border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
-              />
-              <button
-                type="button"
-                onClick={() => void handleCreateFolder()}
-                disabled={!newFolderName.trim() || folderCreate.isPending}
-                className="rounded-[8px] bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-              >
-                Create
-              </button>
-              <button
-                type="button"
-                onClick={() => {
+        {newFolderOpen && !isSearching && (
+          <div className="flex items-center gap-2">
+            <Input
+              autoFocus
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void handleCreateFolder();
+                if (e.key === 'Escape') {
                   setNewFolderOpen(false);
                   setNewFolderName('');
-                }}
-                className="rounded-[8px] border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-
-          {uploadError && (
-            <div className="border-b border-zinc-100 bg-red-50 px-6 py-2 text-sm text-red-700">
-              {uploadError}
-            </div>
-          )}
-
-          <div className="px-6 pb-2 pt-5">
-            <div className="flex items-center justify-between px-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
-              <span>{isSearching ? 'Search results' : 'Name'}</span>
-              <span>Status</span>
-            </div>
+                }
+              }}
+              placeholder="Folder name"
+              className="h-8 flex-1 text-label-13"
+            />
+            <button
+              type="button"
+              onClick={() => void handleCreateFolder()}
+              disabled={!newFolderName.trim() || folderCreate.isPending}
+              className={PRIMARY_BUTTON}
+            >
+              Create
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setNewFolderOpen(false);
+                setNewFolderName('');
+              }}
+              className={SECONDARY_BUTTON}
+            >
+              Cancel
+            </button>
           </div>
+        )}
 
-          <ul className="flex flex-col">
-            {!isSearching &&
-              subfolders.map((f) => (
-                <li
-                  key={f.id}
-                  className="flex items-center gap-4 border-t border-zinc-100 px-6 py-4"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setCurrentFolderId(f.id)}
-                    className="flex min-w-0 items-center gap-4 text-left"
-                  >
-                    <div className="grid size-[42px] shrink-0 place-items-center rounded-[8px] bg-amber-50">
-                      <FolderIcon className="size-5 text-amber-600" />
-                    </div>
-                    <div className="flex min-w-0 flex-col">
-                      <p className="truncate text-sm font-medium text-zinc-800">
-                        {f.name}
-                      </p>
-                      <p className="text-sm text-zinc-500">Folder</p>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleFolderDelete(f.id)}
-                    disabled={folderDelete.isPending}
-                    className="ml-auto inline-flex items-center gap-2 rounded-[10px] bg-red-50 px-3 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Delete
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </li>
-              ))}
+        {uploadError && (
+          <div className="rounded-[10px] bg-danger-subtle px-3 py-2 text-label-13 text-danger-text">
+            {uploadError}
+          </div>
+        )}
 
-            {pendingUploads.map((p) => (
-              <li
-                key={p.id}
-                className="flex items-center gap-4 border-t border-zinc-100 px-6 py-4"
+        {!isSearching && (
+          <Breadcrumb
+            trail={breadcrumb}
+            onGoHome={() => setCurrentFolderId(null)}
+            onGoTo={(id) => setCurrentFolderId(id)}
+          />
+        )}
+
+        {!isSearching && subfolders.length > 0 && (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {subfolders.map((f) => (
+              <div
+                key={f.id}
+                className="group flex items-center gap-1 rounded-[12px] border border-border py-1.5 pr-1.5 pl-3 transition-colors hover:bg-hover"
               >
-                <FileIcon />
-                <div className="flex min-w-0 flex-col">
-                  <p className="truncate text-sm font-medium text-zinc-800">{p.name}</p>
-                  <p className="text-sm text-zinc-500">Uploading…</p>
-                </div>
-                <Loader2 className="ml-auto size-4 animate-spin text-zinc-400" />
-              </li>
-            ))}
-
-            {filesQuery.isLoading && pendingUploads.length === 0 && (
-              <li className="border-t border-zinc-100 px-6 py-8 text-center text-sm text-zinc-500">
-                Loading…
-              </li>
-            )}
-
-            {!filesQuery.isLoading &&
-              files.length === 0 &&
-              subfolders.length === 0 &&
-              pendingUploads.length === 0 && (
-                <li className="border-t border-zinc-100 px-6 py-14 text-center">
-                  <p className="text-sm font-medium text-zinc-800">
-                    {isSearching ? 'No files match your search' : 'This folder is empty'}
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-500">
-                    Drop files or a folder here, or use the upload buttons above.
-                  </p>
-                </li>
-              )}
-
-            {files.map((file) => {
-              const isReplacing = replacingResourceId === file.id;
-              const version = file.versionNumber ?? null;
-              return (
-                <li
-                  key={file.id}
-                  className="flex items-center gap-4 border-t border-zinc-100 px-6 py-4"
+                <button
+                  type="button"
+                  onClick={() => setCurrentFolderId(f.id)}
+                  className="flex min-w-0 flex-1 items-center gap-2.5 py-1 text-left outline-none"
                 >
-                  <FileIcon />
+                  <FolderIcon strokeWidth={1.5} className="size-4 shrink-0 text-text-secondary" />
                   <div className="flex min-w-0 flex-col">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-medium text-zinc-800">
-                        {file.name}
-                      </p>
-                      {version !== null && version > 1 && (
-                        <span
-                          title={`Replaced on ${file.lastReplacedAt ? new Date(file.lastReplacedAt).toLocaleDateString() : 'unknown date'}`}
-                          className="rounded-full border border-zinc-200 bg-zinc-50 px-1.5 py-0 text-[10px] font-semibold text-zinc-600"
-                        >
-                          v{version}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-zinc-500">{formatSize(file.fileSize)}</p>
+                    <span className="truncate text-label-14 font-medium text-text">{f.name}</span>
+                    <span className="text-label-12 text-text-secondary">Folder</span>
                   </div>
-                  <StatusBadge status={file.ingestStatus} />
-                  <button
-                    type="button"
-                    onClick={() => handleReplace(file.id)}
-                    disabled={isReplacing || replacingResourceId !== null}
-                    className="ml-auto inline-flex items-center gap-2 rounded-[10px] border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
-                    title="Replace with a new version — old version remains cited by any past answers"
-                  >
-                    {isReplacing ? (
-                      <>
-                        Replacing…
-                        <Loader2 className="size-3.5 animate-spin" />
-                      </>
-                    ) : (
-                      <>
-                        Replace
-                        <RefreshCw className="size-3.5" />
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(file.id)}
-                    disabled={remove.isPending || isReplacing}
-                    className="inline-flex items-center gap-2 rounded-[10px] bg-red-50 px-3 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Remove
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFolderDelete(f.id)}
+                  disabled={folderDelete.isPending}
+                  aria-label={`Delete folder ${f.name}`}
+                  title="Delete folder"
+                  className={cn(ICON_BUTTON, 'hover:text-danger-text')}
+                >
+                  <Trash2 strokeWidth={1.5} className="size-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <section
+          className={cn(
+            'overflow-hidden rounded-[16px] border transition-colors',
+            isDraggingOver ? 'border-focus-ring bg-selected' : 'border-border',
+          )}
+        >
+          <div className="scrollbar-thin overflow-x-auto">
+            <table className="w-full min-w-[560px] text-label-14">
+              <thead className="text-label-12 text-text-placeholder">
+                <tr>
+                  <th className="px-5 py-2.5 text-left font-medium">
+                    {isSearching ? 'Search results' : 'Name'}
+                  </th>
+                  <th className="w-36 px-5 py-2.5 text-left font-medium">Status</th>
+                  <th className="w-24 px-5 py-2.5">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingUploads.map((p) => (
+                  <tr key={p.id} className="border-t border-border">
+                    <td className="px-5 py-3">
+                      <FileCell name={p.name} meta="Uploading…" />
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="inline-flex items-center gap-1.5 text-text-secondary">
+                        <Loader2 strokeWidth={1.5} className="size-3.5 animate-spin" />
+                        Uploading
+                      </span>
+                    </td>
+                    <td />
+                  </tr>
+                ))}
+
+                {filesQuery.isLoading && pendingUploads.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={3}
+                      className="border-t border-border px-5 py-6 text-center text-text-secondary"
+                    >
+                      Loading…
+                    </td>
+                  </tr>
+                )}
+
+                {!filesQuery.isLoading &&
+                  files.length === 0 &&
+                  subfolders.length === 0 &&
+                  pendingUploads.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="border-t border-border px-5 py-10 text-center">
+                        <p className="font-medium text-text">
+                          {isSearching ? 'No files match your search' : 'This folder is empty'}
+                        </p>
+                        <p className="mt-1 text-label-13 text-text-secondary">
+                          Drop files or a folder here, or use the upload buttons above.
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+
+                {!filesQuery.isLoading &&
+                  files.length === 0 &&
+                  subfolders.length > 0 &&
+                  pendingUploads.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="border-t border-border px-5 py-6 text-center text-label-13 text-text-secondary"
+                      >
+                        No files in this folder yet.
+                      </td>
+                    </tr>
+                  )}
+
+                {files.map((file) => {
+                  const isReplacing = replacingResourceId === file.id;
+                  const version = file.versionNumber ?? null;
+                  return (
+                    <tr key={file.id} className="border-t border-border">
+                      <td className="px-5 py-3">
+                        <FileCell
+                          name={file.name}
+                          meta={formatSize(file.fileSize)}
+                          badge={
+                            version !== null && version > 1 ? (
+                              <span
+                                title={`Replaced on ${file.lastReplacedAt ? new Date(file.lastReplacedAt).toLocaleDateString() : 'unknown date'}`}
+                                className="shrink-0 rounded-[6px] bg-bg-subtle px-1.5 py-0.5 text-label-12 font-medium text-text-secondary"
+                              >
+                                v{version}
+                              </span>
+                            ) : null
+                          }
+                        />
+                      </td>
+                      <td className="px-5 py-3">
+                        <StatusBadge status={file.ingestStatus} />
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleReplace(file.id)}
+                            disabled={isReplacing || replacingResourceId !== null}
+                            aria-label={`Replace ${file.name}`}
+                            title="Replace with a new version — old version remains cited by any past answers"
+                            className={ICON_BUTTON}
+                          >
+                            {isReplacing ? (
+                              <Loader2 strokeWidth={1.5} className="size-4 animate-spin" />
+                            ) : (
+                              <RefreshCw strokeWidth={1.5} className="size-4" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemove(file.id)}
+                            disabled={remove.isPending || isReplacing}
+                            aria-label={`Remove ${file.name}`}
+                            title="Remove"
+                            className={cn(ICON_BUTTON, 'hover:text-danger-text')}
+                          >
+                            <Trash2 strokeWidth={1.5} className="size-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </section>
       </div>
     </AdminPageBody>
+  );
+}
+
+const PRIMARY_BUTTON =
+  'inline-flex items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
+
+const SECONDARY_BUTTON =
+  'inline-flex items-center gap-1.5 rounded-[10px] border border-border bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
+
+const ICON_BUTTON =
+  'grid size-8 shrink-0 place-items-center rounded-[8px] text-text-secondary outline-none transition-colors hover:bg-hover hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
+
+function FileCell({ name, meta, badge }: { name: string; meta: string; badge?: ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-bg-subtle">
+        <FileText strokeWidth={1.5} className="size-4 text-text-secondary" />
+      </div>
+      <div className="flex min-w-0 flex-col">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate font-medium text-text">{name}</span>
+          {badge}
+        </div>
+        <span className="text-label-12 text-text-secondary">{meta}</span>
+      </div>
+    </div>
   );
 }
 
@@ -583,29 +632,30 @@ function Breadcrumb({
   onGoTo: (id: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b border-zinc-100 bg-zinc-50 px-6 py-3 text-sm">
+    <nav className="-my-1 flex flex-wrap items-center gap-0.5 text-label-13">
       <button
         type="button"
         onClick={onGoHome}
-        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-zinc-700 hover:bg-white"
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-[8px] px-2 py-1 transition-colors hover:bg-hover',
+          trail.length === 0 ? 'font-medium text-text' : 'text-text-secondary',
+        )}
       >
-        <Home className="size-3.5" />
+        <Home strokeWidth={1.5} className="size-3.5" />
         All files
       </button>
       {trail.map((f, i) => {
         const isLast = i === trail.length - 1;
         return (
-          <span key={f.id} className="flex items-center gap-1">
-            <ChevronRight className="size-3.5 text-zinc-400" />
+          <span key={f.id} className="flex items-center gap-0.5">
+            <ChevronRight strokeWidth={1.5} className="size-3.5 text-text-placeholder" />
             {isLast ? (
-              <span className="rounded-md px-2 py-1 font-medium text-zinc-900">
-                {f.name}
-              </span>
+              <span className="px-2 py-1 font-medium text-text">{f.name}</span>
             ) : (
               <button
                 type="button"
                 onClick={() => onGoTo(f.id)}
-                className="rounded-md px-2 py-1 text-zinc-700 hover:bg-white"
+                className="rounded-[8px] px-2 py-1 text-text-secondary transition-colors hover:bg-hover"
               >
                 {f.name}
               </button>
@@ -613,28 +663,17 @@ function Breadcrumb({
           </span>
         );
       })}
-    </div>
-  );
-}
-
-function FileIcon() {
-  return (
-    <div className="grid size-[42px] shrink-0 place-items-center rounded-[8px] bg-zinc-100">
-      <FileText className="size-5 text-zinc-500" />
-    </div>
+    </nav>
   );
 }
 
 function StatusBadge({ status }: { status: string | null }) {
   const config = statusConfig(status);
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium',
-        config.className,
-      )}
-    >
-      {config.spinner && <Loader2 className="size-3 animate-spin" />}
+    <span className={cn('inline-flex items-center gap-1.5', config.className)}>
+      <span
+        className={cn('size-1.5 shrink-0 rounded-full bg-current', config.busy && 'animate-pulse')}
+      />
       {config.label}
     </span>
   );
@@ -643,42 +682,24 @@ function StatusBadge({ status }: { status: string | null }) {
 function statusConfig(status: string | null): {
   label: string;
   className: string;
-  spinner: boolean;
+  busy: boolean;
 } {
   switch (status) {
     case 'DONE':
-      return {
-        label: 'Ready',
-        className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-        spinner: false,
-      };
+      return { label: 'Ready', className: 'text-success-text', busy: false };
     case 'FAILED':
-      return {
-        label: 'Failed',
-        className: 'border-red-200 bg-red-50 text-red-700',
-        spinner: false,
-      };
+      return { label: 'Failed', className: 'text-danger-text', busy: false };
     case 'PENDING':
     case 'EXTRACTING':
     case 'CHUNKING':
     case 'EMBEDDING':
-      return {
-        label: 'Processing',
-        className: 'border-amber-200 bg-amber-50 text-amber-700',
-        spinner: true,
-      };
+      // Internal pipeline stages aren't meaningful to users — collapse
+      // to a single "Processing" label.
+      return { label: 'Processing', className: 'text-info-text', busy: true };
     case 'PENDING_UPLOAD':
-      return {
-        label: 'Uploading',
-        className: 'border-zinc-200 bg-zinc-50 text-zinc-600',
-        spinner: true,
-      };
+      return { label: 'Uploading', className: 'text-text-secondary', busy: true };
     default:
-      return {
-        label: 'Unknown',
-        className: 'border-zinc-200 bg-zinc-50 text-zinc-600',
-        spinner: false,
-      };
+      return { label: 'Unknown', className: 'text-text-secondary', busy: false };
   }
 }
 
@@ -704,9 +725,7 @@ async function walkEntry(
   if (entry.isDirectory) {
     const reader = (entry as FileSystemDirectoryEntry).createReader();
     const children = await readAllEntries(reader);
-    await Promise.all(
-      children.map((child) => walkEntry(child, [...parentPath, entry.name], out)),
-    );
+    await Promise.all(children.map((child) => walkEntry(child, [...parentPath, entry.name], out)));
   }
 }
 
