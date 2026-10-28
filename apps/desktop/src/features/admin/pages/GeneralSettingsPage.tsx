@@ -121,7 +121,7 @@ export function GeneralSettingsPage() {
             onChange={(e) => setDescription(e.target.value.slice(0, 500))}
             rows={3}
             placeholder="What is this workspace for?"
-            className="w-full resize-none rounded-[10px] border border-border-default bg-bg-panel px-3 py-2.5 text-copy-14 text-text outline-none transition-[border-color,box-shadow] placeholder:text-text-placeholder hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)]"
+            className="w-full resize-none rounded-[10px] border border-border-default bg-bg-panel px-3 py-2.5 text-copy-14 text-text outline-none transition-[border-color,box-shadow] placeholder:text-text-placeholder hover:border-border-hover"
           />
         </SettingsRow>
       </SettingsSection>

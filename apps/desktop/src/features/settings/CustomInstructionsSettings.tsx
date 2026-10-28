@@ -62,7 +62,7 @@ export function CustomInstructionsSettings() {
           }}
           rows={5}
           placeholder={PLACEHOLDER}
-          className="w-full resize-none rounded-[10px] border border-border-default bg-bg-panel px-3 py-2.5 text-copy-14 text-text outline-none transition-[border-color,box-shadow] placeholder:text-text-placeholder hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)]"
+          className="w-full resize-none rounded-[10px] border border-border-default bg-bg-panel px-3 py-2.5 text-copy-14 text-text outline-none transition-[border-color,box-shadow] placeholder:text-text-placeholder hover:border-border-hover"
         />
         <div className="mt-2 flex items-center justify-between gap-3">
           <span className="text-label-12 text-text-placeholder tabular-nums">
