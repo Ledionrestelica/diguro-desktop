@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { trpc } from '@/lib/trpc';
 import { AdminPageBody } from '../AdminPageBody';
+import { DsBadge, type DsBadgeColor } from '@/components/ui/ds-badge';
 
 /**
  * Org-admin dashboard for AI spend. Data is aggregated month-to-date
@@ -122,9 +123,9 @@ export function TokenUsagePage() {
                         <span className="text-label-12 text-text-secondary">{u.userEmail}</span>
                       )}
                       {u.hasCustomCap && (
-                        <span className="mt-0.5 w-fit rounded-[6px] bg-bg-subtle px-2 py-0.5 text-label-12 font-medium text-warning-text">
+                        <DsBadge color="orange" className="mt-0.5">
                           Custom cap
-                        </span>
+                        </DsBadge>
                       )}
                     </div>
                   </Td>
@@ -310,29 +311,23 @@ function Td({
 }
 
 function TypeBadge({ type }: { type: string }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-[6px] bg-bg-subtle px-2 py-0.5 text-label-12 font-medium ${typeColor(type)}`}
-    >
-      {type.toLowerCase()}
-    </span>
-  );
+  return <DsBadge color={typeColor(type)}>{type.toLowerCase()}</DsBadge>;
 }
 
-function typeColor(type: string): string {
+function typeColor(type: string): DsBadgeColor {
   switch (type) {
     case 'CHAT':
-      return 'text-info-text';
+      return 'blue';
     case 'EMBED':
-      return 'text-success-text';
+      return 'green';
     case 'RERANK':
-      return 'text-warning-text';
+      return 'orange';
     case 'OCR':
-      return 'text-success-text';
+      return 'green';
     case 'CONTEXTUALIZE':
-      return 'text-info-text';
+      return 'blue';
     default:
-      return 'text-text-secondary';
+      return 'gray';
   }
 }
 

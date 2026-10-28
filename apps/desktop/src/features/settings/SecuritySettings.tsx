@@ -10,6 +10,7 @@ import { apiAuth } from '@/lib/api-auth';
 import { TextField } from '@/components/ui/text-field';
 import { SettingsRow, SettingsSection } from '@/features/admin/SettingsSection';
 import { dsButtonClass } from '@/components/ui/ds-button';
+import { DsBadge } from '@/components/ui/ds-badge';
 
 const MIN_PASSWORD_LEN = 8;
 
@@ -176,9 +177,7 @@ function SessionsSection() {
                 </p>
               </div>
               {s.isCurrent ? (
-                <span className="rounded-[6px] bg-bg-subtle px-2 py-0.5 text-label-12 font-medium text-success-text">
-                  This device
-                </span>
+                <DsBadge color="green">This device</DsBadge>
               ) : (
                 <button
                   type="button"

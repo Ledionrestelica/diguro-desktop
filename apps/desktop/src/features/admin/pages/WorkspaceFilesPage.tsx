@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { dsButtonClass } from '@/components/ui/ds-button';
 import { Input } from '@/components/ui/input';
 import { AdminPageBody } from '../AdminPageBody';
+import { DsBadge, type DsBadgeColor } from '@/components/ui/ds-badge';
 
 /**
  * Workspace-scoped file library. Files added here are visible to members
@@ -542,12 +543,11 @@ export function WorkspaceFilesPage() {
                           meta={formatSize(file.fileSize)}
                           badge={
                             version !== null && version > 1 ? (
-                              <span
+                              <DsBadge
                                 title={`Replaced on ${file.lastReplacedAt ? new Date(file.lastReplacedAt).toLocaleDateString() : 'unknown date'}`}
-                                className="shrink-0 rounded-[6px] bg-bg-subtle px-1.5 py-0.5 text-label-12 font-medium text-text-secondary"
                               >
                                 v{version}
-                              </span>
+                              </DsBadge>
                             ) : null
                           }
                         />
@@ -667,36 +667,33 @@ function Breadcrumb({
 function StatusBadge({ status }: { status: string | null }) {
   const config = statusConfig(status);
   return (
-    <span className={cn('inline-flex items-center gap-1.5', config.className)}>
-      <span
-        className={cn('size-1.5 shrink-0 rounded-full bg-current', config.busy && 'animate-pulse')}
-      />
+    <DsBadge color={config.color} dot pulse={config.busy}>
       {config.label}
-    </span>
+    </DsBadge>
   );
 }
 
 function statusConfig(status: string | null): {
   label: string;
-  className: string;
+  color: DsBadgeColor;
   busy: boolean;
 } {
   switch (status) {
     case 'DONE':
-      return { label: 'Ready', className: 'text-success-text', busy: false };
+      return { label: 'Ready', color: 'green', busy: false };
     case 'FAILED':
-      return { label: 'Failed', className: 'text-danger-text', busy: false };
+      return { label: 'Failed', color: 'red', busy: false };
     case 'PENDING':
     case 'EXTRACTING':
     case 'CHUNKING':
     case 'EMBEDDING':
       // Internal pipeline stages aren't meaningful to users — collapse
       // to a single "Processing" label.
-      return { label: 'Processing', className: 'text-info-text', busy: true };
+      return { label: 'Processing', color: 'blue', busy: true };
     case 'PENDING_UPLOAD':
-      return { label: 'Uploading', className: 'text-text-secondary', busy: true };
+      return { label: 'Uploading', color: 'gray', busy: true };
     default:
-      return { label: 'Unknown', className: 'text-text-secondary', busy: false };
+      return { label: 'Unknown', color: 'gray', busy: false };
   }
 }
 

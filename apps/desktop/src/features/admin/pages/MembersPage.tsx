@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { dsButtonClass } from '@/components/ui/ds-button';
 import { TextField } from '@/components/ui/text-field';
 import { AdminPageBody } from '../AdminPageBody';
+import { DsBadge } from '@/components/ui/ds-badge';
 
 /**
  * Members tab — current users + pending invitations. Admin can create new
@@ -195,11 +196,7 @@ export function MembersPage() {
                             {initials(u.name)}
                           </span>
                           <span className="truncate font-medium">{u.name}</span>
-                          {isSelf && (
-                            <span className="rounded-[6px] bg-bg-subtle px-2 py-0.5 text-label-12 font-medium text-text-secondary">
-                              You
-                            </span>
-                          )}
+                          {isSelf && <DsBadge>You</DsBadge>}
                         </div>
                       </Td>
                       <Td muted>{u.email}</Td>
@@ -267,9 +264,9 @@ export function MembersPage() {
                         <span className="font-medium">{i.email}</span>
                       </Td>
                       <Td>
-                        <span className="inline-flex items-center rounded-[6px] bg-bg-subtle px-2 py-0.5 text-label-12 font-medium text-text-secondary">
+                        <DsBadge>
                           {i.role === 'organization_admin' ? 'Organization admin' : 'User'}
-                        </span>
+                        </DsBadge>
                       </Td>
                       <Td muted>{formatRelativeFuture(new Date(i.expiresAt))}</Td>
                       <Td align="right">
@@ -447,7 +444,7 @@ const secondaryButton = dsButtonClass();
 const dangerButton = dsButtonClass({ variant: 'danger' });
 
 const selectClass =
-  'h-8 cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)] disabled:cursor-not-allowed disabled:border-border-default disabled:bg-bg-subtle disabled:text-text-secondary';
+  'h-8 cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover disabled:cursor-not-allowed disabled:border-border-default disabled:bg-bg-subtle disabled:text-text-secondary';
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { AdminPageBody } from '../AdminPageBody';
+import { DsBadge, type DsBadgeColor } from '@/components/ui/ds-badge';
 
 /**
  * Org-admin audit log. Every security-relevant action (resource upload /
@@ -26,7 +27,7 @@ export function AuditLogPage() {
         <select
           value={action}
           onChange={(e) => setAction(e.target.value)}
-          className="h-8 shrink-0 cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)]"
+          className="h-8 shrink-0 cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover"
         >
           <option value="">All actions</option>
           <option value="resource.uploaded">File uploaded</option>
@@ -111,20 +112,14 @@ function MetadataPreview({ metadata }: { metadata: unknown }) {
 }
 
 function ActionBadge({ action }: { action: string }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-[6px] bg-bg-subtle px-2 py-0.5 text-label-12 font-medium ${actionColor(action)}`}
-    >
-      {action}
-    </span>
-  );
+  return <DsBadge color={actionColor(action)}>{action}</DsBadge>;
 }
 
-function actionColor(action: string): string {
-  if (action.endsWith('.deleted')) return 'text-danger-text';
-  if (action.endsWith('.replaced')) return 'text-warning-text';
-  if (action.endsWith('.uploaded') || action.endsWith('.created')) return 'text-success-text';
-  return 'text-text-secondary';
+function actionColor(action: string): DsBadgeColor {
+  if (action.endsWith('.deleted')) return 'red';
+  if (action.endsWith('.replaced')) return 'orange';
+  if (action.endsWith('.uploaded') || action.endsWith('.created')) return 'green';
+  return 'gray';
 }
 
 function Th({ children }: { children: React.ReactNode }) {
