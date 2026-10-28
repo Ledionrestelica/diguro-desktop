@@ -1,14 +1,8 @@
 import { Link } from 'react-router-dom';
-import {
-  ArrowUpRight,
-  Building2,
-  Layers,
-  Users,
-  ShieldCheck,
-  Zap,
-} from 'lucide-react';
+import { ArrowUpRight, Building2, Layers, Users, ShieldCheck, Zap } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
+import { DsBadge, type DsBadgeColor } from '@/components/ui/ds-badge';
 import { AdminPageBody } from '../PlatformAdminLayout';
 
 /**
@@ -43,11 +37,7 @@ export function PlatformDashboardPage() {
             icon={Building2}
             label="Organizations"
             value={totalOrgs}
-            hint={
-              suspendedOrgs > 0
-                ? `${suspendedOrgs} suspended`
-                : 'All active'
-            }
+            hint={suspendedOrgs > 0 ? `${suspendedOrgs} suspended` : 'All active'}
             tone={suspendedOrgs > 0 ? 'warn' : 'ok'}
             loading={orgsQuery.isLoading}
           />
@@ -84,12 +74,8 @@ export function PlatformDashboardPage() {
           <section className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white lg:col-span-2">
             <div className="flex items-center justify-between border-b border-zinc-100 p-6">
               <div>
-                <p className="text-sm font-medium leading-5 text-black">
-                  Recent organizations
-                </p>
-                <p className="mt-1 text-sm text-zinc-500">
-                  Newest tenants on the platform.
-                </p>
+                <p className="text-sm font-medium leading-5 text-black">Recent organizations</p>
+                <p className="mt-1 text-sm text-zinc-500">Newest tenants on the platform.</p>
               </div>
               <Link
                 to="/admin/platform/organizations"
@@ -130,9 +116,7 @@ export function PlatformDashboardPage() {
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="truncate text-sm font-medium text-zinc-900">
-                            {org.name}
-                          </p>
+                          <p className="truncate text-sm font-medium text-zinc-900">{org.name}</p>
                           {org.suspended && <SuspendedPill />}
                         </div>
                         <p className="truncate text-xs text-zinc-500">
@@ -155,9 +139,7 @@ export function PlatformDashboardPage() {
             <section className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
               <div className="flex items-center justify-between border-b border-zinc-100 p-6">
                 <div>
-                  <p className="text-sm font-medium leading-5 text-black">
-                    Recent users
-                  </p>
+                  <p className="text-sm font-medium leading-5 text-black">Recent users</p>
                   <p className="mt-1 text-sm text-zinc-500">Latest sign-ups.</p>
                 </div>
                 <Link
@@ -179,10 +161,7 @@ export function PlatformDashboardPage() {
               ) : (
                 <ul className="divide-y divide-zinc-100">
                   {recentUsers.map((u) => (
-                    <li
-                      key={u.id}
-                      className="flex items-center gap-3 px-6 py-3.5"
-                    >
+                    <li key={u.id} className="flex items-center gap-3 px-6 py-3.5">
                       <Avatar name={u.name ?? u.email} email={u.email} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-zinc-900">
@@ -199,39 +178,19 @@ export function PlatformDashboardPage() {
 
             <section className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
               <div className="border-b border-zinc-100 p-6">
-                <p className="text-sm font-medium leading-5 text-black">
-                  System pulse
-                </p>
-                <p className="mt-1 text-sm text-zinc-500">
-                  Live status of platform components.
-                </p>
+                <p className="text-sm font-medium leading-5 text-black">System pulse</p>
+                <p className="mt-1 text-sm text-zinc-500">Live status of platform components.</p>
               </div>
               <ul className="divide-y divide-zinc-100">
                 <PulseRow
                   label="Database"
-                  state={
-                    orgsQuery.isLoading
-                      ? 'pending'
-                      : orgsQuery.error
-                        ? 'down'
-                        : 'ok'
-                  }
-                  detail={
-                    orgsQuery.error?.message ?? `${totalOrgs + totalUsers} rows scanned`
-                  }
+                  state={orgsQuery.isLoading ? 'pending' : orgsQuery.error ? 'down' : 'ok'}
+                  detail={orgsQuery.error?.message ?? `${totalOrgs + totalUsers} rows scanned`}
                 />
                 <PulseRow
                   label="Auth"
-                  state={
-                    usersQuery.isLoading
-                      ? 'pending'
-                      : usersQuery.error
-                        ? 'down'
-                        : 'ok'
-                  }
-                  detail={
-                    usersQuery.error?.message ?? `${totalUsers} accounts visible`
-                  }
+                  state={usersQuery.isLoading ? 'pending' : usersQuery.error ? 'down' : 'ok'}
+                  detail={usersQuery.error?.message ?? `${totalUsers} accounts visible`}
                 />
               </ul>
             </section>
@@ -262,15 +221,11 @@ function KpiCard({
   return (
     <div className="rounded-[12px] border border-zinc-200 bg-white p-5">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-          {label}
-        </p>
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
         <span
           className={cn(
             'grid size-7 place-items-center rounded-[8px]',
-            tone === 'warn'
-              ? 'bg-amber-50 text-amber-700'
-              : 'bg-zinc-100 text-zinc-700',
+            tone === 'warn' ? 'bg-amber-50 text-amber-700' : 'bg-zinc-100 text-zinc-700',
           )}
         >
           <Icon className="size-3.5" />
@@ -284,12 +239,7 @@ function KpiCard({
         </p>
       )}
       {hint && (
-        <p
-          className={cn(
-            'mt-1 text-xs',
-            tone === 'warn' ? 'text-amber-700' : 'text-zinc-500',
-          )}
-        >
+        <p className={cn('mt-1 text-xs', tone === 'warn' ? 'text-amber-700' : 'text-zinc-500')}>
           {hint}
         </p>
       )}
@@ -326,12 +276,7 @@ function PulseRow({
 
 function SkeletonRow({ compact = false }: { compact?: boolean }) {
   return (
-    <div
-      className={cn(
-        'flex animate-pulse items-center gap-4',
-        compact ? 'py-2' : 'py-3',
-      )}
-    >
+    <div className={cn('flex animate-pulse items-center gap-4', compact ? 'py-2' : 'py-3')}>
       <div className={cn('rounded-full bg-zinc-100', compact ? 'size-7' : 'size-9')} />
       <div className="flex flex-1 flex-col gap-1.5">
         <div className="h-3 w-1/3 rounded bg-zinc-100" />
@@ -369,35 +314,25 @@ function EmptyState({
 
 function SuspendedPill() {
   return (
-    <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+    <DsBadge color="orange" dot>
       Suspended
-    </span>
+    </DsBadge>
   );
 }
 
 function RolePill({ role }: { role: string }) {
   const cfg = roleStyle(role);
-  return (
-    <span
-      className={cn(
-        'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
-        cfg.bg,
-        cfg.fg,
-      )}
-    >
-      {cfg.label}
-    </span>
-  );
+  return <DsBadge color={cfg.color}>{cfg.label}</DsBadge>;
 }
 
-function roleStyle(role: string) {
+function roleStyle(role: string): { color: DsBadgeColor; label: string } {
   switch (role) {
     case 'superadmin':
-      return { bg: 'bg-black/90', fg: 'text-white', label: 'Super' };
+      return { color: 'blue', label: 'Superadmin' };
     case 'organization_admin':
-      return { bg: 'bg-violet-50', fg: 'text-violet-700', label: 'Org Admin' };
+      return { color: 'purple', label: 'Org admin' };
     default:
-      return { bg: 'bg-zinc-100', fg: 'text-zinc-700', label: 'User' };
+      return { color: 'gray', label: 'User' };
   }
 }
 
@@ -416,9 +351,7 @@ export function OrgGlyph({
   // `organization://…` to presigned HTTPS on read; if a stale query
   // result still carries the raw scheme, fall back to initials instead
   // of letting the browser fail the request (and trip CSP).
-  const isRenderable =
-    typeof logoUrl === 'string' &&
-    /^(https?:|data:|blob:)/.test(logoUrl);
+  const isRenderable = typeof logoUrl === 'string' && /^(https?:|data:|blob:)/.test(logoUrl);
   if (logoUrl && isRenderable) {
     return (
       <img
@@ -432,8 +365,7 @@ export function OrgGlyph({
   // Stable hue from id; primaryColor wins if set.
   let hue = 0;
   for (let i = 0; i < seed.length; i++) hue = (hue * 31 + seed.charCodeAt(i)) % 360;
-  const bg =
-    primaryColor ?? `hsl(${hue} 60% 92%)`;
+  const bg = primaryColor ?? `hsl(${hue} 60% 92%)`;
   const fg = primaryColor ? '#fff' : `hsl(${hue} 50% 32%)`;
   return (
     <span

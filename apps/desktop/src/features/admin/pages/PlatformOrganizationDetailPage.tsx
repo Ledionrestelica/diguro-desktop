@@ -3,6 +3,7 @@ import { Link, Navigate, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ShieldOff, Trash2, Users as UsersIcon, Layers } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
+import { DsBadge, type DsBadgeColor } from '@/components/ui/ds-badge';
 import { useAdminSave } from '../admin-save-context';
 import { AdminPageBody } from '../PlatformAdminLayout';
 import { OrgGlyph } from './PlatformDashboardPage';
@@ -77,13 +78,9 @@ export function PlatformOrganizationDetailPage() {
             id,
             ...(name !== orgQuery.data.name ? { name } : {}),
             ...(slug !== orgQuery.data.slug ? { slug } : {}),
-            ...(primaryColor !== orgQuery.data.primaryColor
-              ? { primaryColor }
-              : {}),
+            ...(primaryColor !== orgQuery.data.primaryColor ? { primaryColor } : {}),
             ...(maxUsers !== orgQuery.data.maxUsers ? { maxUsers } : {}),
-            ...(maxWorkspaces !== orgQuery.data.maxWorkspaces
-              ? { maxWorkspaces }
-              : {}),
+            ...(maxWorkspaces !== orgQuery.data.maxWorkspaces ? { maxWorkspaces } : {}),
             ...(maxResourcesPerWorkspace !== orgQuery.data.maxResourcesPerWorkspace
               ? { maxResourcesPerWorkspace }
               : {}),
@@ -165,22 +162,28 @@ export function PlatformOrganizationDetailPage() {
                   {org.name}
                 </h2>
                 {org.suspended ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                    <span className="size-1.5 rounded-full bg-amber-500" />
+                  <DsBadge color="orange" dot>
                     Suspended
-                  </span>
+                  </DsBadge>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                  <DsBadge color="green" dot>
                     Active
-                  </span>
+                  </DsBadge>
                 )}
               </div>
               <p className="mt-1 truncate text-sm text-zinc-500">/{org.slug}</p>
             </div>
             <div className="flex gap-2">
-              <StatBlock icon={UsersIcon} label="Users" value={`${org.userCount} / ${org.maxUsers}`} />
-              <StatBlock icon={Layers} label="Workspaces" value={`${org.workspaceCount} / ${org.maxWorkspaces}`} />
+              <StatBlock
+                icon={UsersIcon}
+                label="Users"
+                value={`${org.userCount} / ${org.maxUsers}`}
+              />
+              <StatBlock
+                icon={Layers}
+                label="Workspaces"
+                value={`${org.workspaceCount} / ${org.maxWorkspaces}`}
+              />
             </div>
           </div>
 
@@ -208,7 +211,9 @@ export function PlatformOrganizationDetailPage() {
             </Field>
             <Field label="Slug" hint="URL-safe handle. Lowercase letters, digits, dashes.">
               <div className="flex items-stretch overflow-hidden rounded-[10px] border border-zinc-200 bg-white focus-within:border-zinc-400">
-                <span className="grid place-items-center bg-zinc-50 px-3 text-xs text-zinc-500">/</span>
+                <span className="grid place-items-center bg-zinc-50 px-3 text-xs text-zinc-500">
+                  /
+                </span>
                 <input
                   value={slug}
                   onChange={(e) => setSlug(e.target.value.toLowerCase())}
@@ -216,10 +221,7 @@ export function PlatformOrganizationDetailPage() {
                 />
               </div>
             </Field>
-            <Field
-              label="Brand color"
-              hint="Used for the org glyph + accents. Click to clear."
-            >
+            <Field label="Brand color" hint="Used for the org glyph + accents. Click to clear.">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -279,10 +281,7 @@ export function PlatformOrganizationDetailPage() {
                 className="w-full rounded-[10px] border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-400 tabular-nums"
               />
             </Field>
-            <Field
-              label="Max workspaces"
-              hint={`${org.workspaceCount} currently in use.`}
-            >
+            <Field label="Max workspaces" hint={`${org.workspaceCount} currently in use.`}>
               <input
                 type="number"
                 min={1}
@@ -353,8 +352,7 @@ function UsageSection({ organizationId }: { organizationId: string }) {
       <div className="border-b border-zinc-100 px-6 py-4">
         <p className="text-sm font-medium text-black">AI usage</p>
         <p className="mt-0.5 text-xs text-zinc-500">
-          Month-to-date spend across every user in this organization.{' '}
-          {monthLabel} · UTC.
+          Month-to-date spend across every user in this organization. {monthLabel} · UTC.
         </p>
       </div>
 
@@ -364,10 +362,7 @@ function UsageSection({ organizationId }: { organizationId: string }) {
           value={formatUsd(summary?.totalCostMicrodollars ?? 0)}
           highlight
         />
-        <UsageStat
-          label="Calls"
-          value={(summary?.totalCalls ?? 0).toLocaleString()}
-        />
+        <UsageStat label="Calls" value={(summary?.totalCalls ?? 0).toLocaleString()} />
         <UsageStat
           label="Input tokens"
           value={(summary?.totalPromptTokens ?? 0).toLocaleString()}
@@ -423,9 +418,7 @@ function UsageSection({ organizationId }: { organizationId: string }) {
                   </UTd>
                   <UTd align="right">{row.calls.toLocaleString()}</UTd>
                   <UTd align="right">{row.promptTokens.toLocaleString()}</UTd>
-                  <UTd align="right">
-                    {row.completionTokens.toLocaleString()}
-                  </UTd>
+                  <UTd align="right">{row.completionTokens.toLocaleString()}</UTd>
                   <UTd align="right" bold>
                     {formatUsd(row.costMicrodollars)}
                   </UTd>
@@ -474,9 +467,7 @@ function UsageSection({ organizationId }: { organizationId: string }) {
                         {u.userName ?? u.userEmail ?? '—'}
                       </span>
                       {u.userName && u.userEmail && (
-                        <span className="text-xs text-zinc-500">
-                          {u.userEmail}
-                        </span>
+                        <span className="text-xs text-zinc-500">{u.userEmail}</span>
                       )}
                     </div>
                   </UTd>
@@ -485,9 +476,7 @@ function UsageSection({ organizationId }: { organizationId: string }) {
                   </UTd>
                   <UTd align="right">{formatUsd(u.capMicrodollars)}</UTd>
                   <UTd align="right">
-                    {formatUsd(
-                      Math.max(0, u.capMicrodollars - u.usedMicrodollars),
-                    )}
+                    {formatUsd(Math.max(0, u.capMicrodollars - u.usedMicrodollars))}
                   </UTd>
                 </tr>
               ))}
@@ -566,30 +555,15 @@ function UsageStat({
         highlight ? 'border-black/10 bg-zinc-50' : 'border-zinc-200',
       )}
     >
-      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-        {label}
-      </p>
-      <p className="mt-1.5 text-xl font-semibold tabular-nums text-zinc-900">
-        {value}
-      </p>
+      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="mt-1.5 text-xl font-semibold tabular-nums text-zinc-900">{value}</p>
     </div>
   );
 }
 
-function UTh({
-  children,
-  align,
-}: {
-  children: React.ReactNode;
-  align?: 'right';
-}) {
+function UTh({ children, align }: { children: React.ReactNode; align?: 'right' }) {
   return (
-    <th
-      className={cn(
-        'py-2.5 pr-4 font-medium',
-        align === 'right' ? 'text-right' : 'text-left',
-      )}
-    >
+    <th className={cn('py-2.5 pr-4 font-medium', align === 'right' ? 'text-right' : 'text-left')}>
       {children}
     </th>
   );
@@ -621,34 +595,21 @@ function UTd({
 }
 
 function UsageTypeBadge({ type }: { type: string }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium',
-        usageTypeColor(type),
-      )}
-    >
-      {type}
-    </span>
-  );
+  return <DsBadge color={usageTypeColor(type)}>{type.toLowerCase()}</DsBadge>;
 }
 
-function usageTypeColor(type: string): string {
+function usageTypeColor(type: string): DsBadgeColor {
   switch (type) {
     case 'CHAT':
-      return 'border-violet-200 bg-violet-50 text-violet-700';
-    case 'EMBED':
-      return 'border-sky-200 bg-sky-50 text-sky-700';
-    case 'RERANK':
-      return 'border-amber-200 bg-amber-50 text-amber-700';
-    case 'OCR':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
     case 'CONTEXTUALIZE':
-      return 'border-indigo-200 bg-indigo-50 text-indigo-700';
-    case 'TITLE':
-      return 'border-zinc-200 bg-zinc-50 text-zinc-600';
+      return 'blue';
+    case 'EMBED':
+    case 'OCR':
+      return 'green';
+    case 'RERANK':
+      return 'orange';
     default:
-      return 'border-zinc-200 bg-zinc-50 text-zinc-600';
+      return 'gray';
   }
 }
 
@@ -740,8 +701,8 @@ function DangerZone({
       <div className="border-b border-red-100 bg-red-50/40 px-6 py-4">
         <p className="text-sm font-semibold text-red-700">Danger zone</p>
         <p className="mt-0.5 text-xs text-red-600/80">
-          Suspending freezes access immediately. Deleting cascades to every member,
-          file, chat, and audit row owned by this organization.
+          Suspending freezes access immediately. Deleting cascades to every member, file, chat, and
+          audit row owned by this organization.
         </p>
       </div>
 
@@ -779,12 +740,10 @@ function DangerZone({
             className="w-full max-w-md rounded-[16px] border border-zinc-200 bg-white p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-base font-semibold text-zinc-900">
-              Suspend {org.name}?
-            </p>
+            <p className="text-base font-semibold text-zinc-900">Suspend {org.name}?</p>
             <p className="mt-1 text-sm text-zinc-500">
-              All members will be locked out until you unsuspend. The reason is
-              shown to them on the maintenance screen.
+              All members will be locked out until you unsuspend. The reason is shown to them on the
+              maintenance screen.
             </p>
             <textarea
               autoFocus
@@ -825,9 +784,7 @@ function DangerZone({
             className="w-full max-w-md rounded-[16px] border border-zinc-200 bg-white p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-base font-semibold text-red-700">
-              Delete {org.name}?
-            </p>
+            <p className="text-base font-semibold text-red-700">Delete {org.name}?</p>
             <p className="mt-1 text-sm text-zinc-500">
               This is irreversible. To confirm, type the slug{' '}
               <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-semibold text-zinc-800">
@@ -903,9 +860,7 @@ function StatBlock({
         <Icon className="size-3" />
         {label}
       </div>
-      <p className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-900">
-        {value}
-      </p>
+      <p className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-900">{value}</p>
     </div>
   );
 }

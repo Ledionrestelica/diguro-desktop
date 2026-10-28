@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
+import { DsBadge } from '@/components/ui/ds-badge';
 import { AdminPageBody } from '../PlatformAdminLayout';
 import { Avatar, OrgGlyph } from './PlatformDashboardPage';
 
@@ -45,9 +46,11 @@ export function PlatformUsersPage() {
   const myUserId = me.data?.id ?? null;
 
   function handleDelete(userId: string, label: string) {
-    if (!window.confirm(
-      `Delete ${label}? This permanently removes the account, their personal files, conversations, workspace memberships, and audit history. This cannot be undone.`,
-    )) {
+    if (
+      !window.confirm(
+        `Delete ${label}? This permanently removes the account, their personal files, conversations, workspace memberships, and audit history. This cannot be undone.`,
+      )
+    ) {
       return;
     }
     setDeleteError(null);
@@ -65,19 +68,14 @@ export function PlatformUsersPage() {
   }
 
   const orgs = orgsQuery.data ?? [];
-  const orgsById = useMemo(
-    () => new Map(orgs.map((o) => [o.id, o])),
-    [orgs],
-  );
+  const orgsById = useMemo(() => new Map(orgs.map((o) => [o.id, o])), [orgs]);
 
   const users = usersQuery.data ?? [];
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return users;
     return users.filter(
-      (u) =>
-        u.email.toLowerCase().includes(q) ||
-        (u.name?.toLowerCase().includes(q) ?? false),
+      (u) => u.email.toLowerCase().includes(q) || (u.name?.toLowerCase().includes(q) ?? false),
     );
   }, [users, query]);
 
@@ -177,161 +175,148 @@ export function PlatformUsersPage() {
         )}
 
         <div className="scrollbar-thin overflow-x-auto">
-        <table className="w-full min-w-[960px] text-sm">
-          <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
-            <tr>
-              <Th>User</Th>
-              <Th>Organization</Th>
-              <Th>Role</Th>
-              <Th>Status</Th>
-              <Th>Joined</Th>
-              <Th align="right">Actions</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {usersQuery.isLoading && (
+          <table className="w-full min-w-[960px] text-sm">
+            <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
               <tr>
-                <td colSpan={6} className="px-6 py-10 text-center text-sm text-zinc-500">
-                  Loading…
-                </td>
+                <Th>User</Th>
+                <Th>Organization</Th>
+                <Th>Role</Th>
+                <Th>Status</Th>
+                <Th>Joined</Th>
+                <Th align="right">Actions</Th>
               </tr>
-            )}
-            {!usersQuery.isLoading && filtered.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-6 py-12 text-center">
-                  <p className="text-sm font-medium text-zinc-700">
-                    {query ? 'No matches' : 'No users yet'}
-                  </p>
-                  <p className="mt-1 text-xs text-zinc-500">
-                    {query
-                      ? 'Try a different search term.'
-                      : 'Users appear here as soon as they sign up.'}
-                  </p>
-                </td>
-              </tr>
-            )}
-            {filtered.map((u) => {
-              const org = u.organizationId ? orgsById.get(u.organizationId) : null;
-              return (
-                <tr key={u.id} className="border-t border-zinc-100">
-                  <Td>
-                    <div className="flex items-center gap-3">
-                      <Avatar name={u.name ?? u.email} email={u.email} />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-zinc-900">
-                          {u.name || u.email.split('@')[0]}
-                        </p>
-                        <p className="truncate text-xs text-zinc-500">{u.email}</p>
-                      </div>
-                    </div>
-                  </Td>
-                  <Td>
-                    <div className="flex items-center gap-2">
-                      {org ? (
-                        <>
-                          <OrgGlyph
-                            seed={org.id}
-                            primaryColor={org.primaryColor}
-                            logoUrl={org.logoUrl}
-                            size={20}
-                          />
-                          <span className="truncate text-sm text-zinc-700">
-                            {org.name}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                          Unassigned
-                        </span>
-                      )}
-                      {/* Reassign menu — simple select */}
-                      <select
-                        value={u.organizationId ?? ''}
-                        disabled={assignOrg.isPending}
-                        onChange={(e) =>
-                          handleAssignOrg(u.id, e.target.value || null)
-                        }
-                        className="ml-1 rounded-[8px] border border-zinc-200 bg-white px-2 py-1 text-xs outline-none disabled:opacity-60"
-                        aria-label="Reassign organization"
-                      >
-                        <option value="">— Unassigned —</option>
-                        {orgs.map((o) => (
-                          <option key={o.id} value={o.id}>
-                            {o.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </Td>
-                  <Td>
-                    <select
-                      value={u.role}
-                      disabled={setRole.isPending}
-                      onChange={(e) => handleRoleChange(u.id, e.target.value as Role)}
-                      className={cn(
-                        'rounded-[8px] border bg-white px-2 py-1 text-xs font-semibold outline-none disabled:opacity-60',
-                        u.role === 'superadmin'
-                          ? 'border-zinc-900 bg-zinc-900 text-white'
-                          : u.role === 'organization_admin'
-                            ? 'border-violet-200 bg-violet-50 text-violet-700'
-                            : 'border-zinc-200 text-zinc-700',
-                      )}
-                    >
-                      <option value="user">User</option>
-                      <option value="organization_admin">Org Admin</option>
-                      <option value="superadmin">Superadmin</option>
-                    </select>
-                  </Td>
-                  <Td>
-                    {u.banned ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700">
-                        <span className="size-1.5 rounded-full bg-red-500" />
-                        Banned
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                        <span className="size-1.5 rounded-full bg-emerald-500" />
-                        Active
-                      </span>
-                    )}
-                  </Td>
-                  <Td>
-                    <span className="text-xs text-zinc-500">
-                      {new Date(u.createdAt).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </span>
-                  </Td>
-                  <Td align="right">
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(u.id, u.name || u.email)}
-                      // Self-delete is blocked server-side too. Hiding the
-                      // button here is just to keep the UI honest — an admin
-                      // can't remove themselves and there's no use case for
-                      // even attempting it from this surface.
-                      disabled={
-                        u.id === myUserId ||
-                        deleteUser.isPending
-                      }
-                      title={
-                        u.id === myUserId
-                          ? 'You cannot delete your own account'
-                          : 'Delete user'
-                      }
-                      className="inline-flex items-center gap-1.5 rounded-[8px] bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-50"
-                    >
-                      <Trash2 className="size-3" />
-                      Delete
-                    </button>
-                  </Td>
+            </thead>
+            <tbody>
+              {usersQuery.isLoading && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-zinc-500">
+                    Loading…
+                  </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              )}
+              {!usersQuery.isLoading && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <p className="text-sm font-medium text-zinc-700">
+                      {query ? 'No matches' : 'No users yet'}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {query
+                        ? 'Try a different search term.'
+                        : 'Users appear here as soon as they sign up.'}
+                    </p>
+                  </td>
+                </tr>
+              )}
+              {filtered.map((u) => {
+                const org = u.organizationId ? orgsById.get(u.organizationId) : null;
+                return (
+                  <tr key={u.id} className="border-t border-zinc-100">
+                    <Td>
+                      <div className="flex items-center gap-3">
+                        <Avatar name={u.name ?? u.email} email={u.email} />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-zinc-900">
+                            {u.name || u.email.split('@')[0]}
+                          </p>
+                          <p className="truncate text-xs text-zinc-500">{u.email}</p>
+                        </div>
+                      </div>
+                    </Td>
+                    <Td>
+                      <div className="flex items-center gap-2">
+                        {org ? (
+                          <>
+                            <OrgGlyph
+                              seed={org.id}
+                              primaryColor={org.primaryColor}
+                              logoUrl={org.logoUrl}
+                              size={20}
+                            />
+                            <span className="truncate text-sm text-zinc-700">{org.name}</span>
+                          </>
+                        ) : (
+                          <DsBadge>Unassigned</DsBadge>
+                        )}
+                        {/* Reassign menu — simple select */}
+                        <select
+                          value={u.organizationId ?? ''}
+                          disabled={assignOrg.isPending}
+                          onChange={(e) => handleAssignOrg(u.id, e.target.value || null)}
+                          className="ml-1 rounded-[8px] border border-zinc-200 bg-white px-2 py-1 text-xs outline-none disabled:opacity-60"
+                          aria-label="Reassign organization"
+                        >
+                          <option value="">— Unassigned —</option>
+                          {orgs.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </Td>
+                    <Td>
+                      <select
+                        value={u.role}
+                        disabled={setRole.isPending}
+                        onChange={(e) => handleRoleChange(u.id, e.target.value as Role)}
+                        className={cn(
+                          'rounded-[8px] border bg-white px-2 py-1 text-xs font-semibold outline-none disabled:opacity-60',
+                          u.role === 'superadmin'
+                            ? 'border-zinc-900 bg-zinc-900 text-white'
+                            : u.role === 'organization_admin'
+                              ? 'border-violet-200 bg-violet-50 text-violet-700'
+                              : 'border-zinc-200 text-zinc-700',
+                        )}
+                      >
+                        <option value="user">User</option>
+                        <option value="organization_admin">Org Admin</option>
+                        <option value="superadmin">Superadmin</option>
+                      </select>
+                    </Td>
+                    <Td>
+                      {u.banned ? (
+                        <DsBadge color="red" dot>
+                          Banned
+                        </DsBadge>
+                      ) : (
+                        <DsBadge color="green" dot>
+                          Active
+                        </DsBadge>
+                      )}
+                    </Td>
+                    <Td>
+                      <span className="text-xs text-zinc-500">
+                        {new Date(u.createdAt).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    </Td>
+                    <Td align="right">
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(u.id, u.name || u.email)}
+                        // Self-delete is blocked server-side too. Hiding the
+                        // button here is just to keep the UI honest — an admin
+                        // can't remove themselves and there's no use case for
+                        // even attempting it from this surface.
+                        disabled={u.id === myUserId || deleteUser.isPending}
+                        title={
+                          u.id === myUserId ? 'You cannot delete your own account' : 'Delete user'
+                        }
+                        className="inline-flex items-center gap-1.5 rounded-[8px] bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-50"
+                      >
+                        <Trash2 className="size-3" />
+                        Delete
+                      </button>
+                    </Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -381,9 +366,7 @@ function CreateUserDialog({
   const [showPassword, setShowPassword] = useState(false);
   const [copiedPwd, setCopiedPwd] = useState(false);
   const [role, setRole] = useState<Role>('user');
-  const [organizationId, setOrganizationId] = useState<string | ''>(
-    defaultOrgId ?? '',
-  );
+  const [organizationId, setOrganizationId] = useState<string | ''>(defaultOrgId ?? '');
   const [error, setError] = useState<string | null>(null);
 
   async function handleCreate() {
@@ -438,8 +421,8 @@ function CreateUserDialog({
             <div>
               <p className="text-base font-semibold text-zinc-900">New user</p>
               <p className="mt-0.5 text-sm text-zinc-500">
-                Create an account directly. The user can sign in immediately
-                with the password below — share it through a secure channel.
+                Create an account directly. The user can sign in immediately with the password below
+                — share it through a secure channel.
               </p>
             </div>
           </div>
@@ -493,11 +476,7 @@ function CreateUserDialog({
                   className="grid w-9 shrink-0 place-items-center border-l border-zinc-200 text-zinc-500 hover:bg-zinc-50"
                   aria-label={showPassword ? 'Hide' : 'Show'}
                 >
-                  {showPassword ? (
-                    <EyeOff className="size-3.5" />
-                  ) : (
-                    <Eye className="size-3.5" />
-                  )}
+                  {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                 </button>
               </div>
               <button
@@ -559,9 +538,9 @@ function CreateUserDialog({
 
           {role === 'superadmin' && (
             <div className="rounded-[10px] border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-              Superadmins operate at the platform tier and won't have access
-              to chat or workspace surfaces. The Organization field is just
-              for billing/reporting context — it doesn't grant access.
+              Superadmins operate at the platform tier and won't have access to chat or workspace
+              surfaces. The Organization field is just for billing/reporting context — it doesn't
+              grant access.
             </div>
           )}
 
@@ -596,8 +575,7 @@ function CreateUserDialog({
 
 /* ─────────────── helpers ─────────────── */
 
-const PWD_ALPHABET =
-  'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/l/I
+const PWD_ALPHABET = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/l/I
 
 function generatePassword(): string {
   const len = 14;
@@ -632,33 +610,17 @@ function Field({
 
 /* ─────────────── components ─────────────── */
 
-function Th({
-  children,
-  align,
-}: {
-  children: React.ReactNode;
-  align?: 'right';
-}) {
+function Th({ children, align }: { children: React.ReactNode; align?: 'right' }) {
   return (
-    <th
-      className={`px-6 py-3 ${align === 'right' ? 'text-right' : 'text-left'} font-medium`}
-    >
+    <th className={`px-6 py-3 ${align === 'right' ? 'text-right' : 'text-left'} font-medium`}>
       {children}
     </th>
   );
 }
 
-function Td({
-  children,
-  align,
-}: {
-  children: React.ReactNode;
-  align?: 'right';
-}) {
+function Td({ children, align }: { children: React.ReactNode; align?: 'right' }) {
   return (
-    <td
-      className={`px-6 py-4 align-middle ${align === 'right' ? 'text-right' : ''}`}
-    >
+    <td className={`px-6 py-4 align-middle ${align === 'right' ? 'text-right' : ''}`}>
       {children}
     </td>
   );

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Building2, Plus, Search, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
+import { DsBadge } from '@/components/ui/ds-badge';
 import { AdminPageBody } from '../PlatformAdminLayout';
 import { OrgGlyph } from './PlatformDashboardPage';
 
@@ -21,11 +22,7 @@ export function PlatformOrganizationsPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return orgs;
-    return orgs.filter(
-      (o) =>
-        o.name.toLowerCase().includes(q) ||
-        o.slug.toLowerCase().includes(q),
-    );
+    return orgs.filter((o) => o.name.toLowerCase().includes(q) || o.slug.toLowerCase().includes(q));
   }, [orgs, query]);
 
   return (
@@ -37,9 +34,7 @@ export function PlatformOrganizationsPage() {
               <Building2 className="size-4" />
             </span>
             <div>
-              <p className="text-sm font-medium leading-5 text-black">
-                All organizations
-              </p>
+              <p className="text-sm font-medium leading-5 text-black">All organizations</p>
               <p className="mt-0.5 text-sm text-zinc-500">
                 {orgs.length === 0
                   ? 'No organizations yet.'
@@ -70,115 +65,111 @@ export function PlatformOrganizationsPage() {
         </div>
 
         <div className="scrollbar-thin overflow-x-auto">
-        <table className="w-full min-w-[820px] text-sm">
-          <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
-            <tr>
-              <Th>Organization</Th>
-              <Th>Users</Th>
-              <Th>Workspaces</Th>
-              <Th>Status</Th>
-              <Th>Created</Th>
-              <Th align="right">{''}</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {orgsQuery.isLoading && (
+          <table className="w-full min-w-[820px] text-sm">
+            <thead className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-500">
               <tr>
-                <td colSpan={6} className="px-6 py-10 text-center text-sm text-zinc-500">
-                  Loading…
-                </td>
+                <Th>Organization</Th>
+                <Th>Users</Th>
+                <Th>Workspaces</Th>
+                <Th>Status</Th>
+                <Th>Created</Th>
+                <Th align="right">{''}</Th>
               </tr>
-            )}
-            {!orgsQuery.isLoading && filtered.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-6 py-12">
-                  <div className="flex flex-col items-center gap-2 text-center">
-                    <p className="text-sm font-medium text-zinc-700">
-                      {query ? 'No matches' : 'No organizations yet'}
-                    </p>
-                    <p className="text-xs text-zinc-500">
-                      {query
-                        ? 'Try a different search term.'
-                        : 'Create the first tenant to get started.'}
-                    </p>
-                    {!query && (
-                      <button
-                        type="button"
-                        onClick={() => setShowCreate(true)}
-                        className="mt-2 inline-flex items-center gap-1.5 rounded-[8px] bg-black px-3 py-1.5 text-xs font-medium text-white"
-                      >
-                        <Plus className="size-3.5" />
-                        New organization
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            )}
-            {filtered.map((o) => (
-              <tr
-                key={o.id}
-                className="cursor-pointer border-t border-zinc-100 transition-colors hover:bg-zinc-50/70"
-              >
-                <Td>
-                  <Link
-                    to={`/admin/platform/organizations/${o.id}`}
-                    className="flex items-center gap-3"
-                  >
-                    <OrgGlyph
-                      seed={o.id}
-                      primaryColor={o.primaryColor}
-                      logoUrl={o.logoUrl}
-                      size={32}
-                    />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-zinc-900">
-                        {o.name}
+            </thead>
+            <tbody>
+              {orgsQuery.isLoading && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-zinc-500">
+                    Loading…
+                  </td>
+                </tr>
+              )}
+              {!orgsQuery.isLoading && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12">
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <p className="text-sm font-medium text-zinc-700">
+                        {query ? 'No matches' : 'No organizations yet'}
                       </p>
-                      <p className="truncate text-xs text-zinc-500">{o.slug}</p>
+                      <p className="text-xs text-zinc-500">
+                        {query
+                          ? 'Try a different search term.'
+                          : 'Create the first tenant to get started.'}
+                      </p>
+                      {!query && (
+                        <button
+                          type="button"
+                          onClick={() => setShowCreate(true)}
+                          className="mt-2 inline-flex items-center gap-1.5 rounded-[8px] bg-black px-3 py-1.5 text-xs font-medium text-white"
+                        >
+                          <Plus className="size-3.5" />
+                          New organization
+                        </button>
+                      )}
                     </div>
-                  </Link>
-                </Td>
-                <Td>
-                  <CapBar current={o.userCount} max={o.maxUsers} />
-                </Td>
-                <Td>
-                  <CapBar current={o.workspaceCount} max={o.maxWorkspaces} />
-                </Td>
-                <Td>
-                  {o.suspended ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                      <span className="size-1.5 rounded-full bg-amber-500" />
-                      Suspended
+                  </td>
+                </tr>
+              )}
+              {filtered.map((o) => (
+                <tr
+                  key={o.id}
+                  className="cursor-pointer border-t border-zinc-100 transition-colors hover:bg-zinc-50/70"
+                >
+                  <Td>
+                    <Link
+                      to={`/admin/platform/organizations/${o.id}`}
+                      className="flex items-center gap-3"
+                    >
+                      <OrgGlyph
+                        seed={o.id}
+                        primaryColor={o.primaryColor}
+                        logoUrl={o.logoUrl}
+                        size={32}
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-zinc-900">{o.name}</p>
+                        <p className="truncate text-xs text-zinc-500">{o.slug}</p>
+                      </div>
+                    </Link>
+                  </Td>
+                  <Td>
+                    <CapBar current={o.userCount} max={o.maxUsers} />
+                  </Td>
+                  <Td>
+                    <CapBar current={o.workspaceCount} max={o.maxWorkspaces} />
+                  </Td>
+                  <Td>
+                    {o.suspended ? (
+                      <DsBadge color="orange" dot>
+                        Suspended
+                      </DsBadge>
+                    ) : (
+                      <DsBadge color="green" dot>
+                        Active
+                      </DsBadge>
+                    )}
+                  </Td>
+                  <Td>
+                    <span className="text-xs text-zinc-500">
+                      {new Date(o.createdAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
                     </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                      <span className="size-1.5 rounded-full bg-emerald-500" />
-                      Active
-                    </span>
-                  )}
-                </Td>
-                <Td>
-                  <span className="text-xs text-zinc-500">
-                    {new Date(o.createdAt).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </span>
-                </Td>
-                <Td align="right">
-                  <Link
-                    to={`/admin/platform/organizations/${o.id}`}
-                    className="inline-flex items-center rounded-[8px] border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                  >
-                    Manage
-                  </Link>
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </Td>
+                  <Td align="right">
+                    <Link
+                      to={`/admin/platform/organizations/${o.id}`}
+                      className="inline-flex items-center rounded-[8px] border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                    >
+                      Manage
+                    </Link>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -267,9 +258,7 @@ function CreateOrganizationDialog({
               <Building2 className="size-5" />
             </span>
             <div>
-              <p className="text-base font-semibold text-zinc-900">
-                New organization
-              </p>
+              <p className="text-base font-semibold text-zinc-900">New organization</p>
               <p className="mt-0.5 text-sm text-zinc-500">
                 Tenants are isolated. Files, members, and chats never cross orgs.
               </p>
@@ -297,10 +286,7 @@ function CreateOrganizationDialog({
             />
           </Field>
 
-          <Field
-            label="Slug"
-            hint="URL-safe handle. Auto-generated from the name; click to edit."
-          >
+          <Field label="Slug" hint="URL-safe handle. Auto-generated from the name; click to edit.">
             <div className="flex items-stretch overflow-hidden rounded-[10px] border border-zinc-200 bg-white focus-within:border-zinc-400">
               <span className="grid place-items-center bg-zinc-50 px-3 text-xs text-zinc-500">
                 /
@@ -336,19 +322,14 @@ function CreateOrganizationDialog({
                 min={1}
                 max={1000}
                 value={maxWorkspaces}
-                onChange={(e) =>
-                  setMaxWorkspaces(parseIntSafe(e.target.value, 1, 1000, 20))
-                }
+                onChange={(e) => setMaxWorkspaces(parseIntSafe(e.target.value, 1, 1000, 20))}
                 className="w-full rounded-[10px] border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-400 tabular-nums"
               />
             </Field>
           </div>
 
           {/* Primary color */}
-          <Field
-            label="Brand color"
-            hint="Used for the org glyph and accent UI. Optional."
-          >
+          <Field label="Brand color" hint="Used for the org glyph and accent UI. Optional.">
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -433,8 +414,7 @@ function Field({
 
 function CapBar({ current, max }: { current: number; max: number }) {
   const pct = Math.min(100, max > 0 ? (current / max) * 100 : 0);
-  const tone =
-    pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-zinc-700';
+  const tone = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-zinc-700';
   return (
     <div className="flex w-32 flex-col gap-1.5">
       <div className="flex items-baseline justify-between text-xs tabular-nums">
@@ -451,36 +431,17 @@ function CapBar({ current, max }: { current: number; max: number }) {
   );
 }
 
-function Th({
-  children,
-  align,
-}: {
-  children: React.ReactNode;
-  align?: 'right' | 'left';
-}) {
+function Th({ children, align }: { children: React.ReactNode; align?: 'right' | 'left' }) {
   return (
-    <th
-      className={cn(
-        'px-6 py-3 text-left font-medium',
-        align === 'right' && 'text-right',
-      )}
-    >
+    <th className={cn('px-6 py-3 text-left font-medium', align === 'right' && 'text-right')}>
       {children}
     </th>
   );
 }
 
-function Td({
-  children,
-  align,
-}: {
-  children: React.ReactNode;
-  align?: 'right' | 'left';
-}) {
+function Td({ children, align }: { children: React.ReactNode; align?: 'right' | 'left' }) {
   return (
-    <td className={cn('px-6 py-4 align-middle', align === 'right' && 'text-right')}>
-      {children}
-    </td>
+    <td className={cn('px-6 py-4 align-middle', align === 'right' && 'text-right')}>{children}</td>
   );
 }
 
