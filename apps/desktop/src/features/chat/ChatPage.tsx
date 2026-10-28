@@ -44,6 +44,8 @@ export function ChatPage() {
   const isSubmitting = status === 'submitted';
   const isStreaming = status === 'streaming';
   const isBusy = isSubmitting || isStreaming;
+  // A new chat centres the greeting and composer (Figma "Chat - Suggestions").
+  const isEmpty = !hydrating && messages.length === 0 && !isBusy;
 
   function handleSend(
     text: string,
@@ -88,7 +90,7 @@ export function ChatPage() {
   return (
     <div className="flex h-full flex-col">
       <StickToBottom
-        className="relative min-h-0 flex-1 overflow-hidden"
+        className={cn('relative min-h-0 flex-1 overflow-hidden', isEmpty && 'hidden')}
         resize="smooth"
         initial="smooth"
       >
@@ -97,8 +99,6 @@ export function ChatPage() {
             {hydrating && (
               <p className="text-center text-label-14 text-text-secondary">Loading conversation…</p>
             )}
-
-            {!hydrating && messages.length === 0 && !isBusy && <EmptyState />}
 
             {messages.map((m, i) => {
               if (m.role === 'system') return null;
@@ -138,7 +138,13 @@ export function ChatPage() {
         <ScrollToBottomButton />
       </StickToBottom>
 
-      <div className="shrink-0 px-6 pt-2 pb-5">
+      <div
+        className={cn(
+          'shrink-0 px-6 pt-2',
+          isEmpty && 'flex flex-1 flex-col justify-center pb-[12vh]',
+        )}
+      >
+        {isEmpty && <Greeting name={me.data?.name} />}
         {usage.data && (overLimit || nearLimit) && (
           <div className="mx-auto mb-2 w-full max-w-[745px]">
             <SpendingLimitBanner
@@ -160,6 +166,8 @@ export function ChatPage() {
           scopeLocked={scopeLocked}
           initialModelId={preferredModelId}
         />
+      </div>
+      <div className="shrink-0 px-6 pb-5">
         <p className="mt-4 text-center font-inter text-label-12 font-medium text-text-placeholder">
           Having trouble?{' '}
           <a
@@ -251,12 +259,18 @@ function ScrollToBottomButton() {
   );
 }
 
-function EmptyState() {
+function Greeting({ name }: { name: string | null | undefined }) {
+  const hour = new Date().getHours();
+  const timeOfDay = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+  const firstName = name?.trim().split(/\s+/)[0];
   return (
-    <div className="mx-auto mt-[18vh] max-w-md text-center">
-      <h2 className="text-heading-24 font-medium text-text">What can I help you with?</h2>
-      <p className="mt-2 text-copy-14 text-text-secondary">
-        Ask anything. Your conversations save automatically.
+    <div className="mb-10 flex flex-col items-center gap-1.5 text-center font-inter">
+      <h2 className="text-[28px] leading-[34px] font-semibold text-text">
+        Good {timeOfDay}
+        {firstName ? `, ${firstName}` : ''}
+      </h2>
+      <p className="text-[15px] leading-[22px] text-text-secondary">
+        Ask anything, or pick up from here.
       </p>
     </div>
   );
