@@ -6,10 +6,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PiThreeDotsMenuVerticalStroke } from '@/components/icons/pika/PiThreeDotsMenuVerticalStroke';
+
+const menuItem = 'rounded-[14px] px-3 py-2 text-label-14 font-medium text-text';
 
 const ROLE_LABEL: Record<string, string> = {
   superadmin: 'Superadmin',
@@ -35,18 +36,31 @@ export function UserFooter({ compact = false }: { compact?: boolean }) {
     signOut();
   }
 
+  const canManageMembers = data?.role === 'superadmin' || data?.role === 'organization_admin';
+
+  // Figma "Chat - Floating menu".
   const menu = (
     <DropdownMenuContent
       align={compact ? 'start' : 'end'}
       side={compact ? 'right' : 'top'}
-      className="w-52 font-inter"
+      sideOffset={compact ? 8 : 13}
+      highlightClassName="rounded-[14px]"
+      className="w-64 rounded-[18px] border-0 bg-bg-panel p-1 font-inter shadow-[0_0_0_1px_rgba(18,55,105,0.08),0_1px_2px_rgba(29,79,129,0.04)]"
     >
-      <DropdownMenuItem onSelect={() => void navigate('/workspaces')}>
-        Switch workspace
+      {canManageMembers && (
+        <DropdownMenuItem
+          className={menuItem}
+          onSelect={() => void navigate('/settings/organization/members')}
+        >
+          Members
+        </DropdownMenuItem>
+      )}
+      <DropdownMenuItem className={menuItem} onSelect={() => void navigate('/settings')}>
+        Settings
       </DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => void navigate('/settings')}>Settings</DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem onSelect={() => void handleSignOut()}>Sign out</DropdownMenuItem>
+      <DropdownMenuItem className={menuItem} onSelect={() => void handleSignOut()}>
+        Log out
+      </DropdownMenuItem>
     </DropdownMenuContent>
   );
 

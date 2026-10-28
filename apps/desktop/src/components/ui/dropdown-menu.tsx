@@ -25,10 +25,14 @@ function DropdownMenuTrigger({
 
 function DropdownMenuContent({
   className,
+  highlightClassName = 'rounded-sm',
   sideOffset = 4,
   children,
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Content> & {
+  /** Corners of the hover highlight; match them to the item corners. */
+  highlightClassName?: string;
+}) {
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
@@ -41,7 +45,7 @@ function DropdownMenuContent({
         {...props}
       >
         {/* Fluid hover: one highlight follows the pointer and keyboard focus. */}
-        <FluidList highlightClassName="rounded-sm">{children}</FluidList>
+        <FluidList highlightClassName={highlightClassName}>{children}</FluidList>
       </DropdownMenuPrimitive.Content>
     </DropdownMenuPrimitive.Portal>
   );
