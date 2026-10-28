@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { isStrongPassword, PASSWORD_RULE_MESSAGE } from '@diguro/shared/password';
 import { apiAuth } from '@/lib/api-auth';
 import { TextField } from '@/components/ui/text-field';
-import { ActionButton } from '@/components/ui/action-button';
+import { DsButton } from '@/components/ui/ds-button';
 import { AuthCenteredLayout, AuthLink } from './AuthCenteredLayout';
 
 /**
@@ -70,12 +70,14 @@ export function ResetPasswordPage() {
         <p className="text-center text-copy-16 text-text-secondary">
           You can now sign in with your new password.
         </p>
-        <ActionButton
+        <DsButton
           onClick={() => void navigate('/')}
-          className="mt-2 h-12 w-full rounded-[12px]"
+          variant="primary"
+          size="lg"
+          className="mt-2 w-full"
         >
           Go to sign in
-        </ActionButton>
+        </DsButton>
       </AuthCenteredLayout>
     );
   }
@@ -105,9 +107,15 @@ export function ResetPasswordPage() {
           onChange={(e) => setConfirm(e.target.value)}
           error={showErrors ? (confirmError ?? error) : error}
         />
-        <ActionButton type="submit" loading={loading} className="mt-2 h-12 w-full rounded-[12px]">
+        <DsButton
+          type="submit"
+          loading={loading}
+          variant="primary"
+          size="lg"
+          className="mt-2 w-full"
+        >
           Reset password
-        </ActionButton>
+        </DsButton>
       </form>
     </AuthCenteredLayout>
   );

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { TextField } from '@/components/ui/text-field';
-import { ActionButton } from '@/components/ui/action-button';
+import { DsButton } from '@/components/ui/ds-button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -107,9 +107,9 @@ export function InviteStep({ orgName, onBack, onDone }: InviteStepProps) {
           error={draftError}
           className="flex-1"
         />
-        <ActionButton onClick={() => add()} className="h-9" disabled={!draft.trim()}>
+        <DsButton variant="primary" size="md" onClick={() => add()} disabled={!draft.trim()}>
           Add
-        </ActionButton>
+        </DsButton>
       </div>
 
       {invitees.length > 0 && (

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { Slider } from 'radix-ui';
 import { Modal } from '@/components/ui/modal';
-import { ActionButton } from '@/components/ui/action-button';
+import { DsButton } from '@/components/ui/ds-button';
 
 /** Crop frame in the 272px-tall crop area, and the exported logo size. */
 const FRAME = 200;
@@ -107,12 +107,12 @@ export function LogoCropDialog({ file, onCancel, onSave }: LogoCropDialogProps) 
       description="Drag to move, use the slider to zoom."
       footer={
         <>
-          <ActionButton variant="secondary" onClick={onCancel} className="px-3.5">
+          <DsButton size="md" onClick={onCancel}>
             Cancel
-          </ActionButton>
-          <ActionButton onClick={save} disabled={!natural}>
+          </DsButton>
+          <DsButton variant="primary" size="md" onClick={save} disabled={!natural}>
             Save logo
-          </ActionButton>
+          </DsButton>
         </>
       }
     >

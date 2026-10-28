@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { apiAuth } from '@/lib/api-auth';
 import { TextField } from '@/components/ui/text-field';
-import { ActionButton } from '@/components/ui/action-button';
+import { DsButton } from '@/components/ui/ds-button';
 import { PiEnvelopeDefaultStroke } from '@/components/icons/pika/PiEnvelopeDefaultStroke';
 import { AuthCenteredLayout, AuthLink } from './AuthCenteredLayout';
 
@@ -66,9 +66,15 @@ export function ForgotPassword({ onBack }: { onBack: () => void }) {
           onChange={(e) => setEmail(e.target.value)}
           error={error}
         />
-        <ActionButton type="submit" loading={loading} className="mt-2 h-12 w-full rounded-[12px]">
+        <DsButton
+          type="submit"
+          loading={loading}
+          variant="primary"
+          size="lg"
+          className="mt-2 w-full"
+        >
           Send reset link
-        </ActionButton>
+        </DsButton>
       </form>
     </AuthCenteredLayout>
   );

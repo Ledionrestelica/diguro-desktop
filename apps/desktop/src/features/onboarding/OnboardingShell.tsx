@@ -1,6 +1,6 @@
 import type { FormEvent, ReactNode } from 'react';
 import { IseranaWordmark } from '@/components/brand/IseranaWordmark';
-import { ActionButton } from '@/components/ui/action-button';
+import { DsButton } from '@/components/ui/ds-button';
 import { PiArrowLeftStroke } from '@/components/icons/pika/PiArrowLeftStroke';
 import { cn } from '@/lib/utils';
 import { SetupProgress } from './SetupProgress';
@@ -117,9 +117,15 @@ export function OnboardingShell({
         ) : (
           <span />
         )}
-        <ActionButton type="submit" loading={loading} disabled={continueDisabled}>
+        <DsButton
+          variant="primary"
+          size="lg"
+          type="submit"
+          loading={loading}
+          disabled={continueDisabled}
+        >
           {continueLabel}
-        </ActionButton>
+        </DsButton>
       </footer>
     </form>
   );
