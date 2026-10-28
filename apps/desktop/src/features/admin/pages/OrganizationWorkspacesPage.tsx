@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { TextField } from '@/components/ui/text-field';
 import { AdminPageBody } from '../AdminPageBody';
 import { Collapsible } from '@/features/chat/trace/Collapsible';
+import { dsButtonClass } from '@/components/ui/ds-button';
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER';
 
@@ -91,12 +92,7 @@ export function OrganizationWorkspacesPage() {
               setCreateOpen(true);
             }
           }}
-          className={cn(
-            'press-scale flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] px-3 py-[7px] text-label-13 font-medium outline-none transition-[opacity,background-color] focus-visible:shadow-[0_0_0_2px_var(--color-text)]',
-            createOpen
-              ? 'border border-border-default bg-bg-panel text-text hover:bg-hover'
-              : 'press-scale bg-primary text-text-on-solid hover:opacity-90',
-          )}
+          className={dsButtonClass({ variant: createOpen ? 'secondary' : 'primary' })}
         >
           <PiPlusDefaultStroke className="size-4" />
           New workspace
@@ -140,7 +136,7 @@ export function OrganizationWorkspacesPage() {
                     !(draftSlug.trim() || slugify(draftName)) ||
                     workspaceCreate.isPending
                   }
-                  className="press-scale flex cursor-pointer items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40"
+                  className={dsButtonClass({ variant: 'primary' })}
                 >
                   {workspaceCreate.isPending && (
                     <Loader2 className="size-3.5 animate-spin" strokeWidth={1.5} />
@@ -153,7 +149,7 @@ export function OrganizationWorkspacesPage() {
                     setCreateOpen(false);
                     resetCreateForm();
                   }}
-                  className="press-scale cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+                  className={dsButtonClass()}
                 >
                   Cancel
                 </button>
@@ -307,7 +303,7 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
             setShowAdd((v) => !v);
             setError(null);
           }}
-          className="press-scale inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+          className={dsButtonClass()}
         >
           <PiUserPlusStroke className="size-4" />
           Add member
@@ -355,7 +351,7 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
               type="button"
               onClick={() => void handleAdd()}
               disabled={!selectedUserId || addMember.isPending}
-              className="press-scale flex cursor-pointer items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40"
+              className={dsButtonClass({ variant: 'primary' })}
             >
               {addMember.isPending && (
                 <Loader2 className="size-3.5 animate-spin" strokeWidth={1.5} />
@@ -369,7 +365,7 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
                 setSelectedUserId('');
                 setError(null);
               }}
-              className="press-scale cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+              className={dsButtonClass()}
             >
               Cancel
             </button>
@@ -410,7 +406,7 @@ function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) {
                 type="button"
                 onClick={() => handleRemove(m.memberId)}
                 disabled={removeMember.isPending}
-                className="press-scale inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-danger-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40"
+                className={dsButtonClass({ variant: 'danger' })}
               >
                 <PiDeleteDustbin02Stroke className="size-4" />
                 Remove

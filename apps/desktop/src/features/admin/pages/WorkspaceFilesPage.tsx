@@ -11,6 +11,7 @@ import { PiDeleteDustbin02Stroke } from '@/components/icons/pika/PiDeleteDustbin
 import { PiUploadUpStroke } from '@/components/icons/pika/PiUploadUpStroke';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
+import { dsButtonClass } from '@/components/ui/ds-button';
 import { Input } from '@/components/ui/input';
 import { AdminPageBody } from '../AdminPageBody';
 
@@ -594,11 +595,9 @@ export function WorkspaceFilesPage() {
   );
 }
 
-const PRIMARY_BUTTON =
-  'press-scale inline-flex items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40';
+const PRIMARY_BUTTON = dsButtonClass({ variant: 'primary' });
 
-const SECONDARY_BUTTON =
-  'press-scale inline-flex items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40';
+const SECONDARY_BUTTON = dsButtonClass();
 
 const ICON_BUTTON =
   'grid size-8 shrink-0 place-items-center rounded-[8px] text-text-secondary outline-none transition-colors hover:bg-hover hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40';

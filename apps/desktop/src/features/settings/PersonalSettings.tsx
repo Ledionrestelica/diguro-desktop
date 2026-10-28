@@ -5,6 +5,7 @@ import { trpc } from '@/lib/trpc';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { SettingsRow, SettingsSection } from '@/features/admin/SettingsSection';
+import { dsButtonClass } from '@/components/ui/ds-button';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPT = 'image/png,image/jpeg,image/webp,image/gif';
@@ -91,7 +92,7 @@ export function PersonalSettings() {
               type="button"
               onClick={handleSaveName}
               disabled={!dirty || update.isPending}
-              className="press-scale cursor-pointer rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40"
+              className={dsButtonClass({ variant: 'primary' })}
             >
               {update.isPending ? 'Saving…' : 'Save'}
             </button>
@@ -221,7 +222,7 @@ function AvatarUploader({
           type="button"
           onClick={() => !busy && fileInputRef.current?.click()}
           disabled={busy}
-          className="press-scale cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
+          className={dsButtonClass()}
         >
           {busy ? 'Uploading…' : hasPhoto ? 'Change' : 'Upload photo'}
         </button>
@@ -229,7 +230,7 @@ function AvatarUploader({
           <button
             type="button"
             onClick={() => void clearAvatar()}
-            className="press-scale cursor-pointer rounded-[10px] px-2.5 py-[7px] text-label-13 font-medium text-text-secondary outline-none transition-colors hover:text-danger-text focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+            className={dsButtonClass({ variant: 'danger' })}
           >
             Remove
           </button>

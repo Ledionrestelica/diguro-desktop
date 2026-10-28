@@ -8,6 +8,7 @@ import { PiUserPlusStroke } from '@/components/icons/pika/PiUserPlusStroke';
 import { PiMultipleCrossCancelDefaultStroke } from '@/components/icons/pika/PiMultipleCrossCancelDefaultStroke';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
+import { dsButtonClass } from '@/components/ui/ds-button';
 import { TextField } from '@/components/ui/text-field';
 import { AdminPageBody } from '../AdminPageBody';
 
@@ -223,7 +224,7 @@ export function MembersPage() {
                           type="button"
                           disabled={locked || removeUser.isPending}
                           onClick={() => handleRemove(u.id)}
-                          className={cn(secondaryButton, 'text-danger-text')}
+                          className={dangerButton}
                         >
                           <PiDeleteDustbin02Stroke className="size-3.5" />
                           Remove
@@ -285,7 +286,7 @@ export function MembersPage() {
                             type="button"
                             onClick={() => handleRevoke(i.id)}
                             disabled={inviteRevoke.isPending}
-                            className={cn(secondaryButton, 'text-danger-text')}
+                            className={dangerButton}
                           >
                             <PiMultipleCrossCancelDefaultStroke className="size-3.5" />
                             Revoke
@@ -439,11 +440,11 @@ export function MembersPage() {
   );
 }
 
-const primaryButton =
-  'press-scale inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40';
+const primaryButton = dsButtonClass({ variant: 'primary' });
 
-const secondaryButton =
-  'press-scale inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel px-3 py-[7px] text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40';
+const secondaryButton = dsButtonClass();
+
+const dangerButton = dsButtonClass({ variant: 'danger' });
 
 const selectClass =
   'h-8 cursor-pointer rounded-[10px] border border-border-default bg-bg-panel px-2.5 text-label-13 text-text outline-none transition-[border-color,box-shadow] hover:border-border-hover focus-visible:border-focus-ring focus-visible:shadow-[0_0_0_3px_var(--color-selection)] disabled:cursor-not-allowed disabled:border-border-default disabled:bg-bg-subtle disabled:text-text-secondary';

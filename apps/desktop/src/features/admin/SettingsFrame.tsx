@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cn } from '@/lib/utils';
+import { dsButtonClass } from '@/components/ui/ds-button';
 import type { AdminSaveAction } from './admin-save-context';
 import { SettingsFrameContext } from './AdminPageBody';
 
@@ -39,12 +39,7 @@ export function SettingsFrame({
                   type="button"
                   onClick={save.onSave}
                   disabled={save.disabled || save.pending}
-                  className={cn(
-                    'press-scale shrink-0 rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity focus-visible:shadow-[0_0_0_2px_var(--color-text)]',
-                    save.disabled || save.pending
-                      ? 'cursor-not-allowed opacity-40'
-                      : 'hover:opacity-90',
-                  )}
+                  className={dsButtonClass({ variant: 'primary' })}
                 >
                   {save.pending ? 'Saving…' : (save.label ?? 'Save changes')}
                 </button>

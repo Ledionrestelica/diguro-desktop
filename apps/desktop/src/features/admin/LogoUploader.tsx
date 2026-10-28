@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { PiUploadUpStroke } from '@/components/icons/pika/PiUploadUpStroke';
 import { WorkspaceGlyph } from '@/features/workspaces/WorkspaceGlyph';
+import { dsButtonClass } from '@/components/ui/ds-button';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml,image/gif';
@@ -154,12 +155,7 @@ export function LogoUploader({
             PNG, JPG, WEBP, SVG or GIF · square, at least 256 × 256 px · up to 10 MB
           </p>
           <div className="mt-2 flex items-center gap-1">
-            <button
-              type="button"
-              onClick={openPicker}
-              disabled={busy}
-              className="press-scale flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-panel py-[7px] pr-3 pl-2.5 text-label-13 font-medium text-text outline-none transition-colors hover:bg-hover focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
+            <button type="button" onClick={openPicker} disabled={busy} className={dsButtonClass()}>
               <PiUploadUpStroke size={16} />
               {busy ? 'Uploading…' : hasLogo ? 'Change logo' : 'Upload logo'}
             </button>
@@ -167,7 +163,7 @@ export function LogoUploader({
               <button
                 type="button"
                 onClick={() => void clearLogo()}
-                className="press-scale cursor-pointer rounded-[10px] px-3 py-[7px] text-label-13 font-medium text-text-secondary outline-none transition-colors hover:text-danger-text focus-visible:shadow-[0_0_0_2px_var(--color-text)]"
+                className={dsButtonClass({ variant: 'danger' })}
               >
                 Remove
               </button>

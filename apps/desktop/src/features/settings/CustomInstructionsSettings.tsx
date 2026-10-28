@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
 import { SettingsRow, SettingsSection } from '@/features/admin/SettingsSection';
+import { dsButtonClass } from '@/components/ui/ds-button';
 
 const MAX_LEN = 4000;
 const PLACEHOLDER =
@@ -74,7 +75,7 @@ export function CustomInstructionsSettings() {
               type="button"
               onClick={() => setValue('')}
               disabled={value.length === 0 || setInstructions.isPending}
-              className="press-scale cursor-pointer rounded-[10px] px-3 py-[7px] text-label-13 font-medium text-text-secondary outline-none transition-colors hover:text-text focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40"
+              className={dsButtonClass({ variant: 'tertiary' })}
             >
               Clear
             </button>
@@ -83,8 +84,8 @@ export function CustomInstructionsSettings() {
               onClick={save}
               disabled={!isDirty || setInstructions.isPending}
               className={cn(
-                'press-scale cursor-pointer rounded-[10px] bg-primary px-3 py-[7px] text-label-13 font-medium text-text-on-solid outline-none transition-opacity hover:opacity-90 focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed',
-                !justSaved && 'disabled:opacity-40',
+                dsButtonClass({ variant: 'primary' }),
+                justSaved && 'disabled:bg-primary disabled:text-white',
               )}
             >
               {setInstructions.isPending ? 'Saving…' : justSaved ? 'Saved' : 'Save'}

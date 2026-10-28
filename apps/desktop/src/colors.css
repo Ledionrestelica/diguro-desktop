@@ -125,6 +125,8 @@
   --color-selection: var(--color-iris-3);
 
   --color-primary-disabled: var(--color-gray-4);
+  /* Figma Button · Primary hover (and Primary disabled fill). */
+  --color-primary-hover: #2e2e2e;
 
   --color-ai: var(--color-iris-9);
   --color-ai-hover: var(--color-iris-10);
