@@ -11,15 +11,14 @@ export type DsButtonSize = 'sm' | 'md' | 'lg';
 type Icon = ComponentType<{ size?: number; className?: string }>;
 
 const base =
-  'press-scale inline-flex shrink-0 cursor-pointer items-center justify-center font-inter font-medium whitespace-nowrap outline-none transition-[transform,background-color,border-color,color] focus-visible:shadow-[0_0_0_2px_var(--color-text)] disabled:cursor-not-allowed';
+  'press-scale inline-flex shrink-0 cursor-pointer items-center justify-center font-inter font-medium whitespace-nowrap outline-none transition-[transform,background-color,border-color,color] disabled:cursor-not-allowed';
 
 const variants: Record<DsButtonVariant, string> = {
   primary:
-    'bg-primary text-white enabled:hover:bg-primary-hover disabled:bg-primary-hover disabled:text-gray-11',
+    'bg-primary text-white enabled:hover:bg-primary-hover disabled:bg-gray-3 disabled:text-gray-7',
   secondary:
-    'border border-border-default bg-bg-panel text-text enabled:hover:border-gray-7 disabled:border-transparent disabled:bg-gray-3 disabled:text-gray-7',
-  tertiary:
-    'border border-gray-5 text-text enabled:hover:border-gray-7 disabled:border-border-default disabled:text-gray-6',
+    'border border-border-default bg-bg-panel text-text enabled:hover:border-gray-7 disabled:border-gray-a3 disabled:text-gray-7',
+  tertiary: 'text-text-secondary enabled:hover:text-text disabled:text-gray-6',
   danger: 'bg-tomato-3 text-tomato-10 enabled:hover:bg-tomato-4 disabled:text-tomato-6',
   destructive: 'bg-tomato-9 text-white enabled:hover:bg-tomato-11 disabled:text-tomato-7',
 };
